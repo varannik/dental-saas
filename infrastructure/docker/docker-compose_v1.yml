@@ -1,0 +1,182 @@
+services:
+  api-gateway:
+    image: traefik:v3.3
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.websecure.http3=true"
+      - "--certificatesresolvers.myresolver.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./letsencrypt:/letsencrypt
+    networks:
+      - dental-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`traefik.yourdomain.com`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls.certresolver=myresolver"
+      - "traefik.http.routers.api.service=api@internal"
+      - "traefik.http.routers.api.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.users=${BASIC_AUTH_USERS}"
+
+
+  postgres:
+      image: postgres:16-alpine
+      restart: unless-stopped
+      environment:
+        - POSTGRES_USER=${DB_USER:-postgres}
+        - POSTGRES_PASSWORD=${DB_PASSWORD:-changeme}
+        - POSTGRES_MULTIPLE_DATABASES=dental_auth,dental_patient,dental_communication,dental_subscription
+        - POSTGRES_HOST_AUTH_METHOD=scram-sha-256
+        - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+      volumes:
+        - postgres-data:/var/lib/postgresql/data
+        - ./postgres-init:/docker-entrypoint-initdb.d:ro
+      ports:
+        - "5432:5432"
+      networks:
+        - dental-network
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+
+
+  mongo:
+    image: mongo:8
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "27017:27017"  # Restrict to localhost connections
+    networks:
+      - dental-network
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}  # Use environment variable
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    command: ["--wiredTigerCacheSizeGB", "0.5"]  # Limit cache usage
+
+  minio:
+    image: quay.io/minio/minio:latest  # Using official repo with latest tag
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}  # Using env vars with defaults
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_BROWSER_REDIRECT_URL=https://console.your-domain.com  # For production
+    volumes:
+      - minio-data:/data
+    ports:
+      - "127.0.0.1:9000:9000"  # Restrict to localhost connections
+      - "127.0.0.1:9001:9001"  # Restrict console access
+    networks:
+      - dental-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    labels:
+      - "traefik.enable=true"  # Optional: for Traefik reverse proxy integration
+
+  weaviate:
+    image: semitechnologies/weaviate:1.29.2  # Updated to latest patch version
+    environment:
+      - QUERY_DEFAULTS_LIMIT=20
+      - AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=false  # Improved security
+      - AUTHENTICATION_APIKEY_ENABLED=true  # Enable API key auth
+      - AUTHENTICATION_APIKEY_ALLOWED_KEYS=${WEAVIATE_API_KEY}  # Use env var
+      - AUTHENTICATION_APIKEY_USERS=admin@example.com  # Map key to user
+      - PERSISTENCE_DATA_PATH=/var/lib/weaviate
+      - DEFAULT_VECTORIZER_MODULE=text2vec-transformers
+      - ENABLE_MODULES=text2vec-transformers,backup-filesystem
+      - TRANSFORMERS_INFERENCE_API=http://t2v-transformers:8080
+      - CLUSTER_HOSTNAME=weaviate-node1
+    ports:
+      - "8080:8080"
+    volumes:
+      - weaviate-data:/var/lib/weaviate
+      - weaviate-backups:/var/lib/weaviate-backups  # Add backup volume
+    networks:
+      - dental-network
+    depends_on:
+      t2v-transformers:
+        condition: service_healthy  # Wait for transformer service to be healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/.well-known/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s  # Weaviate needs time to initialize
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2'
+        reservations:
+          memory: 2G
+
+  t2v-transformers:
+    image: semitechnologies/transformers-inference:sentence-transformers-all-MiniLM-L6-v2
+    environment:
+      - ENABLE_CUDA=${ENABLE_CUDA:-0}  # Allow GPU usage via env var
+      - INFERENCE_API_MAX_WORKERS=4  # Control concurrency
+      - TRANSFORMERS_CACHE=/tmp/transformers_cache  # Cache models
+    volumes:
+      - transformer-cache:/tmp/transformers_cache  # Persist model cache
+    networks:
+      - dental-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/ready"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 30s  # Models take time to load
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1'
+        reservations:
+          memory: 1G
+
+networks:
+  dental-network:
+    driver: bridge
+
+volumes:
+  letsencrypt:
+  postgres-data:
+  mongo-data:
+  minio-data:
+  weaviate-data:

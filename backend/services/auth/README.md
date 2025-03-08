@@ -9,6 +9,7 @@ This service handles authentication, authorization, and user management for the 
 - Role-based access control
 - Email verification
 - Password reset functionality
+- Social authentication (Google)
 - Rate limiting
 - Token blacklisting for logout
 - CSRF protection
@@ -16,11 +17,22 @@ This service handles authentication, authorization, and user management for the 
 - Database migrations
 - API documentation with Swagger
 
+## Technology Stack
+
+- TypeScript
+- Node.js
+- Express
+- PostgreSQL
+- Redis
+- JWT
+- Passport.js (for social auth)
+- Jest (for testing)
+
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 14+
+- Node.js 18+
 - PostgreSQL
 - Redis
 
@@ -44,7 +56,7 @@ cp .env.example .env
 6. Run database migrations:
 
 ```bash
-npm run migrate
+npm run migrate:up
 ```
 
 7. Start the development server:
@@ -58,8 +70,47 @@ npm run dev
 To run the service using Docker:
 
 ```bash
-docker build -t dental-saas-auth -f Dockerfile.dev .
+docker build -t dental-saas-auth .
 docker run -p 3001:3001 dental-saas-auth
+```
+
+Or using docker-compose:
+
+```bash
+docker-compose up
+```
+
+## Development
+
+### Testing
+
+This service follows Test-Driven Development (TDD) principles. To run tests:
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+### Linting
+
+```bash
+# Run linter
+npm run lint
+
+# Fix linting issues
+npm run lint:fix
+```
+
+### Building
+
+```bash
+npm run build
 ```
 
 ## API Documentation
@@ -68,6 +119,27 @@ When running in development mode, API documentation is available at:
 
 ```
 http://localhost:3001/api/auth/docs
+```
+
+## Project Structure
+
+```
+src/
+├── config/         # Configuration files
+├── controllers/    # Request handlers
+├── middleware/     # Express middlewares
+├── models/         # Database models
+├── repositories/   # Data access layer
+├── routes/         # API routes
+├── services/       # Business logic
+├── types/          # TypeScript type definitions
+└── utils/          # Utility functions
+tests/
+├── integration/    # Integration tests
+├── unit/           # Unit tests
+├── setup.ts        # Test setup
+└── helpers.ts      # Test helpers
+migrations/         # Database migrations
 ```
 
 ## Security Features
@@ -81,23 +153,10 @@ http://localhost:3001/api/auth/docs
 - Input validation and sanitization
 - Secure HTTP headers with Helmet
 
-## Project Structure
-
-```
-src/
-├── config/         # Configuration files
-├── controllers/    # Request handlers
-├── middlewares/    # Express middlewares
-├── models/         # Database models and migrations
-├── routes/         # API routes
-├── services/       # Business logic
-└── utils/          # Utility functions
-```
-
 ## Environment Variables
 
 See `.env.example` for all required environment variables.
 
 ## License
 
-This project is proprietary and confidential.
+This project is proprietary and confidential. 
