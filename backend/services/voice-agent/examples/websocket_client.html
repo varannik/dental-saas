@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dental Voice Agent - WebSocket Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:disabled {
+            background-color: #cccccc;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            background-color: #f0f0f0;
+        }
+        .conversation {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .message {
+            padding: 10px;
+            border-radius: 4px;
+            max-width: 80%;
+        }
+        .user {
+            align-self: flex-end;
+            background-color: #e3f2fd;
+        }
+        .assistant {
+            align-self: flex-start;
+            background-color: #f1f1f1;
+        }
+        .audio-player {
+            margin-top: 10px;
+        }
+        .settings {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .settings input, .settings select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dental Voice Agent - WebSocket Demo</h1>
+    
+    <div class="container">
+        <div class="settings">
+            <h3>Connection Settings</h3>
+            <div>
+                <label for="server-url">Server URL:</label>
+                <input type="text" id="server-url" value="ws://localhost:8000/ws/voice/" />
+            </div>
+            <div>
+                <label for="clinic-id">Clinic ID:</label>
+                <input type="text" id="clinic-id" value="clinic123" />
+            </div>
+            <div>
+                <label for="source">Source:</label>
+                <select id="source">
+                    <option value="reception">Reception</option>
+                    <option value="operatory">Operatory</option>
+                    <option value="mobile">Mobile</option>
+                </select>
+            </div>
+            <div>
+                <label for="session-id">Session ID (optional):</label>
+                <input type="text" id="session-id" placeholder="Leave empty for new session" />
+            </div>
+            <button id="connect-btn">Connect</button>
+        </div>
+        
+        <div class="status" id="status">Not connected</div>
+        
+        <div class="controls">
+            <button id="start-btn" disabled>Start Recording</button>
+            <button id="stop-btn" disabled>Stop Recording</button>
+        </div>
+        
+        <div class="conversation" id="conversation"></div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const serverUrlInput = document.getElementById('server-url');
+        const clinicIdInput = document.getElementById('clinic-id');
+        const sourceSelect = document.getElementById('source');
+        const sessionIdInput = document.getElementById('session-id');
+        const connectBtn = document.getElementById('connect-btn');
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const statusDiv = document.getElementById('status');
+        const conversationDiv = document.getElementById('conversation');
+        
+        // WebSocket and MediaRecorder variables
+        let socket;
+        let mediaRecorder;
+        let audioChunks = [];
+        let currentSessionId = null;
+        
+        // Connect to WebSocket
+        connectBtn.addEventListener('click', () => {
+            const serverUrl = serverUrlInput.value;
+            const clinicId = clinicIdInput.value;
+            const source = sourceSelect.value;
+            const sessionId = sessionIdInput.value;
+            
+            // Validate inputs
+            if (!serverUrl || !clinicId || !source) {
+                statusDiv.textContent = 'Please fill in all required fields';
+                return;
+            }
+            
+            // Build WebSocket URL
+            let wsUrl = `${serverUrl}${clinicId}/${source}`;
+            if (sessionId) {
+                wsUrl += `?session_id=${sessionId}`;
+            }
+            
+            // Close existing connection if any
+            if (socket) {
+                socket.close();
+            }
+            
+            // Connect to WebSocket
+            try {
+                socket = new WebSocket(wsUrl);
+                
+                socket.onopen = () => {
+                    statusDiv.textContent = 'Connected to server';
+                    startBtn.disabled = false;
+                    connectBtn.disabled = true;
+                };
+                
+                socket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    handleServerMessage(data);
+                };
+                
+                socket.onclose = () => {
+                    statusDiv.textContent = 'Disconnected from server';
+                    startBtn.disabled = true;
+                    stopBtn.disabled = true;
+                    connectBtn.disabled = false;
+                };
+                
+                socket.onerror = (error) => {
+                    statusDiv.textContent = `WebSocket error: ${error.message}`;
+                    connectBtn.disabled = false;
+                };
+            } catch (error) {
+                statusDiv.textContent = `Error connecting to server: ${error.message}`;
+            }
+        });
+        
+        // Handle messages from server
+        function handleServerMessage(data) {
+            console.log('Received message:', data);
+            
+            switch (data.type) {
+                case 'connection_established':
+                    currentSessionId = data.session_id;
+                    sessionIdInput.value = currentSessionId;
+                    statusDiv.textContent = `Connected. Session ID: ${currentSessionId}`;
+                    break;
+                    
+                case 'transcript':
+                    addMessage('user', data.text);
+                    break;
+                    
+                case 'response':
+                    addMessage('assistant', data.response_text);
+                    if (data.response_audio_url) {
+                        addAudioPlayer(data.response_audio_url);
+                    }
+                    break;
+                    
+                case 'error':
+                    statusDiv.textContent = `Error: ${data.message}`;
+                    break;
+            }
+        }
+        
+        // Add message to conversation
+        function addMessage(role, text) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            messageDiv.textContent = text;
+            conversationDiv.appendChild(messageDiv);
+            conversationDiv.scrollTop = conversationDiv.scrollHeight;
+        }
+        
+        // Add audio player
+        function addAudioPlayer(audioUrl) {
+            const audioDiv = document.createElement('div');
+            audioDiv.className = 'audio-player assistant';
+            
+            const audio = document.createElement('audio');
+            audio.controls = true;
+            audio.src = audioUrl;
+            
+            audioDiv.appendChild(audio);
+            conversationDiv.appendChild(audioDiv);
+            conversationDiv.scrollTop = conversationDiv.scrollHeight;
+            
+            // Auto-play response
+            audio.play();
+        }
+        
+        // Start recording
+        startBtn.addEventListener('click', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    if (socket && socket.readyState === WebSocket.OPEN) {
+                        socket.send(await audioBlob.arrayBuffer());
+                    }
+                    audioChunks = [];
+                };
+                
+                mediaRecorder.start();
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                statusDiv.textContent = 'Recording...';
+            } catch (error) {
+                statusDiv.textContent = `Error starting recording: ${error.message}`;
+            }
+        });
+        
+        // Stop recording
+        stopBtn.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                stopBtn.disabled = true;
+                startBtn.disabled = false;
+                statusDiv.textContent = 'Processing audio...';
+            }
+        });
+    </script>
+</body>
+</html> 
