@@ -1,7 +1,7 @@
 from fastapi import APIRouter, WebSocket, Depends, Query
 
 from app.api.dependencies import get_session_manager, get_audio_processor, get_agent_graph
-from app.api.routes.websocket import handle_voice_stream
+from app.services.websocket import handle_voice_stream
 from app.services.session import SessionManager
 from app.services.audio import AudioProcessor
 from app.services.agent.graph import AgentGraph

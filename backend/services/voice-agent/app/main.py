@@ -5,8 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
-from app.api.routes import voice, health
-from app.api.routes.websocket import handle_voice_stream
+from app.api.routes import voice, health, websocket_routes
 from app.workers.voice_processor import create_voice_processor_worker
 from app.api.dependencies import get_redis_client, get_session_manager, get_audio_processor, get_agent_graph
 
@@ -33,36 +32,7 @@ app.mount("/audio_responses", StaticFiles(directory=settings.AUDIO_RESPONSE_DIR)
 # Include routers
 app.include_router(health.router)
 app.include_router(voice.router, prefix=settings.API_V1_STR)
-
-# WebSocket endpoint for voice streaming
-@app.websocket("/ws/voice/{clinic_id}/{source}")
-async def websocket_endpoint(
-    websocket: WebSocket,
-    clinic_id: str,
-    source: str,
-    session_id: Optional[str] = Query(None),
-    session_manager = Depends(get_session_manager),
-    audio_processor = Depends(get_audio_processor),
-    agent_graph = Depends(get_agent_graph)
-):
-    """
-    WebSocket endpoint for real-time voice streaming
-    
-    Args:
-        websocket: WebSocket connection
-        clinic_id: ID of the clinic
-        source: Source of the interaction (reception, operatory, mobile)
-        session_id: Optional session ID for continuing a conversation
-    """
-    await handle_voice_stream(
-        websocket=websocket,
-        clinic_id=clinic_id,
-        source=source,
-        session_id=session_id,
-        session_manager=session_manager,
-        audio_processor=audio_processor,
-        agent_graph=agent_graph
-    )
+app.include_router(websocket_routes.router)
 
 # Background worker task
 @app.on_event("startup")
