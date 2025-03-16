@@ -1,70 +1,144 @@
-# Dental Care SaaS Web Application
+# AI Voice Assistant
 
-This is the web frontend for the Dental Care SaaS Platform, built with Next.js, TypeScript, and Tailwind CSS.
+A modern voice assistant built with Next.js, WebRTC, and FastAPI. This project enables real-time voice interaction with an AI assistant, featuring low-latency audio streaming, high-quality speech processing, and a responsive UI.
 
 ## Features
 
-- User authentication and authorization
-- Dashboard for dental practice management
-- Patient management interface
-- Appointment scheduling
-- Voice note recording and viewing
-- Subscription management
+- **Real-time Voice Communication**: WebRTC for efficient audio capture and streaming
+- **Low Latency Processing**: Optimized audio processing pipeline
+- **Redis Message Queue**: For reliable communication between frontend and backend
+- **Responsive UI**: Modern interface built with TailwindCSS
+- **Type Safety**: Written in TypeScript for better development experience
+- **Object-Oriented Design**: Clean, testable code architecture
+- **Test-Driven Development**: Comprehensive test coverage
 
 ## Tech Stack
 
-- **Framework**: Next.js 13
-- **Auth**: NextAuth.js
-- **Styling**: Tailwind CSS
-- **State Management**: React Hooks and Context API
-- **Form Handling**: React Hook Form
-- **API Requests**: Axios, SWR
-- **Validation**: Zod
+- **Frontend**: Next.js 15, React 19, TypeScript
+- **UI Framework**: TailwindCSS 4
+- **Audio Processing**: WebRTC, AudioWorklet API
+- **Message Queue**: Redis
+- **Backend**: FastAPI (Python)
+- **Authentication**: External microservice
+- **Testing**: Jest, React Testing Library
+
+## Architecture
+
+The application follows a layered architecture:
+
+1. **Presentation Layer**: React components for UI
+2. **Application Layer**: Context providers and hooks for state management
+3. **Domain Layer**: Core business logic in services
+4. **Infrastructure Layer**: External communication (WebRTC, Redis)
+
+Data flows through the system as follows:
+
+1. User speaks into the microphone
+2. Audio is captured and processed via WebRTC
+3. Audio chunks are sent to the backend via WebSocket/Redis
+4. Backend processes the audio and generates a response
+5. Response is streamed back to the frontend
+6. UI updates with the response in real-time
 
 ## Getting Started
 
-1. Install dependencies:
+### Prerequisites
+
+- Node.js (v18+)
+- Redis server
+- FastAPI backend (see separate repository)
+
+### Installation
+
+1. Clone the repository:
+   ```
+   git clone https://github.com/yourusername/ai-voice-assistant.git
+   cd ai-voice-assistant
+   ```
+
+2. Install dependencies:
    ```
    npm install
    ```
 
-2. Create a `.env.local` file based on `.env.example`
+3. Set up environment variables:
+   Create a `.env.local` file with the following variables:
+   ```
+   # WebRTC configuration
+   STUN_SERVERS=stun:stun.l.google.com:19302
+   TURN_SERVERS=
+   TURN_USERNAME=
+   TURN_CREDENTIAL=
+   
+   # Redis configuration
+   REDIS_URL=redis://localhost:6379
+   
+   # Backend APIs
+   API_BASE_URL=http://localhost:8000
+   AUTH_SERVICE_URL=http://localhost:8001
+   ```
 
-3. Run the development server:
+4. Start the development server:
    ```
    npm run dev
    ```
 
-4. Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
+5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### Running Tests
+
+```
+npm test
+```
+
+To run tests with coverage:
+
+```
+npm run test:coverage
+```
 
 ## Project Structure
 
 ```
-src/
-├── components/        # Reusable UI components
-├── contexts/          # React context providers
-├── hooks/             # Custom React hooks
-├── pages/             # Next.js pages and API routes
-├── styles/            # Global styles and Tailwind config
-└── utils/             # Utility functions
+├── public/                  # Static assets
+│   ├── audio-processor.js   # Audio worklet for processing
+├── src/
+│   ├── app/                 # Next.js app directory
+│   ├── components/          # UI components
+│   ├── contexts/            # React context providers
+│   ├── hooks/               # Custom React hooks
+│   ├── lib/                 # Core services
+│   │   ├── redis/           # Redis communication
+│   │   ├── webrtc/          # WebRTC implementation
+│   ├── types/               # TypeScript type definitions
+│   └── utils/               # Utility functions
+├── .env.local               # Environment variables (create this)
+└── next.config.ts           # Next.js configuration
 ```
 
-## Available Scripts
+## Backend Integration
 
-- `npm run dev` - Run the development server
-- `npm run build` - Build the application for production
-- `npm start` - Start the production server
-- `npm run lint` - Lint the codebase
+This frontend is designed to work with a FastAPI backend that:
 
-## Authentication
+1. Receives audio chunks via WebSocket
+2. Processes speech with a speech-to-text model
+3. Generates responses with an LLM
+4. Streams responses back to the frontend
 
-The application uses NextAuth.js for authentication. It's set up to work with the backend authentication service, providing:
+Refer to the FastAPI backend repository for setup instructions.
 
-- Credential-based login
-- Protected routes
-- JWT-based sessions
-- User role management
+## Future Enhancements
 
-## Deployment
+- **Voice Customization**: Different AI voices to choose from
+- **Conversation History**: Save and load past conversations
+- **Offline Mode**: Basic functionality without internet connection
+- **Voice Authentication**: Recognize users by voice print
+- **Multi-language Support**: Support for multiple languages
 
-This application can be deployed to any hosting service that supports Next.js, such as Vercel, Netlify, or a custom server. 
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
