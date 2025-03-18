@@ -6,8 +6,8 @@ from openai import AsyncOpenAI
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolExecutor
 from langgraph.checkpoint import MemorySaver
-from langgraph.graph.message import ChatMessage, AnyMessage
-from langgraph.graph.message import AIMessage, HumanMessage
+from langgraph.graph.message import AnyMessage
+from langchain_core.messages import AIMessage, HumanMessage
 
 from app.core.config import settings
 from app.services.agent.tools import DentalTools

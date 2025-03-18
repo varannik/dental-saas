@@ -38,13 +38,16 @@ services:
 
 
   voice-agent:
-    build: ../services/voice-agent
+    build:
+      context: ../../backend/services/voice-agent
+      dockerfile: Dockerfle
+    container_name: voice-agent
     ports:
       - "8000:8000"
     volumes:
-      - ../services/voice-agent:/app
-      - ../services/voice-agent/uploads:/app/uploads
-      - ../services/voice-agent/audio_responses:/app/audio_responses
+      - ../../backend/services/voice-agent:/app
+      - ../../backend/services/voice-agent/uploads:/app/uploads
+      - ../../backend/services/voice-agent/audio_responses:/app/audio_responses
     environment:
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PORT=${REDIS_PORT}
@@ -56,6 +59,8 @@ services:
     depends_on:
       - redis
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+        - dental-network
 
   postgres:
       image: postgres:16-alpine

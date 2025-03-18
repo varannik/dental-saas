@@ -1,3 +1,5 @@
+"use client";
+
 import { MicrophoneButton } from '@/components/MicrophoneButton';
 import { Transcript } from '@/components/Transcript';
 import { VoiceAssistantProvider } from '@/contexts/VoiceAssistantContext';

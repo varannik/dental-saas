@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = ["*"]
     
     # Redis settings
-    REDIS_HOST: str = Field(default="localhost")
+    REDIS_HOST: str = Field(default='172.18.0.5')
     REDIS_PORT: int = Field(default=6379)
     REDIS_DB: int = Field(default=0)
     
