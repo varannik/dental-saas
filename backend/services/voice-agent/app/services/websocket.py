@@ -3,7 +3,7 @@ import uuid
 import json
 import asyncio
 from tempfile import NamedTemporaryFile
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 from fastapi import WebSocket, WebSocketDisconnect, Depends
 from fastapi.websockets import WebSocketState
@@ -20,7 +20,7 @@ active_connections: Dict[str, WebSocket] = {}
 
 class ConnectionManager:
     """
-    Manager for WebSocket connections
+    Manager for WebSocket connections with WebRTC support
     """
     async def connect(self, websocket: WebSocket, client_id: str):
         """Accept connection and store it"""
@@ -40,6 +40,22 @@ class ConnectionManager:
             websocket = active_connections[client_id]
             if websocket.client_state == WebSocketState.CONNECTED:
                 await websocket.send_json(message)
+    
+    async def handle_webrtc_signal(self, client_id: str, signal_data: Dict[str, Any]):
+        """Handle WebRTC signaling messages"""
+        if client_id in active_connections:
+            websocket = active_connections[client_id]
+            signal_type = signal_data.get("type")
+            
+            if signal_type in ["offer", "answer", "ice-candidate"]:
+                # Forward the signal to the intended recipient
+                target_id = signal_data.get("target")
+                if target_id in active_connections:
+                    await self.send_message(target_id, {
+                        "type": "webrtc_signal",
+                        "signal": signal_data,
+                        "from": client_id
+                    })
 
 # Initialize connection manager
 connection_manager = ConnectionManager()
@@ -76,65 +92,78 @@ async def handle_voice_stream(
     await connection_manager.connect(websocket, client_id)
     
     try:
-        # Send session info to client
+        # Send initial session info
         await websocket.send_json({
             "type": "connection_established",
-            "session_id": session_id
+            "session_id": session_id,
+            "client_id": client_id  # Send client_id for WebRTC identification
         })
         
-        # Process incoming audio data
         while True:
-            # Wait for audio data from client
-            data = await websocket.receive_bytes()
+            # Handle both binary (audio) and text (WebRTC signaling) messages
+            message = await websocket.receive()
             
-            # Save audio to temporary file
-            with NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
-                tmp_file.write(data)
-                tmp_file_path = tmp_file.name
-            
-            try:
-                # Process audio to text
-                if audio_processor:
-                    transcript = await audio_processor.transcribe_audio(tmp_file_path)
-                else:
-                    transcript = "Audio processor not available"
+            if "bytes" in message:
+                # Handle audio data as before
+                data = message["bytes"]
                 
-                # Send transcript to client
-                await websocket.send_json({
-                    "type": "transcript",
-                    "text": transcript
-                })
+                # Save audio to temporary file
+                with NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
+                    tmp_file.write(data)
+                    tmp_file_path = tmp_file.name
                 
-                # Generate response from agent
-                if agent_graph:
-                    messages = [{"role": "user", "content": transcript}]
-                    response_text = await agent_graph.invoke(messages, session_id)
-                else:
-                    response_text = "Agent not available"
-                
-                # Update session with this interaction
-                if session_manager and session_id:
-                    session_manager.update_session(session_id, transcript, response_text)
-                
-                # Generate audio response
-                audio_url = ""
-                if audio_processor:
-                    _, audio_url = await audio_processor.generate_audio(response_text)
-                
-                # Send complete response to client
-                await websocket.send_json({
-                    "type": "response",
-                    "transcript": transcript,
-                    "response_text": response_text,
-                    "response_audio_url": audio_url,
-                    "session_id": session_id
-                })
-                
-            finally:
-                # Clean up temporary file
-                if os.path.exists(tmp_file_path):
-                    os.remove(tmp_file_path)
+                try:
+                    # Process audio to text
+                    if audio_processor:
+                        transcript = await audio_processor.transcribe_audio(tmp_file_path)
+                    else:
+                        transcript = "Audio processor not available"
                     
+                    # Send transcript to client
+                    await websocket.send_json({
+                        "type": "transcript",
+                        "text": transcript
+                    })
+                    
+                    # Generate response from agent
+                    if agent_graph:
+                        messages = [{"role": "user", "content": transcript}]
+                        response_text = await agent_graph.invoke(messages, session_id)
+                    else:
+                        response_text = "Agent not available"
+                    
+                    # Update session with this interaction
+                    if session_manager and session_id:
+                        session_manager.update_session(session_id, transcript, response_text)
+                    
+                    # Generate audio response
+                    audio_url = ""
+                    if audio_processor:
+                        _, audio_url = await audio_processor.generate_audio(response_text)
+                    
+                    # Send complete response to client
+                    await websocket.send_json({
+                        "type": "response",
+                        "transcript": transcript,
+                        "response_text": response_text,
+                        "response_audio_url": audio_url,
+                        "session_id": session_id
+                    })
+                    
+                finally:
+                    # Clean up temporary file
+                    if os.path.exists(tmp_file_path):
+                        os.remove(tmp_file_path)
+                    
+            elif "text" in message:
+                # Handle WebRTC signaling
+                signal_data = json.loads(message["text"])
+                if signal_data.get("type") in ["offer", "answer", "ice-candidate"]:
+                    await connection_manager.handle_webrtc_signal(client_id, signal_data)
+                    continue
+                
+                # Handle other message types...
+                
     except WebSocketDisconnect:
         # Handle client disconnect
         connection_manager.disconnect(client_id)
