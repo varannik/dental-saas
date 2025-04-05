@@ -38,16 +38,14 @@ flowchart TB
         K --> L[Action Event]
     end
     
-    subgraph "Skill Services"
+    subgraph "Dental Skill Services"
         L --> M[Skill Router]
-        M --> N[Weather Skill]
-        M --> O[Music Skill]
-        M --> P[Q&A Skill]
-        M --> Q[Home Control Skill]
+        M --> N[Patient Intake Skill]
+        M --> O[Medication Analysis Skill]
+        M --> P[Patient Profiling Skill]
         N --> R[Response Event]
         O --> R
         P --> R
-        Q --> R
     end
     
     subgraph "Response Generation"
@@ -58,16 +56,16 @@ flowchart TB
     end
     
     subgraph "Supporting Services"
-        W[User Profile Service]
-        X[Analytics Service]
-        Y[Monitoring Service]
-        Z[Feedback Learning Service]
+        W[Patient Records Service]
+        X[Medical Database Service]
+        Y[Compliance Service]
+        Z[Staff Alert Service]
     end
     
-    J --> W
-    D --> X
-    V --> X
-    V --> Y
+    N --> W
+    P --> W
+    O --> X
+    D --> Y
     R --> Z
 ```
 
