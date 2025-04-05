@@ -37,12 +37,12 @@ flowchart TB
         update_session[Update session in Session Cache]
         initial_state[Generate initial Dialog State Event]
         cond2{Is there an active session?}
-        no_session[Generate error response (prompt login)]
+        no_session[Generate error response :prompt login]
         retrieve[Retrieve session data from Session Cache]
         auth_check[Perform authorization check]
         cond3{Authorized?}
         update_state[Update dialog state]
-        error_response[Generate error response (access denied)]
+        error_response[Generate error response :access denied]
         output[Output Dialog State Event]
 
         input --> cond1
@@ -61,7 +61,7 @@ flowchart TB
         update_state --> output
         error_response --> output
     end
-
+    
     subgraph "Dialog Management"
         F --> I[Context Management Service]
         H --> I
