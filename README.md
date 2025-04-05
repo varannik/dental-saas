@@ -40,7 +40,7 @@ flowchart TB
     
     subgraph "Context Management Service"
         input[Receive Intent and Entity Events]
-        cond1{Is intent "login"?}
+        cond1{Is intent 'login'?}
         auth[Trigger Authentication Service]
         update_session[Update session in Session Cache]
         initial_state[Generate initial Dialog State Event]
