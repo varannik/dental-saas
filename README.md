@@ -30,14 +30,6 @@ flowchart TB
         G --> H[Entity Event]
     end
     
-    subgraph "Dialog Management"
-        F --> I[Context Management Service]
-        H --> I
-        I --> J[Dialog State Event]
-        J --> K[Dialog Policy Service]
-        K --> L[Action Event]
-    end
-    
     subgraph "Context Management Service"
         input[Receive Intent and Entity Events]
         cond1{Is intent 'login'?}
@@ -69,6 +61,16 @@ flowchart TB
         update_state --> output
         error_response --> output
     end
+
+    subgraph "Dialog Management"
+        F --> I[Context Management Service]
+        H --> I
+        I --> J[Dialog State Event]
+        J --> K[Dialog Policy Service]
+        K --> L[Action Event]
+    end
+    
+
     
     subgraph "Dental Skill Services"
         L --> M[Skill Router]
