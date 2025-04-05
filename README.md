@@ -76,6 +76,42 @@ flowchart TB
     AA --> CC
 ```
 
+# Context Management Service
+
+```mermaid
+flowchart TB
+    subgraph "Context Management Service"
+        input[Receive Intent and Entity Events]
+        cond1{Is intent "login"?}
+        auth[Trigger Authentication Service]
+        update_session[Update session in Session Cache]
+        initial_state[Generate initial Dialog State Event]
+        cond2{Is there an active session?}
+        no_session[Generate error response (prompt login)]
+        retrieve[Retrieve session data from Session Cache]
+        auth_check[Perform authorization check]
+        cond3{Authorized?}
+        update_state[Update dialog state]
+        error_response[Generate error response (access denied)]
+        output[Output Dialog State Event]
+
+        input --> cond1
+        cond1 -- "Yes" --> auth
+        auth --> update_session
+        update_session --> initial_state
+        initial_state --> output
+        cond1 -- "No" --> cond2
+        cond2 -- "No" --> no_session
+        no_session --> output
+        cond2 -- "Yes" --> retrieve
+        retrieve --> auth_check
+        auth_check --> cond3
+        cond3 -- "Yes" --> update_state
+        cond3 -- "No" --> error_response
+        update_state --> output
+        error_response --> output
+    end
+```   
 ## Architecture Overview
 
 This platform follows a microservices architecture with the following components:
