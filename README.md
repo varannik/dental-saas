@@ -60,6 +60,9 @@ flowchart TB
         X[Medical Database Service]
         Y[Compliance Service]
         Z[Staff Alert Service]
+        AA[Authentication Service]
+        BB[Subscription Management Service]
+        CC[Session Cache]
     end
     
     N --> W
@@ -67,6 +70,10 @@ flowchart TB
     O --> X
     D --> Y
     R --> Z
+    I <--> CC
+    I --> AA
+    AA --> BB
+    AA --> CC
 ```
 
 ## Architecture Overview
