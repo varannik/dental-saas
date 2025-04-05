@@ -38,48 +38,6 @@ flowchart TB
         K --> L[Action Event]
     end
     
-    subgraph "Dental Skill Services"
-        L --> M[Skill Router]
-        M --> N[Patient Intake Skill]
-        M --> O[Medication Analysis Skill]
-        M --> P[Patient Profiling Skill]
-        N --> R[Response Event]
-        O --> R
-        P --> R
-    end
-    
-    subgraph "Response Generation"
-        R --> S[NLG Service]
-        S --> T[Text Response Event]
-        T --> U[Text-to-Speech Service]
-        U --> V[Audio Response]
-    end
-    
-    subgraph "Supporting Services"
-        W[Patient Records Service]
-        X[Medical Database Service]
-        Y[Compliance Service]
-        Z[Staff Alert Service]
-        AA[Authentication Service]
-        BB[Subscription Management Service]
-        CC[Session Cache]
-    end
-    
-    N --> W
-    P --> W
-    O --> X
-    D --> Y
-    R --> Z
-    I <--> CC
-    I --> AA
-    AA --> BB
-    AA --> CC
-```
-
-# Context Management Service
-
-```mermaid
-flowchart TB
     subgraph "Context Management Service"
         input[Receive Intent and Entity Events]
         cond1{Is intent "login"?}
@@ -111,7 +69,46 @@ flowchart TB
         update_state --> output
         error_response --> output
     end
-```   
+    
+    subgraph "Dental Skill Services"
+        L --> M[Skill Router]
+        M --> N[Patient Intake Skill]
+        M --> O[Medication Analysis Skill]
+        M --> P[Patient Profiling Skill]
+        N --> R[Response Event]
+        O --> R
+        P --> R
+    end
+    
+    subgraph "Response Generation"
+        R --> S[NLG Service]
+        S --> T[Text Response Event]
+        T --> U[Text-to-Speech Service]
+        U --> V[Audio Response]
+    end
+
+
+    
+    subgraph "Supporting Services"
+        W[Patient Records Service]
+        X[Medical Database Service]
+        Y[Compliance Service]
+        Z[Staff Alert Service]
+        AA[Authentication Service]
+        BB[Subscription Management Service]
+        CC[Session Cache]
+    end
+    
+    N --> W
+    P --> W
+    O --> X
+    D --> Y
+    R --> Z
+    I <--> CC
+    I --> AA
+    AA --> BB
+    AA --> CC
+```
 ## Architecture Overview
 
 This platform follows a microservices architecture with the following components:
