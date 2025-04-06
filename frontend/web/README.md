@@ -41,67 +41,6 @@ Data flows through the system as follows:
 6. UI updates with the response in real-time
 
 
-
-### AI Voice Assistant Architecture
-
-```mermaid
-flowchart TB
-    subgraph "User Interface"
-        A[Audio Capture Service] --> B[Audio Stream]
-    end
-    
-    subgraph "Speech Processing"
-        B --> C[Speech-to-Text Service]
-        C --> D[Text Utterance Event]
-    end
-    
-    subgraph "Language Understanding"
-        D --> E[NLU Service]
-        E --> F[Intent Event]
-        E --> G[Entity Extraction Service]
-        G --> H[Entity Event]
-    end
-    
-    subgraph "Dialog Management"
-        F --> I[Context Management Service]
-        H --> I
-        I --> J[Dialog State Event]
-        J --> K[Dialog Policy Service]
-        K --> L[Action Event]
-    end
-    
-    subgraph "Skill Services"
-        L --> M[Skill Router]
-        M --> N[Weather Skill]
-        M --> O[Music Skill]
-        M --> P[Q&A Skill]
-        M --> Q[Home Control Skill]
-        N --> R[Response Event]
-        O --> R
-        P --> R
-        Q --> R
-    end
-    
-    subgraph "Response Generation"
-        R --> S[NLG Service]
-        S --> T[Text Response Event]
-        T --> U[Text-to-Speech Service]
-        U --> V[Audio Response]
-    end
-    
-    subgraph "Supporting Services"
-        W[User Profile Service]
-        X[Analytics Service]
-        Y[Monitoring Service]
-        Z[Feedback Learning Service]
-    end
-    
-    J --> W
-    D --> X
-    V --> X
-    V --> Y
-    R --> Z
-```
 ## Getting Started
 
 ### Prerequisites
