@@ -204,94 +204,94 @@ flowchart TB
 ## Architecture Overview
 
 ### Tech Stack Summary
-```
+
 The Dental Care SaaS Platform is built using a robust and modern tech stack, ensuring scalability, security, and real-time capabilities. Below are the core technologies used:
-```
+
 
 ### Frontend:
-```
+
 Next.js: A React framework for building the web application, offering server-side rendering and static site generation for optimal performance and SEO.
 React Native: Used for developing cross-platform mobile applications, ensuring a consistent user experience on iOS and Android.
-```
+
 
 ### Backend:
-```
+
 Spring Boot: The foundation for building microservices, providing a modular, scalable architecture for handling various platform features.
 Spring Cloud Gateway: Serves as the entry point for all client requests, managing routing, authentication, and load balancing across microservices.
 Spring Security: Ensures secure authentication and authorization, protecting sensitive healthcare data with role-based access control.
-```
+
 
 ### Session Management:
 
-```
+
 Redis: A fast, in-memory data store used with Spring Session to manage user sessions centrally, ensuring consistent state management across distributed services.
-```
+
 
 ### Real-Time Communication:
-```
+
 WebRTC: Enables real-time voice streaming from the client to the server, supporting features like voice recognition and transcription.
 Media Server (e.g., Kurento): Handles WebRTC media streams, processing audio for tasks such as speech-to-text conversion.
-```
+
 
 ### Data Storage:
 
-```
+
 PostgreSQL: A relational database for structured data, such as patient records, treatment plans, and clinical notes.
 MongoDB: A NoSQL database for unstructured or semi-structured data, such as dental imaging or logs.
 Object Storage: Used for storing large files, such as X-rays, intraoral images, or 3D scans.
-```
+
 
 ### Infrastructure:
-```
+
 Docker: Containerizes applications, ensuring consistency across development, testing, and production environments.
 Kubernetes: Orchestrates containers, providing automated scaling, load balancing, and deployment management.
 CI/CD Pipelines: Automates testing and deployment, ensuring rapid and reliable delivery of updates.
-```
+
 
 
 ## System Flow
-```
+
 The platform’s flow is designed to ensure secure, efficient, and seamless interactions between users, microservices, and real-time features. Below is a step-by-step overview of how the system operates:
-```
-### User Authentication:
-```
+
+1. User Authentication:
+
 The user logs in via the Next.js web app or React Native mobile app.
 The authentication request is sent to the Spring Cloud Gateway, which forwards it to the authentication service.
 Upon successful authentication, a JSON Web Token (JWT) is generated and returned to the client.
 A session is created using Spring Session, with session data stored in Redis for centralized management.
-```
 
-### Request Routing and Authorization:
-```
+
+2. Request Routing and Authorization:
+
 The client includes the JWT in subsequent requests to the gateway.
 The gateway authenticates the request, checks the user’s role (e.g., dentist, staff), and routes it to the appropriate microservice based on the request path (e.g., /api/clinical/* for clinical workflows).
 Redis is used to retrieve session data, ensuring consistent user state across requests.
-```
 
-### Voice Streaming and Real-Time Processing:
-```
+
+3. Voice Streaming and Real-Time Processing:
+
 For voice-based features (e.g., capturing dentist notes), the client initiates a WebRTC session.
 Signaling messages are exchanged via WebSocket through the gateway to establish the WebRTC connection.
 The media server (e.g., Kurento) receives the audio stream, processes it (e.g., for transcription), and sends the results back to the relevant microservice for storage or further action.
-```
 
-### Data Access and Storage:
-```
+
+4. Data Access and Storage:
+
 Microservices interact with PostgreSQL for structured data (e.g., patient profiles) and MongoDB for unstructured data (e.g., imaging).
 Large files, such as X-rays, are stored in object storage and accessed via secure, signed URLs.
-```
 
-### Scalability and Reliability:
-```
+
+5. Scalability and Reliability:
+
 Docker containers ensure consistent deployment across environments.
 Kubernetes manages container orchestration, automatically scaling services based on demand and ensuring high availability.
 CI/CD pipelines automate testing and deployment, minimizing downtime and ensuring the platform stays up-to-date with minimal manual intervention.
-```
+
 
 
 ### Key Benefits
 
-```
+
 Security: Spring Security and JWT ensure secure authentication and authorization, while Redis provides centralized session management with server-side control.
 Scalability: Microservices architecture, combined with Kubernetes and Docker, allows the platform to scale efficiently as the number of tenants and users grows.
 Real-Time Capabilities: WebRTC and the media server enable real-time voice streaming and processing, critical for hands-free clinical workflows.
@@ -299,7 +299,7 @@ Data Management: A combination of relational, NoSQL, and object storage ensures 
 Automation: CI/CD pipelines streamline development and deployment, ensuring the platform evolves rapidly and reliably.
 
 This summary provides a clear and concise overview of the Dental Care SaaS Platform’s tech stack and flow, highlighting how each component contributes to a secure, scalable, and efficient solution.
-```
+
 
 ## Project Structure
 
