@@ -1,0 +1,94 @@
+# Default values for SaaS application
+replicaCount: 3
+
+image:
+  repository: ghcr.io/saas
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 1001
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+
+services:
+  apiGateway:
+    enabled: true
+    replicas: 3
+    port: 3001
+  auth:
+    enabled: true
+    replicas: 2
+    port: 4001
+  users:
+    enabled: true
+    replicas: 2
+    port: 4002
+  billing:
+    enabled: true
+    replicas: 2
+    port: 4003
+  notifications:
+    enabled: true
+    replicas: 2
+    port: 4004
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: api.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: saas-tls
+      hosts:
+        - api.example.com
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+postgresql:
+  enabled: false  # Use external database in production
+
+redis:
+  enabled: false  # Use external Redis in production
+
+config:
+  nodeEnv: production
+  logLevel: info
+
+secrets:
+  # These should be provided via external-secrets or sealed-secrets
+  jwtSecret: ""
+  databaseUrl: ""
+  redisUrl: ""
+  stripeSecretKey: ""
+

@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "User Events",
+  "description": "Schema for user-related analytics events",
+  "definitions": {
+    "baseEvent": {
+      "type": "object",
+      "required": ["event_name", "timestamp", "user_id"],
+      "properties": {
+        "event_name": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "user_id": { "type": "string" },
+        "session_id": { "type": "string" },
+        "device": {
+          "type": "object",
+          "properties": {
+            "type": { "enum": ["desktop", "mobile", "tablet"] },
+            "os": { "type": "string" },
+            "browser": { "type": "string" }
+          }
+        }
+      }
+    },
+    "userSignedUp": {
+      "allOf": [
+        { "$ref": "#/definitions/baseEvent" },
+        {
+          "properties": {
+            "event_name": { "const": "user.signed_up" },
+            "properties": {
+              "type": "object",
+              "properties": {
+                "signup_method": { "enum": ["email", "google", "github"] },
+                "referral_source": { "type": "string" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "userLoggedIn": {
+      "allOf": [
+        { "$ref": "#/definitions/baseEvent" },
+        {
+          "properties": {
+            "event_name": { "const": "user.logged_in" },
+            "properties": {
+              "type": "object",
+              "properties": {
+                "login_method": { "enum": ["email", "google", "github"] }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+

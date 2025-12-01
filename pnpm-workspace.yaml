@@ -1,0 +1,13 @@
+packages:
+  # Applications
+  - 'apps/*'
+  
+  # Backend Services
+  - 'services/*'
+  
+  # Shared Packages
+  - 'packages/*'
+  
+  # Tests
+  - 'tests/e2e'
+

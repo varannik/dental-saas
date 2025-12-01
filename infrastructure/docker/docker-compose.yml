@@ -1,288 +1,170 @@
-version: '3.8'
+# Docker Compose for local development
+version: '3.9'
 
 services:
-  # API Gateway
-  api-gateway:
-    image: traefik:v2.9
-    command:
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-    ports:
-      - "80:80"
-      - "8080:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - dental-network
-
-  # Frontend Services
-  web-app:
-    build:
-      context: ../../frontend/web
-      dockerfile: Dockerfile.dev
-    volumes:
-      - ../../frontend/web:/app
-      - /app/node_modules
-    environment:
-      - NODE_ENV=development
-      - API_URL=http://api-gateway/api
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.web.rule=Host(`dental.localhost`)"
-      - "traefik.http.services.web.loadbalancer.server.port=3000"
-    networks:
-      - dental-network
-    depends_on:
-      - api-gateway
-
-  admin-app:
-    build:
-      context: ../../frontend/admin
-      dockerfile: Dockerfile.dev
-    volumes:
-      - ../../frontend/admin:/app
-      - /app/node_modules
-    environment:
-      - NODE_ENV=development
-      - API_URL=http://api-gateway/api
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.admin.rule=Host(`admin.dental.localhost`)"
-      - "traefik.http.services.admin.loadbalancer.server.port=3000"
-    networks:
-      - dental-network
-    depends_on:
-      - api-gateway
-
-  # Backend Services
-  auth-service:
-    build:
-      context: ../../backend/services/auth
-      dockerfile: Dockerfile.dev
-    volumes:
-      - ../../backend/services/auth:/app
-      - /app/node_modules
-    environment:
-      - NODE_ENV=development
-      - PORT=3001
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=dental_auth
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - JWT_SECRET=development_secret_key
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.auth.rule=Host(`api.dental.localhost`) && PathPrefix(`/api/auth`)"
-      - "traefik.http.services.auth.loadbalancer.server.port=3001"
-    networks:
-      - dental-network
-    depends_on:
-      - postgres
-
-  patient-service:
-    build:
-      context: ../../backend/services/patient
-      dockerfile: Dockerfile.dev
-    volumes:
-      - ../../backend/services/patient:/app
-      - /app/node_modules
-    environment:
-      - NODE_ENV=development
-      - PORT=3002
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=dental_patient
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - AUTH_SERVICE_URL=http://auth-service:3001
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.patient.rule=Host(`api.dental.localhost`) && PathPrefix(`/api/patients`)"
-      - "traefik.http.services.patient.loadbalancer.server.port=3002"
-    networks:
-      - dental-network
-    depends_on:
-      - postgres
-      - auth-service
-
-  voice-service:
-    build:
-      context: ../../backend/services/voice
-      dockerfile: Dockerfile.dev
-    volumes:
-      - ../../backend/services/voice:/app
-    environment:
-      - PYTHONUNBUFFERED=1
-      - PORT=3003
-      - MONGO_URI=mongodb://mongo:27017/dental_voice
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
-      - AUTH_SERVICE_URL=http://auth-service:3001
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.voice.rule=Host(`api.dental.localhost`) && PathPrefix(`/api/voice`)"
-      - "traefik.http.services.voice.loadbalancer.server.port=3003"
-    networks:
-      - dental-network
-    depends_on:
-      - mongo
-      - minio
-      - auth-service
-
-  ai-service:
-    build:
-      context: ../../backend/services/ai
-      dockerfile: Dockerfile.dev
-    volumes:
-      - ../../backend/services/ai:/app
-    environment:
-      - PYTHONUNBUFFERED=1
-      - PORT=3004
-      - MONGO_URI=mongodb://mongo:27017/dental_ai
-      - VECTOR_DB_HOST=weaviate
-      - VECTOR_DB_PORT=8080
-      - AUTH_SERVICE_URL=http://auth-service:3001
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.ai.rule=Host(`api.dental.localhost`) && PathPrefix(`/api/ai`)"
-      - "traefik.http.services.ai.loadbalancer.server.port=3004"
-    networks:
-      - dental-network
-    depends_on:
-      - mongo
-      - weaviate
-      - auth-service
-
-  communication-service:
-    build:
-      context: ../../backend/services/communication
-      dockerfile: Dockerfile.dev
-    volumes:
-      - ../../backend/services/communication:/app
-      - /app/node_modules
-    environment:
-      - NODE_ENV=development
-      - PORT=3005
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=dental_communication
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - AUTH_SERVICE_URL=http://auth-service:3001
-      - PATIENT_SERVICE_URL=http://patient-service:3002
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.communication.rule=Host(`api.dental.localhost`) && PathPrefix(`/api/communications`)"
-      - "traefik.http.services.communication.loadbalancer.server.port=3005"
-    networks:
-      - dental-network
-    depends_on:
-      - postgres
-      - auth-service
-      - patient-service
-
-  subscription-service:
-    build:
-      context: ../../backend/services/subscription
-      dockerfile: Dockerfile.dev
-    volumes:
-      - ../../backend/services/subscription:/app
-      - /app/node_modules
-    environment:
-      - NODE_ENV=development
-      - PORT=3006
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_NAME=dental_subscription
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - AUTH_SERVICE_URL=http://auth-service:3001
-      - STRIPE_API_KEY=sk_test_your_test_key
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.subscription.rule=Host(`api.dental.localhost`) && PathPrefix(`/api/subscriptions`)"
-      - "traefik.http.services.subscription.loadbalancer.server.port=3006"
-    networks:
-      - dental-network
-    depends_on:
-      - postgres
-      - auth-service
-
-  # Databases
+  # PostgreSQL Database
   postgres:
-    image: postgres:14
+    image: postgres:16-alpine
+    container_name: saas-postgres
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_MULTIPLE_DATABASES=dental_auth,dental_patient,dental_communication,dental_subscription
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./postgres-init:/docker-entrypoint-initdb.d
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: saas_dev
     ports:
       - "5432:5432"
-    networks:
-      - dental-network
-
-  mongo:
-    image: mongo:5
     volumes:
-      - mongo-data:/data/db
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: saas-redis
     ports:
-      - "27017:27017"
-    networks:
-      - dental-network
-
-  # Object Storage
-  minio:
-    image: minio/minio
-    command: server /data --console-address ":9001"
-    environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
+      - "6379:6379"
     volumes:
-      - minio-data:/data
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MinIO (S3-compatible storage)
+  minio:
+    image: minio/minio:latest
+    container_name: saas-minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
     ports:
       - "9000:9000"
       - "9001:9001"
-    networks:
-      - dental-network
-
-  # Vector Database
-  weaviate:
-    image: semitechnologies/weaviate:1.18.0
-    environment:
-      - QUERY_DEFAULTS_LIMIT=20
-      - AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=true
-      - PERSISTENCE_DATA_PATH=/var/lib/weaviate
-      - DEFAULT_VECTORIZER_MODULE=text2vec-transformers
-      - ENABLE_MODULES=text2vec-transformers
-      - TRANSFORMERS_INFERENCE_API=http://t2v-transformers:8080
-    ports:
-      - "8080:8080"
     volumes:
-      - weaviate-data:/var/lib/weaviate
-    networks:
-      - dental-network
-    depends_on:
-      - t2v-transformers
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
 
-  t2v-transformers:
-    image: semitechnologies/transformers-inference:sentence-transformers-all-MiniLM-L6-v2
+  # MailHog (Email testing)
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: saas-mailhog
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ../../
+      dockerfile: apps/api-gateway/Dockerfile
+    container_name: saas-api-gateway
+    ports:
+      - "3001:3001"
     environment:
-      - ENABLE_CUDA=0
-    networks:
-      - dental-network
+      - NODE_ENV=development
+      - PORT=3001
+      - AUTH_SERVICE_URL=http://auth-service:4001
+      - USERS_SERVICE_URL=http://users-service:4002
+      - BILLING_SERVICE_URL=http://billing-service:4003
+      - NOTIFICATIONS_SERVICE_URL=http://notifications-service:4004
+    depends_on:
+      - auth-service
+      - users-service
+      - billing-service
+      - notifications-service
 
-networks:
-  dental-network:
-    driver: bridge
+  # Auth Service
+  auth-service:
+    build:
+      context: ../../
+      dockerfile: services/auth/Dockerfile
+    container_name: saas-auth-service
+    ports:
+      - "4001:4001"
+    environment:
+      - NODE_ENV=development
+      - PORT=4001
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/auth
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=your-jwt-secret
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Users Service
+  users-service:
+    build:
+      context: ../../
+      dockerfile: services/users/Dockerfile
+    container_name: saas-users-service
+    ports:
+      - "4002:4002"
+    environment:
+      - NODE_ENV=development
+      - PORT=4002
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/users
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Billing Service
+  billing-service:
+    build:
+      context: ../../
+      dockerfile: services/billing/Dockerfile
+    container_name: saas-billing-service
+    ports:
+      - "4003:4003"
+    environment:
+      - NODE_ENV=development
+      - PORT=4003
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/billing
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Notifications Service
+  notifications-service:
+    build:
+      context: ../../
+      dockerfile: services/notifications/Dockerfile
+    container_name: saas-notifications-service
+    ports:
+      - "4004:4004"
+    environment:
+      - NODE_ENV=development
+      - PORT=4004
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/notifications
+      - REDIS_URL=redis://redis:6379
+      - SMTP_HOST=mailhog
+      - SMTP_PORT=1025
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
 
 volumes:
-  postgres-data:
-  mongo-data:
-  minio-data:
-  weaviate-data:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+networks:
+  default:
+    name: saas-network
+

@@ -1,0 +1,44 @@
+# Production environment values
+replicaCount: 3
+
+services:
+  apiGateway:
+    replicas: 5
+  auth:
+    replicas: 3
+  users:
+    replicas: 3
+  billing:
+    replicas: 2
+  notifications:
+    replicas: 2
+
+ingress:
+  hosts:
+    - host: api.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: saas-production-tls
+      hosts:
+        - api.example.com
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+
+config:
+  nodeEnv: production
+  logLevel: info
+
