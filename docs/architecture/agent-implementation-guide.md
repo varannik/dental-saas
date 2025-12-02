@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the **AI Agent Infrastructure** that extends the core clinical data schema (`dataSchema.md`) to support modern AI agent frameworks like LangGraph, AutoGen, and CrewAI.
+This document describes the **AI Agent Infrastructure** that extends the core clinical data schema (`schema-core.md`) to support modern AI agent frameworks like LangGraph, AutoGen, and CrewAI.
 
 **Related Documents:**
 - `schema-core.md` - Core clinical and operational schema (human-readable)
@@ -17,7 +17,7 @@ This document describes the **AI Agent Infrastructure** that extends the core cl
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  AI Agent Layer (aiAgentSchemaExtensions.yaml)     │
+│  AI Agent Layer (schema-agent-extensions.yaml)     │
 │  - Workflow orchestration                           │
 │  - Tool execution                                   │
 │  - Multi-agent collaboration                        │
@@ -25,7 +25,7 @@ This document describes the **AI Agent Infrastructure** that extends the core cl
 └─────────────────────────────────────────────────────┘
                         ↓ builds on
 ┌─────────────────────────────────────────────────────┐
-│  Core Clinical Layer (dataSchema.yaml)              │
+│  Core Clinical Layer (schema-core.yaml)             │
 │  - Patients, encounters, imaging                    │
 │  - Voice sessions & utterances                      │
 │  - AI predictions & models                          │
@@ -1088,7 +1088,7 @@ CREATE TRIGGER audit_tool_execution
 
 ```sql
 -- Deploy workflow and tool tables
-\i aiAgentSchemaExtensions_phase1.sql
+\i schema-agent-extensions-phase1.sql
 
 -- Tables: agent_workflows, agent_executions, agent_steps, 
 --         agent_tools, tool_executions
@@ -1111,7 +1111,7 @@ INSERT INTO agent_executions (...) VALUES (...);
 
 ```sql
 -- Deploy approval tables
-\i aiAgentSchemaExtensions_phase2.sql
+\i schema-agent-extensions-phase2.sql
 
 -- Tables: agent_approval_requests, agent_interventions
 ```
@@ -1120,7 +1120,7 @@ INSERT INTO agent_executions (...) VALUES (...);
 
 ```sql
 -- Deploy collaboration tables
-\i aiAgentSchemaExtensions_phase3.sql
+\i schema-agent-extensions-phase3.sql
 
 -- Tables: agent_conversations, agent_messages
 ```
@@ -1132,7 +1132,7 @@ INSERT INTO agent_executions (...) VALUES (...);
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- Deploy memory tables
-\i aiAgentSchemaExtensions_phase4.sql
+\i schema-agent-extensions-phase4.sql
 
 -- Tables: agent_memories, agent_context_windows, agent_metrics
 ```
@@ -1274,7 +1274,7 @@ The AI Agent Schema Extensions provide a **production-ready foundation** for bui
 8. ✅ **Memory Enabled** - RAG support with semantic search
 
 **Next Steps:**
-1. Review `aiAgentSchemaExtensions.yaml` for table definitions
+1. Review `schema-agent-extensions.yaml` for table definitions
 2. Deploy Phase 1 (core infrastructure) to staging
 3. Build first workflow (voice-activated clinical note)
 4. Iterate based on real-world usage
