@@ -1,0 +1,358 @@
+version: 1.0.0
+database:
+  engine: postgresql
+  description: >
+    Logical data schema for a multi-tenant, AI-enabled dental SaaS platform.
+    This YAML is source-of-truth for table definitions and can be used to
+    generate DDL, migrations, and API contracts.
+
+conventions:
+  id_type: uuid
+  timestamp_columns:
+    created_at: timestamptz
+    updated_at: timestamptz
+  multi_tenancy:
+    tenant_column: tenant_id
+    strategy: row_level
+
+entities:
+  - name: Tenant
+    table: tenants
+    description: Top-level organization (solo practice, group, DSO, academic, payer, regulator, AI vendor).
+    primary_key: id
+    columns:
+      - { name: id,            type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: name,          type: text,        nullable: false }
+      - { name: type,          type: text,        nullable: false, comment: "SOLO_PRACTICE | GROUP_PRACTICE | DSO | ACADEMIC | PAYER | REGULATOR | AI_VENDOR | OTHER" }
+      - { name: parent_tenant_id, type: uuid,     nullable: true,  references: tenants.id }
+      - { name: primary_region,  type: text,      nullable: true }
+      - { name: partition_strategy, type: text,   nullable: false, default: 'ROW_LEVEL', comment: "ROW_LEVEL | SCHEMA | DATABASE" }
+      - { name: status,        type: text,        nullable: false, default: 'ACTIVE' }
+      - { name: created_at,    type: timestamptz, nullable: false, default: now() }
+      - { name: updated_at,    type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_tenants_parent, columns: [parent_tenant_id] }
+
+  - name: Location
+    table: locations
+    description: Physical or virtual clinic sites belonging to a tenant.
+    primary_key: id
+    columns:
+      - { name: id,         type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: tenant_id,  type: uuid,        nullable: false, references: tenants.id }
+      - { name: name,       type: text,        nullable: false }
+      - { name: address,    type: jsonb,       nullable: true,  comment: "Structured address object" }
+      - { name: timezone,   type: text,        nullable: true }
+      - { name: status,     type: text,        nullable: false, default: 'ACTIVE' }
+      - { name: created_at, type: timestamptz, nullable: false, default: now() }
+      - { name: updated_at, type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_locations_tenant, columns: [tenant_id] }
+
+  - name: User
+    table: users
+    description: Global user identity; related to tenants via user_tenants.
+    primary_key: id
+    columns:
+      - { name: id,           type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: email,        type: citext,      nullable: false, unique: true }
+      - { name: full_name,    type: text,        nullable: false }
+      - { name: preferred_locale, type: text,    nullable: true }
+      - { name: status,       type: text,        nullable: false, default: 'ACTIVE' }
+      - { name: created_at,   type: timestamptz, nullable: false, default: now() }
+      - { name: updated_at,   type: timestamptz, nullable: false, default: now() }
+
+  - name: UserTenant
+    table: user_tenants
+    description: Membership of a user in a tenant with a given user type.
+    primary_key: [user_id, tenant_id]
+    columns:
+      - { name: user_id,           type: uuid,        nullable: false, references: users.id }
+      - { name: tenant_id,         type: uuid,        nullable: false, references: tenants.id }
+      - { name: default_location_id, type: uuid,      nullable: true,  references: locations.id }
+      - { name: user_type,         type: text,        nullable: false, comment: "DENTIST | HYGIENIST | ASSISTANT | ADMIN | FRONT_DESK | PATIENT | PAYER_ANALYST | REGULATOR | DEVELOPER" }
+      - { name: created_at,        type: timestamptz, nullable: false, default: now() }
+      - { name: updated_at,        type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_user_tenants_tenant, columns: [tenant_id] }
+
+  - name: Role
+    table: roles
+    description: RBAC roles, optionally tenant-scoped.
+    primary_key: id
+    columns:
+      - { name: id,         type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: tenant_id,  type: uuid,        nullable: true,  references: tenants.id, comment: "null for global roles" }
+      - { name: name,       type: text,        nullable: false }
+      - { name: description,type: text,        nullable: true }
+      - { name: created_at, type: timestamptz, nullable: false, default: now() }
+      - { name: updated_at, type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_roles_tenant_name, columns: [tenant_id, name], unique: true }
+
+  - name: Permission
+    table: permissions
+    description: Atomic permissions used in RBAC and ABAC.
+    primary_key: id
+    columns:
+      - { name: id,         type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: key,        type: text,        nullable: false, unique: true, comment: "e.g. patient.view, imaging.run_ai" }
+      - { name: description,type: text,        nullable: true }
+
+  - name: RolePermission
+    table: role_permissions
+    description: Many-to-many mapping between roles and permissions.
+    primary_key: [role_id, permission_id]
+    columns:
+      - { name: role_id,       type: uuid, nullable: false, references: roles.id }
+      - { name: permission_id, type: uuid, nullable: false, references: permissions.id }
+
+  - name: AuditEvent
+    table: audit_events
+    description: Immutable log of security- and compliance-relevant events.
+    primary_key: id
+    partitioning:
+      by: time
+      column: occurred_at
+      interval: month
+    columns:
+      - { name: id,           type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: tenant_id,    type: uuid,        nullable: true,  references: tenants.id }
+      - { name: actor_type,   type: text,        nullable: false, comment: "USER | SYSTEM | API_CLIENT" }
+      - { name: actor_id,     type: uuid,        nullable: true }
+      - { name: event_type,   type: text,        nullable: false }
+      - { name: resource_type,type: text,        nullable: true }
+      - { name: resource_id,  type: uuid,        nullable: true }
+      - { name: occurred_at,  type: timestamptz, nullable: false, default: now() }
+      - { name: ip_address,   type: inet,        nullable: true }
+      - { name: user_agent,   type: text,        nullable: true }
+      - { name: request_id,   type: text,        nullable: true }
+      - { name: metadata,     type: jsonb,       nullable: true }
+    indexes:
+      - { name: idx_audit_tenant_time, columns: [tenant_id, occurred_at] }
+      - { name: idx_audit_resource,    columns: [resource_type, resource_id] }
+
+  - name: Patient
+    table: patients
+    description: Tenant-scoped patient master record.
+    primary_key: id
+    columns:
+      - { name: id,                 type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: tenant_id,          type: uuid,        nullable: false, references: tenants.id }
+      - { name: primary_location_id,type: uuid,        nullable: true,  references: locations.id }
+      - { name: first_name,         type: text,        nullable: false }
+      - { name: last_name,          type: text,        nullable: false }
+      - { name: dob,                type: date,        nullable: true }
+      - { name: sex_at_birth,       type: text,        nullable: true }
+      - { name: gender_identity,    type: text,        nullable: true }
+      - { name: contact_email,      type: text,        nullable: true }
+      - { name: phone_mobile,       type: text,        nullable: true }
+      - { name: phone_home,         type: text,        nullable: true }
+      - { name: preferred_language, type: text,        nullable: true }
+      - { name: preferred_contact_method, type: text,  nullable: true }
+      - { name: status,             type: text,        nullable: false, default: 'ACTIVE' }
+      - { name: created_at,         type: timestamptz, nullable: false, default: now() }
+      - { name: updated_at,         type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_patients_tenant_name_dob, columns: [tenant_id, last_name, dob] }
+
+  - name: Encounter
+    table: encounters
+    description: A clinical visit/appointment with a patient.
+    primary_key: id
+    columns:
+      - { name: id,               type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: tenant_id,        type: uuid,        nullable: false, references: tenants.id }
+      - { name: patient_id,       type: uuid,        nullable: false, references: patients.id }
+      - { name: location_id,      type: uuid,        nullable: false, references: locations.id }
+      - { name: provider_id,      type: uuid,        nullable: true,  references: users.id }
+      - { name: encounter_type,   type: text,        nullable: false, comment: "EXAM | EMERGENCY | HYGIENE | ORTHO | IMPLANT | TEACHING" }
+      - { name: status,           type: text,        nullable: false, default: 'SCHEDULED' }
+      - { name: scheduled_start_at, type: timestamptz, nullable: true }
+      - { name: check_in_at,      type: timestamptz, nullable: true }
+      - { name: check_out_at,     type: timestamptz, nullable: true }
+      - { name: created_at,       type: timestamptz, nullable: false, default: now() }
+      - { name: updated_at,       type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_encounters_tenant_patient_time, columns: [tenant_id, patient_id, scheduled_start_at] }
+
+  - name: ImagingStudy
+    table: imaging_studies
+    description: Logical grouping for imaging acquisitions (DICOM Study).
+    primary_key: id
+    columns:
+      - { name: id,              type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: tenant_id,       type: uuid,        nullable: false, references: tenants.id }
+      - { name: patient_id,      type: uuid,        nullable: false, references: patients.id }
+      - { name: encounter_id,    type: uuid,        nullable: true,  references: encounters.id }
+      - { name: study_uid,       type: text,        nullable: true,  comment: "DICOM StudyInstanceUID" }
+      - { name: modality,        type: text,        nullable: false, comment: "INTRAORAL | PANORAMIC | CBCT | PHOTO | VIDEO" }
+      - { name: body_part,       type: text,        nullable: true }
+      - { name: acquisition_datetime, type: timestamptz, nullable: true }
+      - { name: source_system,   type: text,        nullable: true }
+      - { name: created_at,      type: timestamptz, nullable: false, default: now() }
+      - { name: updated_at,      type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_imaging_studies_tenant_patient, columns: [tenant_id, patient_id, acquisition_datetime] }
+
+  - name: ImagingObject
+    table: imaging_objects
+    description: Individual image, series instance, or 3D volume file.
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: study_id,       type: uuid,        nullable: false, references: imaging_studies.id }
+      - { name: series_id,      type: uuid,        nullable: true }
+      - { name: sop_instance_uid, type: text,      nullable: true }
+      - { name: object_type,    type: text,        nullable: false, comment: "DICOM | JPEG | PNG | STL | MP4" }
+      - { name: storage_uri,    type: text,        nullable: false, comment: "Object storage key/URL" }
+      - { name: hash,           type: text,        nullable: true }
+      - { name: byte_size,      type: bigint,      nullable: true }
+      - { name: width,          type: integer,     nullable: true }
+      - { name: height,         type: integer,     nullable: true }
+      - { name: depth_slices,   type: integer,     nullable: true }
+      - { name: is_original,    type: boolean,     nullable: false, default: true }
+      - { name: processing_pipeline, type: jsonb,  nullable: true }
+      - { name: created_at,     type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_imaging_objects_study, columns: [study_id] }
+
+  - name: AIModel
+    table: ai_models
+    description: Logical AI model family (e.g., caries detection, perio).
+    primary_key: id
+    columns:
+      - { name: id,            type: uuid,  nullable: false, default: uuid_generate_v4() }
+      - { name: name,          type: text,  nullable: false }
+      - { name: domain,        type: text,  nullable: false, comment: "CARIES | PERIO | PATHOLOGY | ORTHO | IMPLANT | CDS" }
+      - { name: vendor,        type: text,  nullable: false, comment: "INTERNAL or external vendor tag" }
+      - { name: regulatory_class, type: text, nullable: false, comment: "FDA_510K | CE_MDR | EXPERIMENTAL" }
+      - { name: created_at,    type: timestamptz, nullable: false, default: now() }
+
+  - name: AIModelVersion
+    table: ai_model_versions
+    description: Concrete version of an AI model, with performance metadata.
+    primary_key: id
+    columns:
+      - { name: id,              type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: model_id,        type: uuid,        nullable: false, references: ai_models.id }
+      - { name: version_tag,     type: text,        nullable: false }
+      - { name: artifact_uri,    type: text,        nullable: false }
+      - { name: input_types,     type: jsonb,       nullable: false, comment: "Array of supported input entity types" }
+      - { name: output_types,    type: jsonb,       nullable: false }
+      - { name: performance_metrics, type: jsonb,   nullable: true }
+      - { name: validated_on,    type: timestamptz, nullable: true }
+      - { name: validation_summary_uri, type: text, nullable: true }
+      - { name: sbom_uri,        type: text,        nullable: true }
+      - { name: created_at,      type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_ai_model_versions_model_version, columns: [model_id, version_tag], unique: true }
+
+  - name: AIInferenceJob
+    table: ai_inference_jobs
+    description: A single AI inference run on a given input (study, patient snapshot, etc.).
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: tenant_id,      type: uuid,        nullable: false, references: tenants.id }
+      - { name: model_version_id, type: uuid,      nullable: false, references: ai_model_versions.id }
+      - { name: input_type,     type: text,        nullable: false }
+      - { name: input_ref_id,   type: uuid,        nullable: false }
+      - { name: requested_by_user_id, type: uuid,  nullable: true, references: users.id }
+      - { name: status,         type: text,        nullable: false, default: 'QUEUED' }
+      - { name: started_at,     type: timestamptz, nullable: true }
+      - { name: completed_at,   type: timestamptz, nullable: true }
+      - { name: compute_env,    type: jsonb,       nullable: true }
+      - { name: error_details,  type: text,        nullable: true }
+      - { name: created_at,     type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_ai_jobs_tenant_model_status, columns: [tenant_id, model_version_id, status, created_at] }
+
+  - name: AIPrediction
+    table: ai_predictions
+    description: Atomic AI prediction/finding produced by an inference job.
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: job_id,         type: uuid,        nullable: false, references: ai_inference_jobs.id }
+      - { name: tenant_id,      type: uuid,        nullable: false, references: tenants.id }
+      - { name: patient_id,     type: uuid,        nullable: true,  references: patients.id }
+      - { name: imaging_object_id, type: uuid,     nullable: true,  references: imaging_objects.id }
+      - { name: prediction_type, type: text,       nullable: false }
+      - { name: code,           type: text,        nullable: true, comment: "Maps to clinical code_values entry" }
+      - { name: confidence,     type: numeric(5,4),nullable: true }
+      - { name: severity,       type: text,        nullable: true }
+      - { name: roi_annotation_id, type: uuid,     nullable: true, references: image_annotations.id }
+      - { name: raw_output,     type: jsonb,       nullable: true }
+      - { name: created_at,     type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_ai_predictions_tenant_patient, columns: [tenant_id, patient_id, created_at] }
+
+  - name: TreatmentPlan
+    table: treatment_plans
+    description: High-level treatment plan for a patient.
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: tenant_id,      type: uuid,        nullable: false, references: tenants.id }
+      - { name: patient_id,     type: uuid,        nullable: false, references: patients.id }
+      - { name: created_by_id,  type: uuid,        nullable: false, references: users.id }
+      - { name: status,         type: text,        nullable: false, default: 'DRAFT' }
+      - { name: total_estimated_cost, type: numeric(12,2), nullable: true }
+      - { name: estimated_insurance_coverage, type: numeric(12,2), nullable: true }
+      - { name: notes,          type: text,        nullable: true }
+      - { name: created_at,     type: timestamptz, nullable: false, default: now() }
+      - { name: updated_at,     type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_treatment_plans_tenant_patient, columns: [tenant_id, patient_id, created_at] }
+
+  - name: TreatmentPlanItem
+    table: treatment_plan_items
+    description: Planned procedure within a treatment plan.
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: plan_id,        type: uuid,        nullable: false, references: treatment_plans.id }
+      - { name: cdt_code,       type: text,        nullable: false }
+      - { name: tooth_number,   type: text,        nullable: true }
+      - { name: surface,        type: text,        nullable: true }
+      - { name: phase,          type: integer,     nullable: true }
+      - { name: sequence_order, type: integer,     nullable: true }
+      - { name: estimated_fee,  type: numeric(12,2), nullable: true }
+      - { name: estimated_patient_portion, type: numeric(12,2), nullable: true }
+
+  - name: Claim
+    table: claims
+    description: Insurance claim header.
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: tenant_id,      type: uuid,        nullable: false, references: tenants.id }
+      - { name: patient_id,     type: uuid,        nullable: false, references: patients.id }
+      - { name: payer_id,       type: uuid,        nullable: true }
+      - { name: claim_number,   type: text,        nullable: true }
+      - { name: status,         type: text,        nullable: false, default: 'DRAFT' }
+      - { name: submitted_at,   type: timestamptz, nullable: true }
+      - { name: total_billed_amount, type: numeric(12,2), nullable: true }
+      - { name: total_allowed_amount, type: numeric(12,2), nullable: true }
+      - { name: total_paid_amount, type: numeric(12,2), nullable: true }
+      - { name: created_at,     type: timestamptz, nullable: false, default: now() }
+      - { name: updated_at,     type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_claims_tenant_patient, columns: [tenant_id, patient_id, created_at] }
+
+  - name: ClaimLine
+    table: claim_lines
+    description: Individual service line within an insurance claim.
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: claim_id,       type: uuid,        nullable: false, references: claims.id }
+      - { name: procedure_id,   type: uuid,        nullable: true }
+      - { name: cdt_code,       type: text,        nullable: false }
+      - { name: billed_amount,  type: numeric(12,2), nullable: true }
+      - { name: allowed_amount, type: numeric(12,2), nullable: true }
+      - { name: paid_amount,    type: numeric(12,2), nullable: true }
+      - { name: denial_reason,  type: text,        nullable: true }
+
+
