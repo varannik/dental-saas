@@ -1,0 +1,313 @@
+version: 1.0.0
+description: >
+  Schema extensions to support modern AI agent frameworks (LangGraph, AutoGen, CrewAI).
+  These tables enable graph-based workflows, tool execution, multi-agent collaboration,
+  and human-in-the-loop patterns.
+
+entities:
+  # ---------------------------------------------------------------------------
+  # Agent Workflow & State Management (LangGraph-style)
+  # ---------------------------------------------------------------------------
+
+  - name: AgentWorkflow
+    table: agent_workflows
+    description: >
+      Defines a reusable agent workflow (state graph) with nodes and edges.
+      Supports LangGraph-style state machines and AutoGen conversation patterns.
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: tenant_id,      type: uuid,        nullable: true,  references: tenants.id, comment: "null for global workflows" }
+      - { name: name,           type: text,        nullable: false }
+      - { name: description,    type: text,        nullable: true }
+      - { name: workflow_type,  type: text,        nullable: false, comment: "CONVERSATIONAL | DIAGNOSTIC | TREATMENT_PLANNING | MULTI_AGENT" }
+      - { name: graph_definition, type: jsonb,     nullable: false, comment: "Nodes, edges, conditional logic (LangGraph StateGraph)" }
+      - { name: entry_node,     type: text,        nullable: false }
+      - { name: exit_nodes,     type: jsonb,       nullable: false, comment: "Array of terminal node names" }
+      - { name: version,        type: text,        nullable: false }
+      - { name: is_active,      type: boolean,     nullable: false, default: true }
+      - { name: created_by_id,  type: uuid,        nullable: false, references: users.id }
+      - { name: created_at,     type: timestamptz, nullable: false, default: now() }
+      - { name: updated_at,     type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_agent_workflows_tenant_active, columns: [tenant_id, is_active] }
+
+  - name: AgentExecution
+    table: agent_executions
+    description: >
+      Runtime instance of an agent workflow. Tracks state, checkpoints, and completion.
+      Equivalent to LangGraph's CompiledStateGraph execution or AutoGen's conversation thread.
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: workflow_id,    type: uuid,        nullable: false, references: agent_workflows.id }
+      - { name: tenant_id,      type: uuid,        nullable: false, references: tenants.id }
+      - { name: api_client_id,  type: uuid,        nullable: true,  references: api_clients.id, comment: "Which agent is executing" }
+      - { name: voice_session_id, type: uuid,      nullable: true,  references: voice_sessions.id, comment: "If triggered by voice" }
+      - { name: user_id,        type: uuid,        nullable: true,  references: users.id }
+      - { name: patient_id,     type: uuid,        nullable: true,  references: patients.id }
+      - { name: encounter_id,   type: uuid,        nullable: true,  references: encounters.id }
+      - { name: current_node,   type: text,        nullable: false, comment: "Current state in the graph" }
+      - { name: status,         type: text,        nullable: false, default: 'RUNNING', comment: "RUNNING | WAITING_APPROVAL | COMPLETED | FAILED | CANCELLED" }
+      - { name: state_snapshot, type: jsonb,       nullable: false, comment: "Full state object (LangGraph state)" }
+      - { name: checkpoint_id,  type: text,        nullable: true,  comment: "For resuming long-running workflows" }
+      - { name: started_at,     type: timestamptz, nullable: false, default: now() }
+      - { name: completed_at,   type: timestamptz, nullable: true }
+      - { name: error_details,  type: text,        nullable: true }
+      - { name: metadata,       type: jsonb,       nullable: true,  comment: "Custom context, tags" }
+    indexes:
+      - { name: idx_agent_executions_tenant_status, columns: [tenant_id, status, started_at] }
+      - { name: idx_agent_executions_voice_session, columns: [voice_session_id] }
+
+  - name: AgentStep
+    table: agent_steps
+    description: >
+      Individual step/node execution within an agent workflow.
+      Tracks LLM calls, tool calls, decisions, and transitions.
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: execution_id,   type: uuid,        nullable: false, references: agent_executions.id }
+      - { name: sequence_no,    type: integer,     nullable: false }
+      - { name: node_name,      type: text,        nullable: false }
+      - { name: node_type,      type: text,        nullable: false, comment: "LLM_CALL | TOOL_CALL | DECISION | HUMAN_APPROVAL | CONDITIONAL" }
+      - { name: input_state,    type: jsonb,       nullable: true,  comment: "State before this step" }
+      - { name: output_state,   type: jsonb,       nullable: true,  comment: "State after this step" }
+      - { name: llm_provider,   type: text,        nullable: true,  comment: "OPENAI | ANTHROPIC | AZURE | LOCAL" }
+      - { name: llm_model,      type: text,        nullable: true }
+      - { name: prompt_tokens,  type: integer,     nullable: true }
+      - { name: completion_tokens, type: integer,  nullable: true }
+      - { name: tool_name,      type: text,        nullable: true }
+      - { name: tool_input,     type: jsonb,       nullable: true }
+      - { name: tool_output,    type: jsonb,       nullable: true }
+      - { name: decision_result, type: text,       nullable: true,  comment: "Which edge was taken" }
+      - { name: status,         type: text,        nullable: false, default: 'COMPLETED', comment: "COMPLETED | FAILED | SKIPPED" }
+      - { name: duration_ms,    type: integer,     nullable: true }
+      - { name: error_message,  type: text,        nullable: true }
+      - { name: created_at,     type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_agent_steps_execution_seq, columns: [execution_id, sequence_no] }
+
+  # ---------------------------------------------------------------------------
+  # Tool/Function Registry & Execution
+  # ---------------------------------------------------------------------------
+
+  - name: AgentTool
+    table: agent_tools
+    description: >
+      Registry of tools/functions available to AI agents.
+      Supports OpenAI function calling, LangChain tools, and custom integrations.
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: tenant_id,      type: uuid,        nullable: true,  references: tenants.id, comment: "null for global tools" }
+      - { name: name,           type: text,        nullable: false, unique: true }
+      - { name: description,    type: text,        nullable: false, comment: "Natural language description for LLM" }
+      - { name: category,       type: text,        nullable: false, comment: "DATA_RETRIEVAL | DATA_MUTATION | EXTERNAL_API | COMPUTATION | NOTIFICATION" }
+      - { name: function_schema, type: jsonb,      nullable: false, comment: "OpenAI function calling schema (parameters, types)" }
+      - { name: implementation_type, type: text,   nullable: false, comment: "API_ENDPOINT | LAMBDA | INTERNAL_SERVICE | EXTERNAL_INTEGRATION" }
+      - { name: endpoint_uri,   type: text,        nullable: true }
+      - { name: auth_config,    type: jsonb,       nullable: true,  comment: "Credentials, headers" }
+      - { name: timeout_ms,     type: integer,     nullable: false, default: 30000 }
+      - { name: retry_policy,   type: jsonb,       nullable: true }
+      - { name: rate_limit,     type: integer,     nullable: true }
+      - { name: requires_approval, type: boolean,  nullable: false, default: false, comment: "Human-in-the-loop flag" }
+      - { name: is_active,      type: boolean,     nullable: false, default: true }
+      - { name: created_at,     type: timestamptz, nullable: false, default: now() }
+      - { name: updated_at,     type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_agent_tools_tenant_active, columns: [tenant_id, is_active] }
+
+  - name: ToolExecution
+    table: tool_executions
+    description: >
+      Individual tool/function call by an agent, with input/output and performance tracking.
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: agent_step_id,  type: uuid,        nullable: true,  references: agent_steps.id, comment: "Link to workflow step" }
+      - { name: tool_id,        type: uuid,        nullable: false, references: agent_tools.id }
+      - { name: tenant_id,      type: uuid,        nullable: false, references: tenants.id }
+      - { name: api_client_id,  type: uuid,        nullable: true,  references: api_clients.id }
+      - { name: input_params,   type: jsonb,       nullable: false }
+      - { name: output_result,  type: jsonb,       nullable: true }
+      - { name: status,         type: text,        nullable: false, default: 'PENDING', comment: "PENDING | RUNNING | SUCCEEDED | FAILED | TIMEOUT | CANCELLED" }
+      - { name: http_status,    type: integer,     nullable: true }
+      - { name: duration_ms,    type: integer,     nullable: true }
+      - { name: error_message,  type: text,        nullable: true }
+      - { name: retry_count,    type: integer,     nullable: false, default: 0 }
+      - { name: started_at,     type: timestamptz, nullable: false, default: now() }
+      - { name: completed_at,   type: timestamptz, nullable: true }
+    indexes:
+      - { name: idx_tool_executions_tenant_tool_time, columns: [tenant_id, tool_id, started_at] }
+      - { name: idx_tool_executions_step, columns: [agent_step_id] }
+
+  # ---------------------------------------------------------------------------
+  # Multi-Agent Collaboration (AutoGen/CrewAI patterns)
+  # ---------------------------------------------------------------------------
+
+  - name: AgentConversation
+    table: agent_conversations
+    description: >
+      Multi-agent conversation thread (AutoGen GroupChat, CrewAI crew).
+      Tracks collaboration between multiple AI agents and humans.
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: tenant_id,      type: uuid,        nullable: false, references: tenants.id }
+      - { name: conversation_type, type: text,     nullable: false, comment: "PEER_TO_PEER | GROUP_CHAT | HIERARCHICAL | SEQUENTIAL" }
+      - { name: initiator_type, type: text,        nullable: false, comment: "USER | API_CLIENT" }
+      - { name: initiator_id,   type: uuid,        nullable: false }
+      - { name: patient_id,     type: uuid,        nullable: true,  references: patients.id }
+      - { name: encounter_id,   type: uuid,        nullable: true,  references: encounters.id }
+      - { name: status,         type: text,        nullable: false, default: 'ACTIVE', comment: "ACTIVE | COMPLETED | FAILED" }
+      - { name: started_at,     type: timestamptz, nullable: false, default: now() }
+      - { name: ended_at,       type: timestamptz, nullable: true }
+      - { name: metadata,       type: jsonb,       nullable: true }
+    indexes:
+      - { name: idx_agent_conversations_tenant_status, columns: [tenant_id, status, started_at] }
+
+  - name: AgentMessage
+    table: agent_messages
+    description: >
+      Individual message in a multi-agent conversation.
+      Supports agent-to-agent and agent-to-human communication.
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: conversation_id, type: uuid,       nullable: false, references: agent_conversations.id }
+      - { name: sequence_no,    type: integer,     nullable: false }
+      - { name: sender_type,    type: text,        nullable: false, comment: "API_CLIENT | USER | SYSTEM" }
+      - { name: sender_id,      type: uuid,        nullable: false }
+      - { name: recipient_type, type: text,        nullable: true,  comment: "API_CLIENT | USER | BROADCAST" }
+      - { name: recipient_id,   type: uuid,        nullable: true }
+      - { name: message_type,   type: text,        nullable: false, comment: "TEXT | FUNCTION_CALL | FUNCTION_RESULT | SYSTEM" }
+      - { name: content,        type: text,        nullable: true }
+      - { name: function_call,  type: jsonb,       nullable: true,  comment: "Tool/function call details" }
+      - { name: metadata,       type: jsonb,       nullable: true }
+      - { name: created_at,     type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_agent_messages_conversation_seq, columns: [conversation_id, sequence_no] }
+
+  # ---------------------------------------------------------------------------
+  # Memory & Context Management
+  # ---------------------------------------------------------------------------
+
+  - name: AgentMemory
+    table: agent_memories
+    description: >
+      Long-term memory for agents. Stores facts, summaries, and semantic embeddings
+      for retrieval-augmented generation (RAG).
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: tenant_id,      type: uuid,        nullable: false, references: tenants.id }
+      - { name: api_client_id,  type: uuid,        nullable: true,  references: api_clients.id, comment: "Which agent owns this memory" }
+      - { name: memory_type,    type: text,        nullable: false, comment: "FACT | SUMMARY | CONVERSATION | PROCEDURE | PREFERENCE" }
+      - { name: scope,          type: text,        nullable: false, comment: "GLOBAL | PATIENT | ENCOUNTER | SESSION" }
+      - { name: scope_id,       type: uuid,        nullable: true,  comment: "patient_id, encounter_id, etc." }
+      - { name: content,        type: text,        nullable: false }
+      - { name: embedding,      type: vector(1536), nullable: true, comment: "pgvector for semantic search" }
+      - { name: source_type,    type: text,        nullable: true,  comment: "VOICE_UTTERANCE | CLINICAL_NOTE | AI_PREDICTION | USER_INPUT" }
+      - { name: source_id,      type: uuid,        nullable: true }
+      - { name: importance_score, type: numeric(3,2), nullable: true, comment: "0.0 to 1.0" }
+      - { name: access_count,   type: integer,     nullable: false, default: 0 }
+      - { name: last_accessed_at, type: timestamptz, nullable: true }
+      - { name: expires_at,     type: timestamptz, nullable: true }
+      - { name: created_at,     type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_agent_memories_tenant_scope, columns: [tenant_id, scope, scope_id] }
+      - { name: idx_agent_memories_embedding, columns: [embedding], using: ivfflat, comment: "pgvector index" }
+
+  - name: AgentContextWindow
+    table: agent_context_windows
+    description: >
+      Tracks context window usage and pruning for LLM calls.
+      Helps manage token limits and optimize context.
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: execution_id,   type: uuid,        nullable: false, references: agent_executions.id }
+      - { name: step_id,        type: uuid,        nullable: true,  references: agent_steps.id }
+      - { name: context_items,  type: jsonb,       nullable: false, comment: "Array of messages, documents, etc." }
+      - { name: total_tokens,   type: integer,     nullable: false }
+      - { name: max_tokens,     type: integer,     nullable: false }
+      - { name: pruning_strategy, type: text,      nullable: true,  comment: "FIFO | IMPORTANCE | SUMMARY" }
+      - { name: created_at,     type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_agent_context_execution, columns: [execution_id] }
+
+  # ---------------------------------------------------------------------------
+  # Human-in-the-Loop (HITL)
+  # ---------------------------------------------------------------------------
+
+  - name: AgentApprovalRequest
+    table: agent_approval_requests
+    description: >
+      Pending human approval for agent actions (HITL pattern).
+      Supports escalation and timeout policies.
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: execution_id,   type: uuid,        nullable: false, references: agent_executions.id }
+      - { name: step_id,        type: uuid,        nullable: true,  references: agent_steps.id }
+      - { name: tool_execution_id, type: uuid,     nullable: true,  references: tool_executions.id }
+      - { name: tenant_id,      type: uuid,        nullable: false, references: tenants.id }
+      - { name: requested_action, type: text,      nullable: false }
+      - { name: action_details, type: jsonb,       nullable: false, comment: "What the agent wants to do" }
+      - { name: reason,         type: text,        nullable: true,  comment: "Why approval is needed" }
+      - { name: priority,       type: text,        nullable: false, default: 'NORMAL', comment: "LOW | NORMAL | HIGH | URGENT" }
+      - { name: assigned_to_user_id, type: uuid,   nullable: true,  references: users.id }
+      - { name: status,         type: text,        nullable: false, default: 'PENDING', comment: "PENDING | APPROVED | REJECTED | TIMEOUT" }
+      - { name: reviewer_id,    type: uuid,        nullable: true,  references: users.id }
+      - { name: review_comment, type: text,        nullable: true }
+      - { name: reviewed_at,    type: timestamptz, nullable: true }
+      - { name: timeout_at,     type: timestamptz, nullable: true }
+      - { name: created_at,     type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_approval_requests_tenant_status, columns: [tenant_id, status, priority, created_at] }
+      - { name: idx_approval_requests_assigned, columns: [assigned_to_user_id, status] }
+
+  - name: AgentIntervention
+    table: agent_interventions
+    description: >
+      Human interventions and corrections to agent behavior.
+      Used for feedback loops and continuous learning.
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: execution_id,   type: uuid,        nullable: true,  references: agent_executions.id }
+      - { name: step_id,        type: uuid,        nullable: true,  references: agent_steps.id }
+      - { name: tenant_id,      type: uuid,        nullable: false, references: tenants.id }
+      - { name: user_id,        type: uuid,        nullable: false, references: users.id }
+      - { name: intervention_type, type: text,     nullable: false, comment: "STOP | OVERRIDE | CORRECT | FEEDBACK" }
+      - { name: original_action, type: jsonb,      nullable: true,  comment: "What the agent did/tried" }
+      - { name: corrected_action, type: jsonb,     nullable: true,  comment: "What the human did instead" }
+      - { name: reason,         type: text,        nullable: true }
+      - { name: use_for_training, type: boolean,   nullable: false, default: true }
+      - { name: created_at,     type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_agent_interventions_tenant_time, columns: [tenant_id, created_at] }
+      - { name: idx_agent_interventions_training, columns: [use_for_training, created_at] }
+
+  # ---------------------------------------------------------------------------
+  # Agent Performance & Observability
+  # ---------------------------------------------------------------------------
+
+  - name: AgentMetric
+    table: agent_metrics
+    description: >
+      Performance metrics and KPIs for agent executions.
+      Supports monitoring, alerting, and optimization.
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: execution_id,   type: uuid,        nullable: false, references: agent_executions.id }
+      - { name: tenant_id,      type: uuid,        nullable: false, references: tenants.id }
+      - { name: metric_name,    type: text,        nullable: false, comment: "COMPLETION_TIME | TOKEN_COST | TOOL_CALLS | ERROR_RATE | USER_SATISFACTION" }
+      - { name: metric_value,   type: numeric,     nullable: false }
+      - { name: metric_unit,    type: text,        nullable: true }
+      - { name: recorded_at,    type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_agent_metrics_tenant_metric_time, columns: [tenant_id, metric_name, recorded_at] }
+

@@ -4,6 +4,63 @@
 
 This SaaS platform follows a microservices architecture designed for scalability, maintainability, and high availability.
 
+## Documentation Index
+
+### 📊 Core Database Schema (Required)
+
+The foundational clinical and operational data model for the dental SaaS platform.
+
+- **[schema-core.md](./schema-core.md)** - Core schema documentation (human-readable)
+  - Multi-tenancy & identity management
+  - Patient & clinical data
+  - Imaging & AI predictions
+  - Voice sessions & utterances
+  - Billing & subscriptions
+  - Audit & compliance
+
+- **[schema-core.yaml](./schema-core.yaml)** - Core schema specification (machine-readable)
+  - Used for code generation, migrations, and DDL creation
+  - Single source of truth for core tables
+
+### 🤖 AI Agent Extensions (Optional)
+
+Advanced AI agent infrastructure that extends the core schema. Deploy only if using AI agent features (LangGraph, AutoGen, CrewAI, etc.).
+
+- **[schema-agent-extensions.yaml](./schema-agent-extensions.yaml)** - Agent schema specification
+  - Workflow orchestration (state graphs)
+  - Tool registry & execution tracking
+  - Multi-agent collaboration
+  - Memory & context management
+  - Human-in-the-loop (HITL) approvals
+  - Observability & metrics
+
+- **[agent-implementation-guide.md](./agent-implementation-guide.md)** - Implementation guide
+  - Complete workflow examples
+  - Integration patterns
+  - Query patterns & analytics
+  - Security & performance best practices
+
+### 📐 Architecture Relationship
+
+```
+┌─────────────────────────────────────┐
+│   Core Schema (schema-core.yaml)    │
+│   ✓ Patients, encounters, imaging   │
+│   ✓ Voice sessions & utterances     │
+│   ✓ API clients (authentication)    │
+│   ✓ Audit events                    │
+└─────────────────┬───────────────────┘
+                  │ extends
+                  ↓
+┌─────────────────────────────────────┐
+│  Agent Extensions (optional)        │
+│  ✓ Workflow orchestration           │
+│  ✓ Tool execution                   │
+│  ✓ Multi-agent collaboration        │
+│  ✓ Memory & HITL                    │
+└─────────────────────────────────────┘
+```
+
 ## System Architecture
 
 ```

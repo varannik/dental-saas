@@ -106,8 +106,20 @@ At a high level:
   - Active application sessions; stores device info, IP, user agent, last activity.
 
 - `api_clients`
-  - Service accounts / integration clients with:
-    - `client_id`, `client_secret_hash`, `tenant_id`, scopes, rate limits.
+  - **Machine‑to‑machine service accounts** (including AI agents and external integrations).
+  - Key fields:
+    - `id` (UUID, PK)
+    - `tenant_id` (FK → `tenants.id`, nullable for global clients; set for tenant‑scoped agents)
+    - `client_id` (public identifier used in OAuth/client‑credentials or similar flows; unique)
+    - `name` (human‑readable label, e.g., “AI Voice Agent – US East”)
+    - `description` (optional)
+    - `client_secret_hash` (hashed secret, never store plain text)
+    - `scopes` (JSONB array/list of allowed permission scopes, e.g., `["patient.read", "note.write"]`)
+    - `rate_limit_per_minute` (optional throttle per client)
+    - `ip_allowlist` (JSONB of allowed IP ranges, optional)
+    - `created_at`, `updated_at`
+  - Usage:
+    - Used together with `audit_events.actor_type = API_CLIENT` and `actor_id = api_clients.id` to track automated actions (e.g., AI agent updates triggered from `voice_utterances` or other automated workflows).
 
 ### 3. Audit & Compliance
 
@@ -511,7 +523,7 @@ This layer is implemented via ETL/ELT (e.g., dbt + columnar warehouse), not as p
 - `claims` 1‑to‑many `claim_lines`, each referencing `procedures` or `treatment_plan_items`.
 - `voice_sessions` 1‑to‑many `voice_utterances` and 1‑to‑many `voice_recordings`; `voice_utterances` can be linked to downstream actions (notes, appointments, AI jobs) via foreign keys or audit metadata.
 
-For detailed table/field specifications, see the adjacent `dataSchema.yaml`, which mirrors this logical model in a machine‑readable form suitable for code generation and DDL creation.
+For detailed table/field specifications, see the adjacent `schema-core.yaml`, which mirrors this logical model in a machine‑readable form suitable for code generation and DDL creation.
 
 ---
 
@@ -542,6 +554,13 @@ erDiagram
     citext email
     text full_name
     text status
+  }
+
+  API_CLIENTS {
+    uuid id PK
+    uuid tenant_id FK
+    text client_id
+    text name
   }
 
   USER_TENANTS {
@@ -698,6 +717,7 @@ erDiagram
 
   TENANTS ||--o{ LOCATIONS : has
   TENANTS ||--o{ USER_TENANTS : "has members"
+  TENANTS ||--o{ API_CLIENTS : "has api clients"
   USERS ||--o{ USER_TENANTS : belongs_to
 
   TENANTS ||--o{ PATIENTS : owns

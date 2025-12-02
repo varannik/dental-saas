@@ -16,6 +16,10 @@ conventions:
     strategy: row_level
 
 entities:
+  # ---------------------------------------------------------------------------
+  # Tenancy & Identity
+  # ---------------------------------------------------------------------------
+
   - name: Tenant
     table: tenants
     description: Top-level organization (solo practice, group, DSO, academic, payer, regulator, AI vendor).
@@ -61,6 +65,25 @@ entities:
       - { name: status,       type: text,        nullable: false, default: 'ACTIVE' }
       - { name: created_at,   type: timestamptz, nullable: false, default: now() }
       - { name: updated_at,   type: timestamptz, nullable: false, default: now() }
+
+  - name: ApiClient
+    table: api_clients
+    description: Machine-to-machine client credentials (service accounts) for integrations and AI agents.
+    primary_key: id
+    columns:
+      - { name: id,               type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: tenant_id,        type: uuid,        nullable: true,  references: tenants.id, comment: "null for global clients, set for tenant-scoped agents" }
+      - { name: client_id,        type: text,        nullable: false, unique: true, comment: "Public identifier used in OAuth/client-credentials flows" }
+      - { name: name,             type: text,        nullable: false }
+      - { name: description,      type: text,        nullable: true }
+      - { name: client_secret_hash, type: text,      nullable: false, comment: "Hashed secret, never store plain text" }
+      - { name: scopes,           type: jsonb,       nullable: true,  comment: "Array/list of allowed permission scopes" }
+      - { name: rate_limit_per_minute, type: integer,nullable: true }
+      - { name: ip_allowlist,     type: jsonb,       nullable: true,  comment: "Optional list of allowed IP ranges" }
+      - { name: created_at,       type: timestamptz, nullable: false, default: now() }
+      - { name: updated_at,       type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_api_clients_tenant, columns: [tenant_id] }
 
   - name: UserTenant
     table: user_tenants
@@ -132,6 +155,10 @@ entities:
       - { name: idx_audit_tenant_time, columns: [tenant_id, occurred_at] }
       - { name: idx_audit_resource,    columns: [resource_type, resource_id] }
 
+  # ---------------------------------------------------------------------------
+  # Clinical Master & Encounters
+  # ---------------------------------------------------------------------------
+
   - name: Patient
     table: patients
     description: Tenant-scoped patient master record.
@@ -175,6 +202,10 @@ entities:
       - { name: updated_at,       type: timestamptz, nullable: false, default: now() }
     indexes:
       - { name: idx_encounters_tenant_patient_time, columns: [tenant_id, patient_id, scheduled_start_at] }
+
+  # ---------------------------------------------------------------------------
+  # Imaging & AI
+  # ---------------------------------------------------------------------------
 
   - name: ImagingStudy
     table: imaging_studies
@@ -288,6 +319,10 @@ entities:
     indexes:
       - { name: idx_ai_predictions_tenant_patient, columns: [tenant_id, patient_id, created_at] }
 
+  # ---------------------------------------------------------------------------
+  # Treatment & Claims
+  # ---------------------------------------------------------------------------
+
   - name: TreatmentPlan
     table: treatment_plans
     description: High-level treatment plan for a patient.
@@ -355,6 +390,9 @@ entities:
       - { name: paid_amount,    type: numeric(12,2), nullable: true }
       - { name: denial_reason,  type: text,        nullable: true }
 
+  # ---------------------------------------------------------------------------
+  # Voice & Conversational AI
+  # ---------------------------------------------------------------------------
 
   - name: VoiceSession
     table: voice_sessions
