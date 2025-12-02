@@ -17,10 +17,21 @@ The foundational clinical and operational data model for the dental SaaS platfor
   - Voice sessions & utterances
   - Billing & subscriptions
   - Audit & compliance
+  - **Redis session management architecture**
 
 - **[schema-core.yaml](./schema-core.yaml)** - Core schema specification (machine-readable)
   - Used for code generation, migrations, and DDL creation
   - Single source of truth for core tables
+  - Includes optional `sessions` table for audit/compliance
+
+- **[redis-patterns.md](./redis-patterns.md)** - Redis usage patterns & configuration
+  - Session management (primary store)
+  - Permission caching
+  - Rate limiting
+  - JWT blacklist
+  - Real-time approval queues
+  - Pub/Sub notifications
+  - High availability & monitoring
 
 ### 🤖 AI Agent Extensions (Optional)
 
@@ -40,25 +51,39 @@ Advanced AI agent infrastructure that extends the core schema. Deploy only if us
   - Query patterns & analytics
   - Security & performance best practices
 
-### 📐 Architecture Relationship
+### 📐 Data Architecture Relationship
 
 ```
-┌─────────────────────────────────────┐
-│   Core Schema (schema-core.yaml)    │
-│   ✓ Patients, encounters, imaging   │
-│   ✓ Voice sessions & utterances     │
-│   ✓ API clients (authentication)    │
-│   ✓ Audit events                    │
-└─────────────────┬───────────────────┘
+┌─────────────────────────────────────────────────┐
+│  PostgreSQL (Source of Truth)                   │
+│  ✓ schema-core.yaml                             │
+│    - Patients, encounters, imaging              │
+│    - Voice sessions & utterances                │
+│    - API clients (authentication)               │
+│    - Sessions (audit-only)                      │
+│    - Audit events                               │
+└─────────────────┬───────────────────────────────┘
                   │ extends
                   ↓
-┌─────────────────────────────────────┐
-│  Agent Extensions (optional)        │
-│  ✓ Workflow orchestration           │
-│  ✓ Tool execution                   │
-│  ✓ Multi-agent collaboration        │
-│  ✓ Memory & HITL                    │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│  Agent Extensions (optional)                    │
+│  ✓ schema-agent-extensions.yaml                 │
+│    - Workflow orchestration                     │
+│    - Tool execution                             │
+│    - Multi-agent collaboration                  │
+│    - Memory & HITL                              │
+│    - Action history (undo)                      │
+└─────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────┐
+│  Redis (Performance Layer)                      │
+│  ✓ redis-patterns.md                            │
+│    - Active sessions (primary)                  │
+│    - Permission cache                           │
+│    - Rate limiting                              │
+│    - JWT blacklist                              │
+│    - Real-time queues & pub/sub                 │
+└─────────────────────────────────────────────────┘
 ```
 
 ## System Architecture

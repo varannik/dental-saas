@@ -1,11 +1,56 @@
 ## Dental AI SaaS Data Schema – Logical Design
 
-This document defines the logical data model for a multi‑tenant, AI‑enabled dental SaaS platform based on the `docs/market/analysis.md` findings. It is optimized for **PostgreSQL** (primary relational store) with **object storage** for large binaries (DICOM, images, 3D models) and is designed for hybrid multi‑tenancy (row‑level with optional DB/schema isolation for large tenants).
+This document defines the logical data model for a multi‑tenant, AI‑enabled dental SaaS platform based on the `docs/market/analysis.md` findings.
 
-At a high level:
-- **Clinical & operational data** live in a normalized relational schema (3NF with targeted denormalization for read performance).
-- **Blobs** (DICOM, JPG/PNG, STL, PDFs, videos) live in object storage referenced by keys.
-- **Analytics & BI** use a separate warehouse (star schema) populated via ETL/ELT from the transactional DB.
+---
+
+## Technology Stack
+
+### **Data Storage Architecture**
+
+```
+┌─────────────────────────────────────────────────┐
+│  PostgreSQL (Primary Relational Store)          │
+│  ✓ Clinical data (patients, encounters, notes)  │
+│  ✓ User/tenant master data                      │
+│  ✓ Audit logs (permanent record)                │
+│  ✓ Treatment plans, claims, billing             │
+│  ✓ AI predictions, imaging metadata             │
+└─────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────┐
+│  Redis (In-Memory Cache & Session Store)        │
+│  ✓ Active user sessions (<1ms lookup)           │
+│  ✓ Permission cache (5-minute TTL)              │
+│  ✓ Rate limiting counters                       │
+│  ✓ Real-time approval queues (pub/sub)          │
+│  ✓ JWT blacklist (for logout)                   │
+└─────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────┐
+│  Object Storage (S3/Azure Blob/GCS)             │
+│  ✓ DICOM files, medical images                  │
+│  ✓ 3D models (STL, OBJ)                         │
+│  ✓ Voice recordings (OPUS, WAV)                 │
+│  ✓ Documents (PDFs, scanned forms)              │
+│  ✓ AI model artifacts                           │
+└─────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────┐
+│  Data Warehouse (Optional - Snowflake/BigQuery) │
+│  ✓ Analytics & BI (star schema)                 │
+│  ✓ Federated learning datasets                  │
+│  ✓ Benchmarking & reporting                     │
+└─────────────────────────────────────────────────┘
+```
+
+### **Design Principles**
+
+- **PostgreSQL**: Source of truth for all structured data; normalized (3NF) with targeted denormalization for read performance
+- **Redis**: Ephemeral data with automatic expiry; never use as source of truth
+- **Object Storage**: Large binary files referenced by URI/key in PostgreSQL
+- **Multi-tenancy**: Hybrid row-level isolation (default) with optional schema/database isolation for large tenants
+- **Compliance**: HIPAA, GDPR, FDA-ready with encryption at rest/in transit, audit logs, and data retention policies
 
 ---
 
@@ -102,8 +147,44 @@ At a high level:
 
 ### 2. Sessions & API Access
 
-- `sessions`
-  - Active application sessions; stores device info, IP, user agent, last activity.
+#### **Session Management Architecture**
+
+**Primary Session Store: Redis** (in-memory, fast, ephemeral)
+- ✅ Active user sessions stored in Redis with automatic TTL (typically 24 hours)
+- ✅ Session data includes: `user_id`, `tenant_id`, `roles`, `permissions`, `device_info`
+- ✅ Redis key pattern: `session:{session_id}`
+- ✅ Performance: <1ms lookup, automatic expiry, no cleanup jobs needed
+- ✅ Use cases: Authentication, authorization, permission caching, rate limiting
+
+**Secondary Session Store: PostgreSQL** (persistent, audit-only)
+- `sessions` table (optional, for compliance/forensics)
+  - **NOT used for active session validation** (Redis is authoritative)
+  - Written asynchronously (non-blocking) on login/logout for audit trail
+  - Enables analytics: "active users", "session duration", "device breakdown"
+  - Required for HIPAA audit logs and forensic investigation
+  - Key fields:
+    - `id` (UUID, PK; same as Redis session_id and JWT claim)
+    - `user_id`, `tenant_id` (FKs)
+    - `token_hash` (SHA256 of JWT for revocation checking)
+    - `ip_address`, `user_agent`, `device_info` (JSONB)
+    - `last_activity_at`, `expires_at`
+    - `revoked_at`, `revoke_reason` (USER_LOGOUT, ADMIN_REVOKE, SECURITY_BREACH, PASSWORD_CHANGE)
+  - Indexes:
+    - `idx_sessions_user_active` (for "active sessions per user" queries)
+    - `idx_sessions_token_hash` (for JWT blacklist checking)
+    - `idx_sessions_cleanup` (for periodic cleanup of expired sessions)
+
+**Session Lifecycle:**
+1. **Login**: Validate credentials (PostgreSQL) → Create session in Redis → Optionally write to `sessions` table → Return JWT
+2. **Request**: Extract JWT → Check Redis for session → Attach user context to request
+3. **Logout**: Delete from Redis → Add JWT to blacklist (Redis) → Update `sessions.revoked_at` (PostgreSQL)
+4. **Expiry**: Redis auto-deletes after TTL → Periodic job cleans up PostgreSQL `sessions` table
+
+**Redis Data Structures:**
+- `session:{session_id}` → JSON (user_id, tenant_id, roles, permissions, created_at)
+- `permissions:{user_id}:{tenant_id}` → JSON array (cached for 5 minutes)
+- `rate_limit:{tenant_id}:{user_id}` → Counter (1-minute TTL)
+- `blacklist:{token_hash}` → "revoked" (TTL = original token expiry)
 
 - `api_clients`
   - **Machine‑to‑machine service accounts** (including AI agents and external integrations).

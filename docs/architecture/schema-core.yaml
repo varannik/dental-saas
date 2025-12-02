@@ -85,6 +85,33 @@ entities:
     indexes:
       - { name: idx_api_clients_tenant, columns: [tenant_id] }
 
+  - name: Session
+    table: sessions
+    description: >
+      OPTIONAL audit log of user authentication sessions.
+      Active sessions are stored in Redis for performance (<1ms lookup, automatic TTL expiry).
+      This PostgreSQL table is for compliance, forensics, and analytics only.
+      Write to this table asynchronously (non-blocking) on login/logout.
+    primary_key: id
+    columns:
+      - { name: id,               type: uuid,        nullable: false, comment: "Same as session_id stored in Redis and JWT" }
+      - { name: user_id,          type: uuid,        nullable: false, references: users.id }
+      - { name: tenant_id,        type: uuid,        nullable: false, references: tenants.id }
+      - { name: token_hash,       type: text,        nullable: false, comment: "SHA256 hash of JWT for revocation checking" }
+      - { name: ip_address,       type: inet,        nullable: true }
+      - { name: user_agent,       type: text,        nullable: true }
+      - { name: device_info,      type: jsonb,       nullable: true,  comment: "Device fingerprint, OS, browser" }
+      - { name: last_activity_at, type: timestamptz, nullable: false, default: now() }
+      - { name: expires_at,       type: timestamptz, nullable: false, comment: "Session expiry time (typically 24 hours)" }
+      - { name: revoked_at,       type: timestamptz, nullable: true,  comment: "Set on logout or forced revocation" }
+      - { name: revoke_reason,    type: text,        nullable: true,  comment: "USER_LOGOUT | ADMIN_REVOKE | SECURITY_BREACH | PASSWORD_CHANGE" }
+      - { name: created_at,       type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_sessions_user_active, columns: [user_id, expires_at], where: "revoked_at IS NULL" }
+      - { name: idx_sessions_tenant, columns: [tenant_id, created_at] }
+      - { name: idx_sessions_token_hash, columns: [token_hash], unique: true }
+      - { name: idx_sessions_cleanup, columns: [expires_at], where: "revoked_at IS NULL AND expires_at < NOW()", comment: "For cleanup job" }
+
   - name: UserTenant
     table: user_tenants
     description: Membership of a user in a tenant with a given user type.
