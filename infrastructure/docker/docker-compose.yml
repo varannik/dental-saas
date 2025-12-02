@@ -1,32 +1,40 @@
-# Docker Compose for local development
-version: '3.9'
+version: '3.8'
+
+# Dental SaaS Platform - Local Development Stack
+# This Docker Compose file provides PostgreSQL, Redis, and MinIO for local development
 
 services:
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    container_name: saas-postgres
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: saas_dev
+    container_name: dental-saas-postgres
+    restart: unless-stopped
     ports:
       - "5432:5432"
+    environment:
+      POSTGRES_DB: dental_saas
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - dental-saas-network
 
-  # Redis
+  # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: saas-redis
+    container_name: dental-saas-redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
+    command: redis-server --appendonly yes --requirepass ""
     volumes:
       - redis_data:/data
     healthcheck:
@@ -34,137 +42,80 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - dental-saas-network
 
-  # MinIO (S3-compatible storage)
+  # MinIO (S3-compatible object storage)
   minio:
     image: minio/minio:latest
-    container_name: saas-minio
+    container_name: dental-saas-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"  # API
+      - "9001:9001"  # Console
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
-    ports:
-      - "9000:9000"
-      - "9001:9001"
+    command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
-    command: server /data --console-address ":9001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dental-saas-network
 
-  # MailHog (Email testing)
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: saas-mailhog
-    ports:
-      - "1025:1025"  # SMTP
-      - "8025:8025"  # Web UI
-
-  # API Gateway
-  api-gateway:
-    build:
-      context: ../../
-      dockerfile: apps/api-gateway/Dockerfile
-    container_name: saas-api-gateway
-    ports:
-      - "3001:3001"
-    environment:
-      - NODE_ENV=development
-      - PORT=3001
-      - AUTH_SERVICE_URL=http://auth-service:4001
-      - USERS_SERVICE_URL=http://users-service:4002
-      - BILLING_SERVICE_URL=http://billing-service:4003
-      - NOTIFICATIONS_SERVICE_URL=http://notifications-service:4004
+  # MinIO Client (create buckets on startup)
+  minio-init:
+    image: minio/mc:latest
+    container_name: dental-saas-minio-init
     depends_on:
-      - auth-service
-      - users-service
-      - billing-service
-      - notifications-service
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set minio http://minio:9000 minioadmin minioadmin;
+      mc mb minio/dental-saas-local --ignore-existing;
+      mc mb minio/dental-saas-images --ignore-existing;
+      mc mb minio/dental-saas-backups --ignore-existing;
+      mc anonymous set download minio/dental-saas-local;
+      echo 'MinIO buckets created successfully';
+      exit 0;
+      "
+    networks:
+      - dental-saas-network
 
-  # Auth Service
-  auth-service:
-    build:
-      context: ../../
-      dockerfile: services/auth/Dockerfile
-    container_name: saas-auth-service
-    ports:
-      - "4001:4001"
-    environment:
-      - NODE_ENV=development
-      - PORT=4001
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/auth
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=your-jwt-secret
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-
-  # Users Service
-  users-service:
-    build:
-      context: ../../
-      dockerfile: services/users/Dockerfile
-    container_name: saas-users-service
-    ports:
-      - "4002:4002"
-    environment:
-      - NODE_ENV=development
-      - PORT=4002
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/users
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-  # Billing Service
-  billing-service:
-    build:
-      context: ../../
-      dockerfile: services/billing/Dockerfile
-    container_name: saas-billing-service
-    ports:
-      - "4003:4003"
-    environment:
-      - NODE_ENV=development
-      - PORT=4003
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/billing
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-  # Notifications Service
-  notifications-service:
-    build:
-      context: ../../
-      dockerfile: services/notifications/Dockerfile
-    container_name: saas-notifications-service
-    ports:
-      - "4004:4004"
-    environment:
-      - NODE_ENV=development
-      - PORT=4004
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/notifications
-      - REDIS_URL=redis://redis:6379
-      - SMTP_HOST=mailhog
-      - SMTP_PORT=1025
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      mailhog:
-        condition: service_started
+  # LocalStack (Optional - AWS service mocks)
+  # Uncomment if you need AWS service mocks (S3, SQS, SNS, Lambda, etc.)
+  # localstack:
+  #   image: localstack/localstack:latest
+  #   container_name: dental-saas-localstack
+  #   restart: unless-stopped
+  #   ports:
+  #     - "4566:4566"  # Edge port for all services
+  #   environment:
+  #     SERVICES: s3,sqs,sns,lambda,dynamodb,secretsmanager
+  #     DEBUG: 1
+  #     DATA_DIR: /tmp/localstack/data
+  #     DOCKER_HOST: unix:///var/run/docker.sock
+  #   volumes:
+  #     - localstack_data:/tmp/localstack
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #   networks:
+  #     - dental-saas-network
 
 volumes:
   postgres_data:
+    driver: local
   redis_data:
+    driver: local
   minio_data:
+    driver: local
+  # localstack_data:
+  #   driver: local
 
 networks:
-  default:
-    name: saas-network
-
+  dental-saas-network:
+    driver: bridge

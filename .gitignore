@@ -1,61 +1,296 @@
-# Dependencies
-node_modules/
-.pnpm-store/
+# Dental SaaS Platform - .gitignore
 
-# Build outputs
-dist/
-.next/
-.turbo/
-out/
+# ============================================================================
+# Secrets & Sensitive Files (NEVER COMMIT!)
+# ============================================================================
 
 # Environment files
 .env
 .env.local
 .env.*.local
-!.env.example
+.env.development
+.env.test
+.env.production
 
-# IDE
+# Terraform secrets
+*.secrets.tfvars
+*.secret.tfvars
+*-secrets.tfvars
+secrets.json
+credentials.json
+
+# Terraform state files (contain secrets!)
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+.terraform.tfstate.lock.info
+
+# AWS credentials
+.aws/credentials
+.aws/config
+
+# SSH keys
+*.pem
+*.key
+id_rsa*
+*.ppk
+
+# Certificates
+*.crt
+*.cer
+*.p12
+*.pfx
+
+# ============================================================================
+# Dependencies
+# ============================================================================
+
+# Node modules
+node_modules/
+jspm_packages/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Go
+vendor/
+
+# ============================================================================
+# Build Outputs
+# ============================================================================
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Expo / React Native
+.expo/
+.expo-shared/
+
+# Production builds
+*.tgz
+*.zip
+*.tar.gz
+
+# ============================================================================
+# Terraform
+# ============================================================================
+
+# Terraform directories
+.terraform/
+.terraform.lock.hcl
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration files
+.terraformrc
+terraform.rc
+
+# ============================================================================
+# Docker
+# ============================================================================
+
+# Docker volumes (if using local volumes)
+docker-volumes/
+
+# ============================================================================
+# IDEs & Editors
+# ============================================================================
+
+# VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# IntelliJ IDEA
 .idea/
-.vscode/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
 *.swp
 *.swo
+*~
 
-# OS
+# Emacs
+*~
+\#*\#
+.\#*
+
+# ============================================================================
+# Operating System
+# ============================================================================
+
+# macOS
 .DS_Store
-Thumbs.db
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
 
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ============================================================================
 # Logs
+# ============================================================================
+
+# General logs
 logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
 pnpm-debug.log*
 
-# Testing
-coverage/
-.nyc_output/
-playwright-report/
-test-results/
+# Runtime logs
+pids/
+*.pid
+*.seed
+*.pid.lock
 
-# Misc
-*.tsbuildinfo
-.cache/
+# ============================================================================
+# Testing
+# ============================================================================
+
+# Coverage reports
+coverage/
+*.lcov
+.nyc_output/
+
+# Test results
+test-results/
+junit.xml
+
+# Playwright
+playwright-report/
+playwright/.cache/
+
+# ============================================================================
+# Temporary Files
+# ============================================================================
+
+# Temporary files
 tmp/
 temp/
+*.tmp
+*.temp
+*.cache
 
-# Terraform
-.terraform/
-*.tfstate
-*.tfstate.*
-*.tfvars
-!*.tfvars.example
+# Backup files
+*.bak
+*.backup
+*.old
 
-# Kubernetes
-kubeconfig
+# ============================================================================
+# Package Managers
+# ============================================================================
 
-# Secrets (never commit)
-*.pem
-*.key
-secrets/
+# npm
+package-lock.json
+npm-debug.log*
 
+# Yarn
+yarn.lock
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.yarn/install-state.gz
+.pnp.*
+
+# pnpm
+pnpm-lock.yaml
+
+# ============================================================================
+# Database
+# ============================================================================
+
+# Database dumps
+*.sql
+*.dump
+*.backup
+!infrastructure/docker/init-db.sql
+
+# SQLite
+*.sqlite
+*.sqlite3
+*.db
+
+# ============================================================================
+# Misc
+# ============================================================================
+
+# Sentry
+.sentryclirc
+
+# Vercel
+.vercel
+
+# Turborepo
+.turbo
+
+# Generated files
+generated/
+.generated/
+
+# Storybook
+storybook-static/
+
+# Documentation builds
+docs/_build/
+site/
