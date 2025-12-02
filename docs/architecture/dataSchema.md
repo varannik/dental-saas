@@ -512,3 +512,182 @@ This layer is implemented via ETL/ELT (e.g., dbt + columnar warehouse), not as p
 
 For detailed table/field specifications, see the adjacent `dataSchema.yaml`, which mirrors this logical model in a machine‑readable form suitable for code generation and DDL creation.
 
+---
+
+## XIII. Core ERD Diagram (with Key Attributes)
+
+The following Mermaid ERD diagram shows the **core entities**, their **primary attributes**, and the **relationships** between them. It focuses on the most important tables for day‑to‑day workflows (multi‑tenancy, patients, encounters, imaging, AI, billing).
+
+```mermaid
+erDiagram
+  TENANTS {
+    uuid id PK
+    text name
+    text type
+    uuid parent_tenant_id FK
+    text primary_region
+  }
+
+  LOCATIONS {
+    uuid id PK
+    uuid tenant_id FK
+    text name
+    jsonb address
+    text timezone
+  }
+
+  USERS {
+    uuid id PK
+    citext email
+    text full_name
+    text status
+  }
+
+  USER_TENANTS {
+    uuid user_id FK
+    uuid tenant_id FK
+    uuid default_location_id FK
+    text user_type
+  }
+
+  PATIENTS {
+    uuid id PK
+    uuid tenant_id FK
+    uuid primary_location_id FK
+    text first_name
+    text last_name
+    date dob
+    text status
+  }
+
+  ENCOUNTERS {
+    uuid id PK
+    uuid tenant_id FK
+    uuid patient_id FK
+    uuid location_id FK
+    uuid provider_id FK
+    text encounter_type
+    text status
+    timestamptz scheduled_start_at
+  }
+
+  IMAGING_STUDIES {
+    uuid id PK
+    uuid tenant_id FK
+    uuid patient_id FK
+    uuid encounter_id FK
+    text study_uid
+    text modality
+    timestamptz acquisition_datetime
+  }
+
+  IMAGING_OBJECTS {
+    uuid id PK
+    uuid study_id FK
+    text object_type
+    text storage_uri
+    bigint byte_size
+    int width
+    int height
+  }
+
+  AI_MODELS {
+    uuid id PK
+    text name
+    text domain
+    text vendor
+    text regulatory_class
+  }
+
+  AI_MODEL_VERSIONS {
+    uuid id PK
+    uuid model_id FK
+    text version_tag
+    text artifact_uri
+  }
+
+  AI_INFERENCE_JOBS {
+    uuid id PK
+    uuid tenant_id FK
+    uuid model_version_id FK
+    text input_type
+    uuid input_ref_id
+    text status
+    timestamptz created_at
+  }
+
+  AI_PREDICTIONS {
+    uuid id PK
+    uuid job_id FK
+    uuid tenant_id FK
+    uuid patient_id FK
+    uuid imaging_object_id FK
+    text prediction_type
+    text code
+    numeric confidence
+  }
+
+  TREATMENT_PLANS {
+    uuid id PK
+    uuid tenant_id FK
+    uuid patient_id FK
+    uuid created_by_id FK
+    text status
+    numeric total_estimated_cost
+  }
+
+  TREATMENT_PLAN_ITEMS {
+    uuid id PK
+    uuid plan_id FK
+    text cdt_code
+    text tooth_number
+    int sequence_order
+    numeric estimated_fee
+  }
+
+  CLAIMS {
+    uuid id PK
+    uuid tenant_id FK
+    uuid patient_id FK
+    uuid payer_id
+    text claim_number
+    text status
+    numeric total_billed_amount
+  }
+
+  CLAIM_LINES {
+    uuid id PK
+    uuid claim_id FK
+    uuid procedure_id
+    text cdt_code
+    numeric billed_amount
+  }
+
+  TENANTS ||--o{ LOCATIONS : has
+  TENANTS ||--o{ USER_TENANTS : "has members"
+  USERS ||--o{ USER_TENANTS : belongs_to
+
+  TENANTS ||--o{ PATIENTS : owns
+  PATIENTS ||--o{ ENCOUNTERS : has
+  LOCATIONS ||--o{ ENCOUNTERS : hosts
+  USERS ||--o{ ENCOUNTERS : "as provider"
+
+  PATIENTS ||--o{ IMAGING_STUDIES : has
+  ENCOUNTERS ||--o{ IMAGING_STUDIES : includes
+  IMAGING_STUDIES ||--o{ IMAGING_OBJECTS : contains
+
+  AI_MODELS ||--o{ AI_MODEL_VERSIONS : versions
+  AI_MODEL_VERSIONS ||--o{ AI_INFERENCE_JOBS : used_by
+  TENANTS ||--o{ AI_INFERENCE_JOBS : runs
+  AI_INFERENCE_JOBS ||--o{ AI_PREDICTIONS : produces
+  PATIENTS ||--o{ AI_PREDICTIONS : relates_to
+  IMAGING_OBJECTS ||--o{ AI_PREDICTIONS : on_image
+
+  PATIENTS ||--o{ TREATMENT_PLANS : has
+  TREATMENT_PLANS ||--o{ TREATMENT_PLAN_ITEMS : includes
+
+  PATIENTS ||--o{ CLAIMS : billed_to
+  CLAIMS ||--o{ CLAIM_LINES : contains
+```
+
+
