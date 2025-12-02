@@ -291,6 +291,44 @@ entities:
       - { name: idx_agent_interventions_training, columns: [use_for_training, created_at] }
 
   # ---------------------------------------------------------------------------
+  # Undo & Rollback Support
+  # ---------------------------------------------------------------------------
+
+  - name: ActionHistory
+    table: action_history
+    description: >
+      Stores previous state for undo functionality (5-minute window).
+      Tracks all data modifications triggered by voice commands or agent actions
+      to enable quick rollback. Automatically cleaned up after undo window expires.
+    primary_key: id
+    columns:
+      - { name: id,                  type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: tenant_id,           type: uuid,        nullable: false, references: tenants.id }
+      - { name: user_id,             type: uuid,        nullable: false, references: users.id, comment: "User who performed the action" }
+      - { name: voice_session_id,    type: uuid,        nullable: true,  references: voice_sessions.id, comment: "If triggered by voice" }
+      - { name: voice_utterance_id,  type: uuid,        nullable: true,  references: voice_utterances.id }
+      - { name: agent_execution_id,  type: uuid,        nullable: true,  references: agent_executions.id }
+      - { name: approval_request_id, type: uuid,        nullable: true,  references: agent_approval_requests.id }
+      - { name: entity_type,         type: text,        nullable: false, comment: "DENTAL_CHART | TREATMENT_PLAN | CLINICAL_NOTE | PATIENT | ENCOUNTER | etc." }
+      - { name: entity_id,           type: uuid,        nullable: false, comment: "ID of the modified entity" }
+      - { name: action_type,         type: text,        nullable: false, comment: "CREATE | UPDATE | DELETE" }
+      - { name: previous_state,      type: jsonb,       nullable: true,  comment: "Complete state before change (null for CREATE)" }
+      - { name: new_state,           type: jsonb,       nullable: false, comment: "Complete state after change" }
+      - { name: change_summary,      type: text,        nullable: true,  comment: "Human-readable description of change" }
+      - { name: is_undone,           type: boolean,     nullable: false, default: false }
+      - { name: undone_at,           type: timestamptz, nullable: true }
+      - { name: undone_by_user_id,   type: uuid,        nullable: true,  references: users.id }
+      - { name: undo_reason,         type: text,        nullable: true }
+      - { name: undo_expires_at,     type: timestamptz, nullable: false, comment: "Auto-cleanup after 5 minutes (NOW() + INTERVAL '5 minutes')" }
+      - { name: created_at,          type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_action_history_user_recent, columns: [user_id, created_at DESC], comment: "Recent actions per user" }
+      - { name: idx_action_history_undoable, columns: [tenant_id, is_undone, undo_expires_at], where: "is_undone = false AND undo_expires_at > NOW()", comment: "Active undo window" }
+      - { name: idx_action_history_voice_session, columns: [voice_session_id] }
+      - { name: idx_action_history_entity, columns: [entity_type, entity_id, created_at DESC] }
+      - { name: idx_action_history_cleanup, columns: [undo_expires_at], where: "is_undone = false", comment: "For automatic cleanup job" }
+
+  # ---------------------------------------------------------------------------
   # Agent Performance & Observability
   # ---------------------------------------------------------------------------
 
