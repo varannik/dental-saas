@@ -4,6 +4,356 @@
 
 This document defines Redis usage patterns for the Dental AI SaaS platform. Redis serves as the **primary session store** and **high-performance cache layer**, complementing PostgreSQL (source of truth) and object storage (large files).
 
+**Important:** This Redis instance is **shared across multiple microservices** (auth, users, billing, notifications, files, AI agents). Proper **namespacing** is critical to avoid key collisions.
+
+---
+
+## Namespacing Strategy
+
+### **Why Namespacing?**
+
+When sharing a single Redis instance across multiple microservices, you **must** use namespaces to:
+- ✅ Prevent key collisions between services
+- ✅ Enable service-specific monitoring
+- ✅ Allow selective cache invalidation
+- ✅ Simplify debugging (know which service owns which keys)
+- ✅ Enable per-service eviction policies (future)
+
+---
+
+### **Namespace Convention**
+
+**Pattern:** `{service}:{resource_type}:{identifier}`
+
+**Examples:**
+```
+auth:session:550e8400-e29b-41d4-a716-446655440000
+auth:blacklist:a3f5d8c9b2e1f4a7d6c8b5e9f2a1d4c7
+auth:permissions:123e4567:789e0123
+auth:rate_limit:789e0123:123e4567
+
+users:profile:123e4567-e89b-12d3-a456-426614174000
+users:settings:123e4567-e89b-12d3-a456-426614174000
+
+billing:invoice:456e7890-a12b-34c5-d678-901234567def
+billing:subscription:789e0123-e45b-67c8-d901-234567890abc
+
+notifications:queue:789e0123:123e4567
+notifications:unread_count:123e4567
+
+files:upload_token:abc123def456
+files:download_url:def456ghi789
+
+ai:inference_job:550e8400-e29b-41d4-a716-446655440000
+ai:model_cache:caries_detection_v2
+
+agent:approval_queue:789e0123:123e4567
+agent:execution_state:550e8400-e29b-41d4-a716-446655440000
+```
+
+---
+
+### **Service Namespaces**
+
+| Service | Namespace Prefix | Purpose |
+|---------|-----------------|---------|
+| **auth** | `auth:*` | Sessions, JWT blacklist, permissions cache, rate limiting |
+| **users** | `users:*` | User profiles, settings, preferences |
+| **billing** | `billing:*` | Invoices, subscriptions, payment status |
+| **notifications** | `notifications:*` | Notification queues, unread counts, pub/sub channels |
+| **files** | `files:*` | Upload tokens, download URLs, processing status |
+| **ai** | `ai:*` | Inference jobs, model cache, prediction results |
+| **agent** | `agent:*` | Approval queues, workflow state, tool execution |
+| **shared** | `shared:*` | Cross-service data (tenant config, feature flags) |
+
+---
+
+### **Key Naming Rules**
+
+1. **Always use service prefix** - No exceptions
+2. **Use colons (:) as separators** - Standard Redis convention
+3. **Use lowercase** - Consistent, easier to debug
+4. **Use UUIDs for identifiers** - Avoid collisions
+5. **Be descriptive** - `auth:session:*` not `auth:s:*`
+6. **Include tenant_id when relevant** - For multi-tenant isolation
+
+**Good Examples:**
+```
+✅ auth:session:550e8400-e29b-41d4-a716-446655440000
+✅ auth:permissions:user123:tenant456
+✅ billing:subscription:tenant789
+✅ notifications:queue:tenant789:user123
+```
+
+**Bad Examples:**
+```
+❌ session:550e8400  (no service prefix)
+❌ AUTH_SESSION_123  (wrong separator, uppercase)
+❌ a:s:123          (too cryptic)
+❌ user_profile     (no identifier)
+```
+
+---
+
+### **Implementation**
+
+#### **TypeScript Helper (Recommended)**
+
+```typescript
+// lib/redis-keys.ts
+
+/**
+ * Redis key builder with automatic namespacing
+ */
+export const RedisKeys = {
+  // Auth Service
+  auth: {
+    session: (sessionId: string) => `auth:session:${sessionId}`,
+    blacklist: (tokenHash: string) => `auth:blacklist:${tokenHash}`,
+    permissions: (userId: string, tenantId: string) => `auth:permissions:${userId}:${tenantId}`,
+    rateLimit: (tenantId: string, userId: string) => `auth:rate_limit:${tenantId}:${userId}`,
+    mfaCode: (userId: string) => `auth:mfa_code:${userId}`,
+  },
+
+  // Users Service
+  users: {
+    profile: (userId: string) => `users:profile:${userId}`,
+    settings: (userId: string) => `users:settings:${userId}`,
+    onlineStatus: (userId: string) => `users:online:${userId}`,
+  },
+
+  // Billing Service
+  billing: {
+    invoice: (invoiceId: string) => `billing:invoice:${invoiceId}`,
+    subscription: (tenantId: string) => `billing:subscription:${tenantId}`,
+    usageCounter: (tenantId: string, month: string) => `billing:usage:${tenantId}:${month}`,
+    paymentIntent: (intentId: string) => `billing:payment_intent:${intentId}`,
+  },
+
+  // Notifications Service
+  notifications: {
+    queue: (tenantId: string, userId: string) => `notifications:queue:${tenantId}:${userId}`,
+    unreadCount: (userId: string) => `notifications:unread:${userId}`,
+    channel: (tenantId: string, userId: string) => `notifications:channel:${tenantId}:${userId}`,
+  },
+
+  // Files Service
+  files: {
+    uploadToken: (tokenId: string) => `files:upload_token:${tokenId}`,
+    downloadUrl: (fileId: string) => `files:download_url:${fileId}`,
+    processingStatus: (fileId: string) => `files:processing:${fileId}`,
+  },
+
+  // AI Service
+  ai: {
+    inferenceJob: (jobId: string) => `ai:inference_job:${jobId}`,
+    modelCache: (modelId: string, version: string) => `ai:model_cache:${modelId}:${version}`,
+    predictionResult: (predictionId: string) => `ai:prediction:${predictionId}`,
+  },
+
+  // Agent Service
+  agent: {
+    approvalQueue: (tenantId: string, userId: string) => `agent:approval_queue:${tenantId}:${userId}`,
+    executionState: (executionId: string) => `agent:execution:${executionId}`,
+    toolCache: (toolId: string) => `agent:tool_cache:${toolId}`,
+  },
+
+  // Shared (cross-service)
+  shared: {
+    tenantConfig: (tenantId: string) => `shared:tenant_config:${tenantId}`,
+    featureFlags: (tenantId: string) => `shared:features:${tenantId}`,
+    maintenanceMode: () => `shared:maintenance_mode`,
+  },
+} as const;
+
+// Usage:
+// await redis.setex(RedisKeys.auth.session(sessionId), 86400, data);
+// await redis.get(RedisKeys.users.profile(userId));
+```
+
+---
+
+#### **Python Helper (Alternative)**
+
+```python
+# lib/redis_keys.py
+
+class RedisKeys:
+    """Redis key builder with automatic namespacing"""
+    
+    class Auth:
+        @staticmethod
+        def session(session_id: str) -> str:
+            return f"auth:session:{session_id}"
+        
+        @staticmethod
+        def blacklist(token_hash: str) -> str:
+            return f"auth:blacklist:{token_hash}"
+        
+        @staticmethod
+        def permissions(user_id: str, tenant_id: str) -> str:
+            return f"auth:permissions:{user_id}:{tenant_id}"
+        
+        @staticmethod
+        def rate_limit(tenant_id: str, user_id: str) -> str:
+            return f"auth:rate_limit:{tenant_id}:{user_id}"
+    
+    class Users:
+        @staticmethod
+        def profile(user_id: str) -> str:
+            return f"users:profile:{user_id}"
+        
+        @staticmethod
+        def settings(user_id: str) -> str:
+            return f"users:settings:{user_id}"
+    
+    class Billing:
+        @staticmethod
+        def subscription(tenant_id: str) -> str:
+            return f"billing:subscription:{tenant_id}"
+        
+        @staticmethod
+        def usage_counter(tenant_id: str, month: str) -> str:
+            return f"billing:usage:{tenant_id}:{month}"
+    
+    # ... etc
+
+# Usage:
+# await redis.setex(RedisKeys.Auth.session(session_id), 86400, data)
+```
+
+---
+
+### **Monitoring by Namespace**
+
+#### **Count Keys per Service**
+
+```bash
+# Count auth service keys
+redis-cli --scan --pattern "auth:*" | wc -l
+
+# Count all sessions
+redis-cli --scan --pattern "auth:session:*" | wc -l
+
+# Count all approval queues
+redis-cli --scan --pattern "agent:approval_queue:*" | wc -l
+```
+
+#### **Memory Usage per Service**
+
+```bash
+# Get memory usage for auth service keys
+redis-cli --scan --pattern "auth:*" | xargs redis-cli DEBUG OBJECT | grep serializedlength | awk '{sum+=$2} END {print sum}'
+```
+
+#### **Prometheus Metrics**
+
+```yaml
+# Custom metrics by namespace
+- metric: redis_keys_by_service
+  query: count(redis_db_keys{key_pattern="auth:*"})
+  labels:
+    service: auth
+
+- metric: redis_keys_by_service
+  query: count(redis_db_keys{key_pattern="users:*"})
+  labels:
+    service: users
+```
+
+---
+
+### **Cache Invalidation by Namespace**
+
+```typescript
+// Invalidate all auth service cache for a user
+async function invalidateUserAuthCache(userId: string, tenantId: string) {
+  const patterns = [
+    RedisKeys.auth.permissions(userId, tenantId),
+    RedisKeys.auth.rateLimit(tenantId, userId),
+    // Don't delete session - user stays logged in
+  ];
+  
+  await Promise.all(patterns.map(key => redis.del(key)));
+}
+
+// Invalidate all billing cache for a tenant
+async function invalidateTenantBillingCache(tenantId: string) {
+  const pattern = `billing:*:${tenantId}*`;
+  const keys = await redis.keys(pattern); // OK for admin operations
+  
+  if (keys.length > 0) {
+    await redis.del(...keys);
+  }
+}
+```
+
+---
+
+### **Database Separation (Alternative)**
+
+Instead of namespacing, you can use **separate Redis databases** per service:
+
+```typescript
+// config/redis.ts
+export const authRedis = new Redis({ host: '...', db: 0 });      // Auth service
+export const usersRedis = new Redis({ host: '...', db: 1 });     // Users service
+export const billingRedis = new Redis({ host: '...', db: 2 });   // Billing service
+export const notificationsRedis = new Redis({ host: '...', db: 3 }); // Notifications
+export const filesRedis = new Redis({ host: '...', db: 4 });     // Files service
+export const aiRedis = new Redis({ host: '...', db: 5 });        // AI service
+export const agentRedis = new Redis({ host: '...', db: 6 });     // Agent service
+export const sharedRedis = new Redis({ host: '...', db: 7 });    // Shared cache
+```
+
+**Pros:**
+- ✅ Complete isolation
+- ✅ Per-service eviction policies
+- ✅ Easier monitoring (one metric per DB)
+- ✅ Simpler key names (no prefix needed)
+
+**Cons:**
+- ❌ Limited to 16 databases (default Redis config)
+- ❌ Cannot use Redis Cluster (cluster mode doesn't support multiple DBs)
+- ❌ More complex connection management
+
+**Recommendation:** Use **namespacing** (not separate DBs) for production, especially if you plan to use Redis Cluster for horizontal scaling.
+
+---
+
+### **Recommended Approach**
+
+✅ **Use namespacing with helper functions** (best for production)
+
+```typescript
+// ✅ RECOMMENDED
+import { RedisKeys } from '@/lib/redis-keys';
+
+// Create session
+await redis.setex(
+  RedisKeys.auth.session(sessionId),
+  86400,
+  JSON.stringify(sessionData)
+);
+
+// Get session
+const session = await redis.get(RedisKeys.auth.session(sessionId));
+
+// Cache permissions
+await redis.setex(
+  RedisKeys.auth.permissions(userId, tenantId),
+  300,
+  JSON.stringify(permissions)
+);
+```
+
+**Benefits:**
+- ✅ Works with Redis Cluster
+- ✅ Type-safe (TypeScript)
+- ✅ Consistent naming
+- ✅ Easy to monitor
+- ✅ No key collisions
+
 ---
 
 ## Architecture Decision
@@ -27,7 +377,9 @@ This document defines Redis usage patterns for the Dental AI SaaS platform. Redi
 
 ### **1. User Sessions**
 
-**Key Pattern**: `session:{session_id}`
+**Service:** `auth`
+
+**Key Pattern**: `auth:session:{session_id}`
 
 **Value**: JSON object
 
@@ -61,26 +413,28 @@ This document defines Redis usage patterns for the Dental AI SaaS platform. Redi
 **Operations**:
 ```redis
 # Create session (24-hour TTL)
-SETEX session:550e8400-e29b-41d4-a716-446655440000 86400 "{...json...}"
+SETEX auth:session:550e8400-e29b-41d4-a716-446655440000 86400 "{...json...}"
 
 # Get session
-GET session:550e8400-e29b-41d4-a716-446655440000
+GET auth:session:550e8400-e29b-41d4-a716-446655440000
 
 # Extend session (refresh TTL)
-EXPIRE session:550e8400-e29b-41d4-a716-446655440000 86400
+EXPIRE auth:session:550e8400-e29b-41d4-a716-446655440000 86400
 
 # Delete session (logout)
-DEL session:550e8400-e29b-41d4-a716-446655440000
+DEL auth:session:550e8400-e29b-41d4-a716-446655440000
 
 # Check if session exists
-EXISTS session:550e8400-e29b-41d4-a716-446655440000
+EXISTS auth:session:550e8400-e29b-41d4-a716-446655440000
 ```
 
 ---
 
 ### **2. Permission Cache**
 
-**Key Pattern**: `permissions:{user_id}:{tenant_id}`
+**Service:** `auth`
+
+**Key Pattern**: `auth:permissions:{user_id}:{tenant_id}`
 
 **Value**: JSON array
 
@@ -103,13 +457,13 @@ EXISTS session:550e8400-e29b-41d4-a716-446655440000
 **Operations**:
 ```redis
 # Cache permissions (5-minute TTL)
-SETEX permissions:123e4567-e89b-12d3-a456-426614174000:789e0123-e45b-67c8-d901-234567890abc 300 "[\"patient.read\",\"patient.write\"]"
+SETEX auth:permissions:123e4567-e89b-12d3-a456-426614174000:789e0123-e45b-67c8-d901-234567890abc 300 "[\"patient.read\",\"patient.write\"]"
 
 # Get cached permissions
-GET permissions:123e4567-e89b-12d3-a456-426614174000:789e0123-e45b-67c8-d901-234567890abc
+GET auth:permissions:123e4567-e89b-12d3-a456-426614174000:789e0123-e45b-67c8-d901-234567890abc
 
 # Invalidate cache (when roles change)
-DEL permissions:123e4567-e89b-12d3-a456-426614174000:789e0123-e45b-67c8-d901-234567890abc
+DEL auth:permissions:123e4567-e89b-12d3-a456-426614174000:789e0123-e45b-67c8-d901-234567890abc
 ```
 
 **Cache Invalidation Triggers**:
@@ -122,7 +476,9 @@ DEL permissions:123e4567-e89b-12d3-a456-426614174000:789e0123-e45b-67c8-d901-234
 
 ### **3. Rate Limiting**
 
-**Key Pattern**: `rate_limit:{tenant_id}:{user_id}` or `rate_limit:{tenant_id}:{api_client_id}`
+**Service:** `auth`
+
+**Key Pattern**: `auth:rate_limit:{tenant_id}:{user_id}` or `auth:rate_limit:{tenant_id}:{api_client_id}`
 
 **Value**: Integer counter
 
@@ -133,24 +489,24 @@ DEL permissions:123e4567-e89b-12d3-a456-426614174000:789e0123-e45b-67c8-d901-234
 **Example**:
 ```redis
 # Increment counter
-INCR rate_limit:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a456-426614174000
+INCR auth:rate_limit:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a456-426614174000
 # Returns: 1
 
 # Set expiry on first request
-EXPIRE rate_limit:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a456-426614174000 60
+EXPIRE auth:rate_limit:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a456-426614174000 60
 
 # Check current count
-GET rate_limit:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a456-426614174000
+GET auth:rate_limit:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a456-426614174000
 # Returns: 42
 
 # Check TTL (time until reset)
-TTL rate_limit:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a456-426614174000
+TTL auth:rate_limit:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a456-426614174000
 # Returns: 37 (seconds remaining)
 ```
 
 **Rate Limit Logic**:
 ```typescript
-const key = `rate_limit:${tenantId}:${userId}`;
+const key = RedisKeys.auth.rateLimit(tenantId, userId);
 const count = await redis.incr(key);
 
 if (count === 1) {
@@ -170,7 +526,9 @@ if (count > limit) {
 
 ### **4. JWT Blacklist (Logout)**
 
-**Key Pattern**: `blacklist:{token_hash}`
+**Service:** `auth`
+
+**Key Pattern**: `auth:blacklist:{token_hash}`
 
 **Value**: String (e.g., "revoked")
 
@@ -181,10 +539,10 @@ if (count > limit) {
 **Example**:
 ```redis
 # Blacklist token (SHA256 hash)
-SETEX blacklist:a3f5d8c9b2e1f4a7d6c8b5e9f2a1d4c7b8e5f9a2d1c4b7e8f5a9d2c1b4e7f8a5 86400 "revoked"
+SETEX auth:blacklist:a3f5d8c9b2e1f4a7d6c8b5e9f2a1d4c7b8e5f9a2d1c4b7e8f5a9d2c1b4e7f8a5 86400 "revoked"
 
 # Check if token is blacklisted
-EXISTS blacklist:a3f5d8c9b2e1f4a7d6c8b5e9f2a1d4c7b8e5f9a2d1c4b7e8f5a9d2c1b4e7f8a5
+EXISTS auth:blacklist:a3f5d8c9b2e1f4a7d6c8b5e9f2a1d4c7b8e5f9a2d1c4b7e8f5a9d2c1b4e7f8a5
 # Returns: 1 (blacklisted) or 0 (valid)
 ```
 
@@ -199,7 +557,9 @@ EXISTS blacklist:a3f5d8c9b2e1f4a7d6c8b5e9f2a1d4c7b8e5f9a2d1c4b7e8f5a9d2c1b4e7f8a
 
 ### **5. Real-Time Approval Queue**
 
-**Key Pattern**: `approvals:{tenant_id}:{user_id}`
+**Service:** `agent`
+
+**Key Pattern**: `agent:approval_queue:{tenant_id}:{user_id}`
 
 **Data Structure**: List (FIFO queue)
 
@@ -210,33 +570,35 @@ EXISTS blacklist:a3f5d8c9b2e1f4a7d6c8b5e9f2a1d4c7b8e5f9a2d1c4b7e8f5a9d2c1b4e7f8a
 **Example**:
 ```redis
 # Push approval request to queue
-LPUSH approvals:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a456-426614174000 "{\"approval_id\":\"...\",\"action\":\"update_dental_chart\",\"priority\":\"HIGH\"}"
+LPUSH agent:approval_queue:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a456-426614174000 "{\"approval_id\":\"...\",\"action\":\"update_dental_chart\",\"priority\":\"HIGH\"}"
 
 # Get pending approvals (non-blocking)
-LRANGE approvals:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a456-426614174000 0 -1
+LRANGE agent:approval_queue:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a456-426614174000 0 -1
 
 # Pop approval (blocking, wait up to 5 seconds)
-BRPOP approvals:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a456-426614174000 5
+BRPOP agent:approval_queue:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a456-426614174000 5
 
 # Remove specific approval
-LREM approvals:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a456-426614174000 1 "{\"approval_id\":\"...\"}"
+LREM agent:approval_queue:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a456-426614174000 1 "{\"approval_id\":\"...\"}"
 ```
 
 ---
 
 ### **6. Pub/Sub for Real-Time Notifications**
 
-**Channel Pattern**: `notifications:{tenant_id}:{user_id}`
+**Service:** `notifications`
+
+**Channel Pattern**: `notifications:channel:{tenant_id}:{user_id}`
 
 **Purpose**: Real-time push notifications for approval requests, AI job completion, etc.
 
 **Example**:
 ```redis
 # Subscribe to notifications (client-side)
-SUBSCRIBE notifications:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a456-426614174000
+SUBSCRIBE notifications:channel:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a456-426614174000
 
 # Publish notification (server-side)
-PUBLISH notifications:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a456-426614174000 "{\"type\":\"NEW_APPROVAL\",\"approval_id\":\"...\"}"
+PUBLISH notifications:channel:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a456-426614174000 "{\"type\":\"NEW_APPROVAL\",\"approval_id\":\"...\"}"
 ```
 
 **Notification Types**:
@@ -250,7 +612,9 @@ PUBLISH notifications:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a4
 
 ### **7. Tenant Configuration Cache**
 
-**Key Pattern**: `tenant_config:{tenant_id}`
+**Service:** `shared`
+
+**Key Pattern**: `shared:tenant_config:{tenant_id}`
 
 **Value**: JSON object
 
@@ -283,13 +647,13 @@ PUBLISH notifications:789e0123-e45b-67c8-d901-234567890abc:123e4567-e89b-12d3-a4
 **Operations**:
 ```redis
 # Cache tenant config (15-minute TTL)
-SETEX tenant_config:789e0123-e45b-67c8-d901-234567890abc 900 "{...json...}"
+SETEX shared:tenant_config:789e0123-e45b-67c8-d901-234567890abc 900 "{...json...}"
 
 # Get cached config
-GET tenant_config:789e0123-e45b-67c8-d901-234567890abc
+GET shared:tenant_config:789e0123-e45b-67c8-d901-234567890abc
 
 # Invalidate cache (when settings change)
-DEL tenant_config:789e0123-e45b-67c8-d901-234567890abc
+DEL shared:tenant_config:789e0123-e45b-67c8-d901-234567890abc
 ```
 
 ---
@@ -527,7 +891,7 @@ async function authMiddleware(req, res, next) {
     
     // 2. Try Redis first (fast path)
     try {
-      const sessionData = await redis.get(`session:${decoded.session_id}`);
+      const sessionData = await redis.get(RedisKeys.auth.session(decoded.session_id));
       
       if (sessionData) {
         const session = JSON.parse(sessionData);
@@ -603,7 +967,7 @@ describe('SessionService', () => {
   it('should create session in Redis', async () => {
     const session = await sessionService.createSession('user-id', 'tenant-id', {});
     
-    const cached = await redis.get(`session:${session.session_id}`);
+    const cached = await redis.get(RedisKeys.auth.session(session.session_id));
     expect(cached).toBeTruthy();
     expect(JSON.parse(cached!).user_id).toBe('user-id');
   });
@@ -611,7 +975,7 @@ describe('SessionService', () => {
   it('should expire session after TTL', async () => {
     const session = await sessionService.createSession('user-id', 'tenant-id', {});
     
-    const ttl = await redis.ttl(`session:${session.session_id}`);
+    const ttl = await redis.ttl(RedisKeys.auth.session(session.session_id));
     expect(ttl).toBeGreaterThan(0);
     expect(ttl).toBeLessThanOrEqual(86400); // 24 hours
   });
@@ -681,15 +1045,19 @@ describe('Session Integration', () => {
 
 ## Summary
 
-| Use Case | Redis Key Pattern | TTL | Fallback |
-|----------|------------------|-----|----------|
-| User sessions | `session:{session_id}` | 24h | PostgreSQL `sessions` table |
-| Permission cache | `permissions:{user_id}:{tenant_id}` | 5min | PostgreSQL (roles/permissions) |
-| Rate limiting | `rate_limit:{tenant_id}:{user_id}` | 1min | None (fail open) |
-| JWT blacklist | `blacklist:{token_hash}` | Token expiry | PostgreSQL `sessions.revoked_at` |
-| Approval queue | `approvals:{tenant_id}:{user_id}` | Manual | PostgreSQL `agent_approval_requests` |
-| Notifications | `notifications:{tenant_id}:{user_id}` | Pub/Sub | WebSocket fallback |
-| Tenant config | `tenant_config:{tenant_id}` | 15min | PostgreSQL `tenants` + related |
+| Use Case | Service | Redis Key Pattern | TTL | Fallback |
+|----------|---------|------------------|-----|----------|
+| User sessions | `auth` | `auth:session:{session_id}` | 24h | PostgreSQL `sessions` table |
+| Permission cache | `auth` | `auth:permissions:{user_id}:{tenant_id}` | 5min | PostgreSQL (roles/permissions) |
+| Rate limiting | `auth` | `auth:rate_limit:{tenant_id}:{user_id}` | 1min | None (fail open) |
+| JWT blacklist | `auth` | `auth:blacklist:{token_hash}` | Token expiry | PostgreSQL `sessions.revoked_at` |
+| Approval queue | `agent` | `agent:approval_queue:{tenant_id}:{user_id}` | Manual | PostgreSQL `agent_approval_requests` |
+| Notifications | `notifications` | `notifications:channel:{tenant_id}:{user_id}` | Pub/Sub | WebSocket fallback |
+| Tenant config | `shared` | `shared:tenant_config:{tenant_id}` | 15min | PostgreSQL `tenants` + related |
 
-**Key Principle**: Redis is for **speed**, PostgreSQL is for **truth**.
+**Key Principles:**
+- ✅ **Namespacing**: All keys use service prefix to avoid collisions
+- ✅ **Speed**: Redis is for **fast access** (<1ms)
+- ✅ **Truth**: PostgreSQL is for **persistent data** (source of truth)
+- ✅ **Isolation**: Each service owns its namespace
 

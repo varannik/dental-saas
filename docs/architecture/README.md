@@ -25,6 +25,7 @@ The foundational clinical and operational data model for the dental SaaS platfor
   - Includes optional `sessions` table for audit/compliance
 
 - **[redis-patterns.md](./redis-patterns.md)** - Redis usage patterns & configuration
+  - **Namespacing strategy** (shared Redis across microservices)
   - Session management (primary store)
   - Permission caching
   - Rate limiting
@@ -32,6 +33,7 @@ The foundational clinical and operational data model for the dental SaaS platfor
   - Real-time approval queues
   - Pub/Sub notifications
   - High availability & monitoring
+  - TypeScript helper functions
 
 ### 🤖 AI Agent Extensions (Optional)
 
