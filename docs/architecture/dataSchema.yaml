@@ -356,3 +356,58 @@ entities:
       - { name: denial_reason,  type: text,        nullable: true }
 
 
+  - name: VoiceSession
+    table: voice_sessions
+    description: High-level container for a voice interaction session (agent + user).
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: tenant_id,      type: uuid,        nullable: false, references: tenants.id }
+      - { name: user_id,        type: uuid,        nullable: true,  references: users.id, comment: "Clinician or staff user, if authenticated" }
+      - { name: patient_id,     type: uuid,        nullable: true,  references: patients.id }
+      - { name: encounter_id,   type: uuid,        nullable: true,  references: encounters.id }
+      - { name: channel,        type: text,        nullable: false, comment: "MOBILE_APP | BROWSER | PHONE | DEVICE" }
+      - { name: started_at,     type: timestamptz, nullable: false, default: now() }
+      - { name: ended_at,       type: timestamptz, nullable: true }
+      - { name: meta,           type: jsonb,       nullable: true,  comment: "Device info, locale, etc." }
+    indexes:
+      - { name: idx_voice_sessions_tenant_time, columns: [tenant_id, started_at] }
+
+  - name: VoiceUtterance
+    table: voice_utterances
+    description: Individual utterance in a voice session, with transcript and intent.
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: session_id,     type: uuid,        nullable: false, references: voice_sessions.id }
+      - { name: sequence_no,    type: integer,     nullable: false }
+      - { name: speaker,        type: text,        nullable: false, comment: "USER | PATIENT | AGENT" }
+      - { name: transcript,     type: text,        nullable: true }
+      - { name: is_final,       type: boolean,     nullable: false, default: true, comment: "Final vs partial ASR result" }
+      - { name: intent,         type: text,        nullable: true }
+      - { name: entities,       type: jsonb,       nullable: true, comment: "Extracted entities, slots, parameters" }
+      - { name: created_at,     type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_voice_utterances_session_seq, columns: [session_id, sequence_no], unique: true }
+
+  - name: VoiceRecording
+    table: voice_recordings
+    description: Optional persisted audio blobs for voice utterances/sessions.
+    primary_key: id
+    columns:
+      - { name: id,             type: uuid,        nullable: false, default: uuid_generate_v4() }
+      - { name: session_id,     type: uuid,        nullable: false, references: voice_sessions.id }
+      - { name: utterance_id,   type: uuid,        nullable: true,  references: voice_utterances.id, comment: "If recording is per-utterance" }
+      - { name: tenant_id,      type: uuid,        nullable: false, references: tenants.id }
+      - { name: audio_uri,      type: text,        nullable: false, comment: "Object storage key/path" }
+      - { name: format,         type: text,        nullable: false, comment: "e.g., OPUS, WAV, MP3" }
+      - { name: duration_ms,    type: integer,     nullable: true }
+      - { name: sample_rate_hz, type: integer,     nullable: true }
+      - { name: is_redacted,    type: boolean,     nullable: false, default: false }
+      - { name: storage_class,  type: text,        nullable: false, default: 'HOT', comment: "HOT | ARCHIVE" }
+      - { name: retention_until,type: timestamptz, nullable: true }
+      - { name: created_at,     type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: idx_voice_recordings_tenant_session, columns: [tenant_id, session_id] }
+
+

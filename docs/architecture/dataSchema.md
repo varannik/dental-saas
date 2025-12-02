@@ -502,13 +502,14 @@ This layer is implemented via ETL/ELT (e.g., dbt + columnar warehouse), not as p
 
 ## XII. Relationship Overview (High‑Level ERD Narrative)
 
-- `tenants` 1‑to‑many `locations`, `users` (via `user_tenants`), `patients`, `encounters`, `imaging_studies`, `ai_inference_jobs`, `invoices`.
-- `patients` 1‑to‑many `encounters`, `imaging_studies`, `treatment_plans`, `procedures`, `claims`, `perio_measurements`.
-- `encounters` 1‑to‑many `clinical_notes`, `encounter_diagnoses`, `procedures`, `imaging_studies` (optional).
+- `tenants` 1‑to‑many `locations`, `users` (via `user_tenants`), `patients`, `encounters`, `imaging_studies`, `ai_inference_jobs`, `voice_sessions`, `invoices`.
+- `patients` 1‑to‑many `encounters`, `imaging_studies`, `treatment_plans`, `procedures`, `claims`, `perio_measurements`, `voice_sessions`.
+- `encounters` 1‑to‑many `clinical_notes`, `encounter_diagnoses`, `procedures`, `imaging_studies` (optional), `voice_sessions` (optional).
 - `imaging_studies` 1‑to‑many `imaging_objects`, which 1‑to‑many `image_annotations`.
 - `ai_models` 1‑to‑many `ai_model_versions` 1‑to‑many `ai_inference_jobs` 1‑to‑many `ai_predictions` 1‑to‑many `ai_review_events`.
 - `treatment_plans` 1‑to‑many `treatment_plan_items` and many‑to‑many with `procedures` via links.
 - `claims` 1‑to‑many `claim_lines`, each referencing `procedures` or `treatment_plan_items`.
+- `voice_sessions` 1‑to‑many `voice_utterances` and 1‑to‑many `voice_recordings`; `voice_utterances` can be linked to downstream actions (notes, appointments, AI jobs) via foreign keys or audit metadata.
 
 For detailed table/field specifications, see the adjacent `dataSchema.yaml`, which mirrors this logical model in a machine‑readable form suitable for code generation and DDL creation.
 
@@ -663,6 +664,38 @@ erDiagram
     numeric billed_amount
   }
 
+  VOICE_SESSIONS {
+    uuid id PK
+    uuid tenant_id FK
+    uuid user_id FK
+    uuid patient_id FK
+    uuid encounter_id FK
+    text channel
+    timestamptz started_at
+    timestamptz ended_at
+  }
+
+  VOICE_UTTERANCES {
+    uuid id PK
+    uuid session_id FK
+    int sequence_no
+    text speaker
+    text transcript
+    boolean is_final
+    text intent
+  }
+
+  VOICE_RECORDINGS {
+    uuid id PK
+    uuid session_id FK
+    uuid utterance_id FK
+    uuid tenant_id FK
+    text audio_uri
+    text format
+    int duration_ms
+    int sample_rate_hz
+  }
+
   TENANTS ||--o{ LOCATIONS : has
   TENANTS ||--o{ USER_TENANTS : "has members"
   USERS ||--o{ USER_TENANTS : belongs_to
@@ -688,6 +721,85 @@ erDiagram
 
   PATIENTS ||--o{ CLAIMS : billed_to
   CLAIMS ||--o{ CLAIM_LINES : contains
+
+  TENANTS ||--o{ VOICE_SESSIONS : "owns voice sessions"
+  USERS ||--o{ VOICE_SESSIONS : "speaks as user"
+  PATIENTS ||--o{ VOICE_SESSIONS : "subject of"
+  ENCOUNTERS ||--o{ VOICE_SESSIONS : "context for"
+
+  VOICE_SESSIONS ||--o{ VOICE_UTTERANCES : contains
+  VOICE_SESSIONS ||--o{ VOICE_RECORDINGS : "may have audio"
+  VOICE_UTTERANCES ||--o{ VOICE_RECORDINGS : "optionally recorded"
 ```
+
+---
+
+## XIV. Voice & Conversational AI Schema Extensions
+
+To support an **AI voice agent** that listens to spoken commands, executes actions, and writes data to the database, the schema introduces **voice‑specific entities** that follow the recommended pattern:
+
+- **Transcripts and intents in Postgres (canonical source for workflows & analytics).**
+- **Optional raw audio in object storage, referenced via URIs and controlled by retention and consent.**
+
+### 1. Voice Sessions
+
+- `voice_sessions`
+  - Represents a **single voice interaction session** (e.g., a dictation session, a patient call, or a clinician–agent conversation).
+  - Key fields:
+    - `id` (UUID, PK)
+    - `tenant_id` (FK → `tenants.id`)
+    - `user_id` (FK → `users.id`, clinician/staff if authenticated)
+    - `patient_id` (FK → `patients.id`, if the session is about a specific patient)
+    - `encounter_id` (FK → `encounters.id`, if tied to a visit)
+    - `channel` (MOBILE_APP, BROWSER, PHONE, DEVICE)
+    - `started_at`, `ended_at`
+    - `meta` (JSONB; device, locale, ASR engine, etc.)
+
+### 2. Voice Utterances (Transcripts & Intents)
+
+- `voice_utterances`
+  - Stores **per‑utterance transcripts and NLU results**, not audio:
+    - `id` (UUID, PK)
+    - `session_id` (FK → `voice_sessions.id`)
+    - `sequence_no` (int; order within session)
+    - `speaker` (USER, PATIENT, AGENT)
+    - `transcript` (final text string)
+    - `is_final` (bool; partial vs. final ASR result)
+    - `intent` (high‑level command, e.g., `create_note`, `schedule_appointment`)
+    - `entities` (JSONB; structured slots such as tooth numbers, procedure codes, dates)
+    - `created_at`
+  - These rows provide the **auditable record of what was said and how it was interpreted**, and can be linked to downstream actions:
+    - `audit_events` (who did what, based on which utterance)
+    - `clinical_notes` (voice‑authored notes)
+    - `appointments`, `procedures`, `ai_inference_jobs` triggered from voice.
+
+### 3. Optional Audio Recordings
+
+- `voice_recordings`
+  - Only used when there is a clearly justified need (QA, medico‑legal, research with consent).
+  - Key fields:
+    - `id` (UUID, PK)
+    - `session_id` (FK → `voice_sessions.id`)
+    - `utterance_id` (FK → `voice_utterances.id`, nullable if chunked differently)
+    - `tenant_id` (FK → `tenants.id`)
+    - `audio_uri` (object storage key: S3/Blob/GCS)
+    - `format` (OPUS, WAV, MP3)
+    - `duration_ms`, `sample_rate_hz`
+    - `is_redacted` (bool; whether PHI has been programmatically redacted)
+    - `storage_class` (HOT, ARCHIVE)
+    - `retention_until` (for automatic cleanup based on `data_retention_policies`)
+    - `created_at`
+  - **No audio bytes are stored directly in Postgres**; the DB only holds metadata and secure URIs.
+
+### 4. How This Aligns With the Practical Recommendation
+
+- By default, the platform:
+  - **Stores transcripts, intents, and entities in `voice_utterances`**, which are fully linked to clinical and operational entities and audited via `audit_events`.
+  - Uses `voice_sessions` as the top‑level context for **who spoke, about which patient/encounter, and when**.
+  - Treats `voice_recordings` as **optional**, governed by:
+    - `consents` (e.g., RESEARCH, QA/recording consent),
+    - `data_retention_policies` (shorter retention for audio vs. core clinical record),
+    - Access logging via `audit_events` whenever audio is played back or exported.
+- This ensures the AI agent can **reliably perform and audit actions from voice** while minimizing PHI risk from long‑term audio storage.
 
 
