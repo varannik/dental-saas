@@ -1,3 +1,3 @@
-# sdk
+# config
 
 Package to be created

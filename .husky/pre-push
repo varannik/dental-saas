@@ -1,8 +1,5 @@
-# Run type check before push
-echo "🔍 Running type check..."
-pnpm tsc --noEmit
+# Pre-push hook - Type checking enabled
 
-# Run tests before push (optional - comment out if too slow)
-# echo "🧪 Running tests..."
-# pnpm test
+echo "🔍 Running type check before push..."
+pnpm turbo run build --filter='./apps/*' --filter='./packages/*' --filter='./services/*'
 

@@ -1,3 +1,3 @@
-# sdk
+# types
 
 Package to be created
