@@ -53,6 +53,24 @@ else
   log_success "npm is installed ($(npm --version))"
 fi
 
+# pnpm (required if using pnpm workspaces)
+if [ -f "$PROJECT_ROOT/pnpm-workspace.yaml" ]; then
+  log_step "Detected pnpm workspace configuration"
+  if ! command_exists pnpm; then
+    log_error "pnpm is REQUIRED but not installed"
+    log_info "Your project uses pnpm workspaces (pnpm-workspace.yaml found)"
+    echo ""
+    log_info "Install pnpm with one of these methods:"
+    echo "  • npm install -g pnpm"
+    echo "  • curl -fsSL https://get.pnpm.io/install.sh | sh -"
+    echo "  • brew install pnpm (macOS)"
+    echo ""
+    all_deps_met=false
+  else
+    log_success "pnpm is installed ($(pnpm --version))"
+  fi
+fi
+
 # Optional but recommended dependencies
 log_step "Checking optional dependencies..."
 
@@ -106,6 +124,11 @@ else
   echo "  • Docker: https://docs.docker.com/get-docker/"
   echo "  • Terraform: https://www.terraform.io/downloads"
   echo "  • Node.js: https://nodejs.org/"
+  
+  if [ -f "$PROJECT_ROOT/pnpm-workspace.yaml" ]; then
+    echo "  • pnpm: curl -fsSL https://get.pnpm.io/install.sh | sh -"
+  fi
+  
   echo ""
   log_info "Or run: make install-tools"
   exit 1

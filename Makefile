@@ -41,7 +41,7 @@ setup: ## Complete initial project setup (first-time setup)
 	@$(MAKE) local
 	@echo "$(GREEN)✓ Setup complete! Run 'make dev' to start developing$(NC)"
 
-install: ## Install all project dependencies
+install: ## Install all project dependencies (requires pnpm for workspace projects)
 	@$(SCRIPTS_DIR)/setup/install-dependencies.sh
 
 ##@ Local Development

@@ -39,6 +39,11 @@ case "$OS" in
       brew install node@20
     fi
     
+    if ! command_exists pnpm; then
+      log_info "Installing pnpm..."
+      brew install pnpm
+    fi
+    
     if ! command_exists jq; then
       log_info "Installing jq..."
       brew install jq
@@ -71,6 +76,13 @@ case "$OS" in
       log_info "Installing Node.js..."
       curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
       sudo apt-get install -y nodejs
+    fi
+    
+    if ! command_exists pnpm; then
+      log_info "Installing pnpm..."
+      curl -fsSL https://get.pnpm.io/install.sh | sh -
+      export PNPM_HOME="$HOME/.local/share/pnpm"
+      export PATH="$PNPM_HOME:$PATH"
     fi
     
     if ! command_exists jq; then

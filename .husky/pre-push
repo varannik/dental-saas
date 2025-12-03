@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run type check before push
+echo "🔍 Running type check..."
+pnpm tsc --noEmit
+
+# Run tests before push (optional - comment out if too slow)
+# echo "🧪 Running tests..."
+# pnpm test
+
