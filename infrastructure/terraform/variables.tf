@@ -1,15 +1,21 @@
 variable "aws_region" {
-  description = "AWS region"
+  description = "AWS region - SINGLE region for ALL resources (no cross-region)"
   type        = string
   default     = "us-east-1"
+  
+  validation {
+    condition     = can(regex("^[a-z]{2}-[a-z]+-[0-9]{1}$", var.aws_region))
+    error_message = "AWS region must be valid format (e.g., us-east-1, eu-west-1)"
+  }
 }
 
 variable "environment" {
   description = "Environment name"
   type        = string
+  
   validation {
-    condition     = contains(["development", "staging", "production"], var.environment)
-    error_message = "Environment must be development, staging, or production."
+    condition     = contains(["local", "staging", "production"], var.environment)
+    error_message = "Environment must be local, staging, or production."
   }
 }
 

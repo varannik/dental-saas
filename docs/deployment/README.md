@@ -2,11 +2,11 @@
 
 ## Environments
 
-| Environment | Purpose | URL |
-|-------------|---------|-----|
-| Development | Local development | localhost |
-| Staging | Pre-production testing | staging.example.com |
-| Production | Live environment | example.com |
+| Environment | Purpose                | URL                 |
+| ----------- | ---------------------- | ------------------- |
+| Development | Local development      | localhost           |
+| Staging     | Pre-production testing | staging.example.com |
+| Production  | Live environment       | example.com         |
 
 ## Prerequisites
 
@@ -109,7 +109,7 @@ After deployment, verify services are healthy:
 
 ```bash
 # Run smoke tests
-./scripts/smoke-tests.sh production
+./scripts/test/smoke-tests.sh production
 
 # Check pod status
 kubectl get pods -n production
@@ -160,4 +160,3 @@ After deployment, monitor:
    - Verify connection string
    - Check network policies
    - Verify database credentials
-

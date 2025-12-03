@@ -87,24 +87,36 @@ services:
     networks:
       - dental-saas-network
 
-  # LocalStack (Optional - AWS service mocks)
-  # Uncomment if you need AWS service mocks (S3, SQS, SNS, Lambda, etc.)
-  # localstack:
-  #   image: localstack/localstack:latest
-  #   container_name: dental-saas-localstack
-  #   restart: unless-stopped
-  #   ports:
-  #     - "4566:4566"  # Edge port for all services
-  #   environment:
-  #     SERVICES: s3,sqs,sns,lambda,dynamodb,secretsmanager
-  #     DEBUG: 1
-  #     DATA_DIR: /tmp/localstack/data
-  #     DOCKER_HOST: unix:///var/run/docker.sock
-  #   volumes:
-  #     - localstack_data:/tmp/localstack
-  #     - /var/run/docker.sock:/var/run/docker.sock
-  #   networks:
-  #     - dental-saas-network
+  # LocalStack (AWS service mocks for Terraform)
+  localstack:
+    image: localstack/localstack:latest
+    container_name: dental-saas-localstack
+    restart: unless-stopped
+    ports:
+      - "4566:4566"  # Edge port for all services
+      - "4510-4559:4510-4559"  # External service ports (optional)
+    environment:
+      SERVICES: s3,dynamodb,lambda,apigateway,cloudwatch,iam,secretsmanager,sns,sqs,rds
+      DEBUG: 0
+      DATA_DIR: /tmp/localstack/data
+      DOCKER_HOST: unix:///var/run/docker.sock
+      # Enable persistence between restarts
+      PERSISTENCE: 1
+      # Use legacy edge port
+      LEGACY_EDGE_PORT: 1
+      # ✅ ENFORCE SINGLE REGION (consistent with staging/production)
+      DEFAULT_REGION: us-east-1
+      AWS_DEFAULT_REGION: us-east-1
+    volumes:
+      - localstack_data:/tmp/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dental-saas-network
 
 volumes:
   postgres_data:
@@ -113,8 +125,8 @@ volumes:
     driver: local
   minio_data:
     driver: local
-  # localstack_data:
-  #   driver: local
+  localstack_data:
+    driver: local
 
 networks:
   dental-saas-network:

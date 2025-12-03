@@ -1,11 +1,12 @@
 #!/bin/bash
-# scripts/verify-setup.sh
+# scripts/setup/verify-setup.sh
 # Verify that the setup is complete and working
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/common.sh"
+SCRIPTS_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+source "$SCRIPTS_ROOT/lib/common.sh"
 
 print_header "Verifying Setup"
 
@@ -24,7 +25,7 @@ fi
 # Check 2: Core libraries exist
 log_step "Checking core libraries..."
 for lib in common.sh docker.sh terraform.sh; do
-  if [ -f "$SCRIPT_DIR/lib/$lib" ]; then
+  if [ -f "$SCRIPTS_ROOT/lib/$lib" ]; then
     log_success "lib/$lib exists"
   else
     log_error "lib/$lib not found"
@@ -38,13 +39,18 @@ essential_scripts=(
   "setup/check-dependencies.sh"
   "setup/install-dependencies.sh"
   "setup/install-tools.sh"
+  "setup/fix-permissions.sh"
+  "setup/verify-setup.sh"
+  "setup/dev-setup.sh"
   "local/start.sh"
   "deploy/staging.sh"
-  "fix-permissions.sh"
+  "terraform/validate-region.sh"
+  "test/smoke-tests.sh"
+  "secrets/generate.sh"
 )
 
 for script in "${essential_scripts[@]}"; do
-  if [ -f "$SCRIPT_DIR/$script" ]; then
+  if [ -f "$SCRIPTS_ROOT/$script" ]; then
     log_success "$script exists"
   else
     log_error "$script not found"
@@ -55,7 +61,7 @@ done
 # Check 4: Scripts are executable
 log_step "Checking script permissions..."
 non_executable=0
-for script in $(find "$SCRIPT_DIR" -name "*.sh" -type f); do
+for script in $(find "$SCRIPTS_ROOT" -name "*.sh" -type f); do
   if [ ! -x "$script" ]; then
     log_warning "$(basename $script) is not executable"
     non_executable=$((non_executable + 1))
@@ -122,8 +128,8 @@ fi
 
 # Check 9: Count stub scripts
 log_step "Counting scripts..."
-total_scripts=$(find "$SCRIPT_DIR" -name "*.sh" -type f | wc -l | tr -d ' ')
-stub_scripts=$(grep -r "This script is not yet implemented" "$SCRIPT_DIR" --include="*.sh" | wc -l | tr -d ' ')
+total_scripts=$(find "$SCRIPTS_ROOT" -name "*.sh" -type f | wc -l | tr -d ' ')
+stub_scripts=$(grep -r "This script is not yet implemented" "$SCRIPTS_ROOT" --include="*.sh" | wc -l | tr -d ' ')
 implemented_scripts=$((total_scripts - stub_scripts))
 
 log_info "Total scripts: $total_scripts"

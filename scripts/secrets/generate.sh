@@ -1,23 +1,25 @@
 #!/bin/bash
-# scripts/secrets/generate.sh
-# Generate random secrets
 
-set -e
+echo "🔐 Generating secrets..."
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/../lib/common.sh"
+# Generate JWT secret
+JWT_SECRET=$(openssl rand -base64 64 | tr -d '\n')
+echo "JWT_SECRET=$JWT_SECRET"
 
-print_header "uGenerate random secrets"
+# Generate cookie secret
+COOKIE_SECRET=$(openssl rand -base64 32 | tr -d '\n')
+echo "COOKIE_SECRET=$COOKIE_SECRET"
 
-log_warning "This script is not yet implemented"
-log_info "This is a placeholder script"
-
-echo ""
-log_info "What this script should do:"
-echo "  • Generate random secrets"
+# Generate NextAuth secret
+NEXTAUTH_SECRET=$(openssl rand -base64 32 | tr -d '\n')
+echo "NEXTAUTH_SECRET=$NEXTAUTH_SECRET"
 
 echo ""
-log_info "To implement this script, edit:"
-echo "  scripts/secrets/generate.sh"
+echo "⚠️  Remember to store these secrets securely!"
+echo "    Do NOT commit them to version control."
+echo ""
+echo "For production, use a secrets manager like:"
+echo "  - AWS Secrets Manager"
+echo "  - HashiCorp Vault"
+echo "  - Kubernetes Secrets (encrypted)"
 
-exit 1

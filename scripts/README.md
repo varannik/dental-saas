@@ -6,6 +6,8 @@ This directory contains modular shell scripts for development, deployment, and m
 
 ```
 scripts/
+├── create-stubs.sh           # 🛠️  Utility: Create stub scripts (root level)
+│
 ├── lib/                      # Shared utility libraries
 │   ├── common.sh            # Common utilities (logging, checks, etc.)
 │   ├── docker.sh            # Docker operations
@@ -13,9 +15,12 @@ scripts/
 │   └── aws.sh               # AWS operations
 │
 ├── setup/                    # Initial setup and installation
-│   ├── check-dependencies.sh
-│   ├── install-tools.sh
-│   └── install-dependencies.sh
+│   ├── check-dependencies.sh  # Check required tools
+│   ├── install-tools.sh       # Install missing tools
+│   ├── install-dependencies.sh # Install dependencies
+│   ├── fix-permissions.sh     # Fix script permissions
+│   ├── verify-setup.sh        # Verify setup is complete
+│   └── dev-setup.sh           # Initial dev environment setup
 │
 ├── local/                    # Local development environment
 │   ├── start.sh             # Start local environment
@@ -33,11 +38,12 @@ scripts/
 │   └── status.sh
 │
 ├── terraform/                # Terraform operations
-│   ├── init.sh
-│   ├── apply.sh
-│   ├── plan.sh
-│   ├── destroy.sh
-│   └── output.sh
+│   ├── init.sh              # Initialize Terraform
+│   ├── apply.sh             # Apply configuration
+│   ├── plan.sh              # Show execution plan
+│   ├── destroy.sh           # Destroy resources
+│   ├── output.sh            # Show outputs
+│   └── validate-region.sh   # Validate resource regions
 │
 ├── database/                 # Database operations
 │   ├── migrate.sh
@@ -62,12 +68,13 @@ scripts/
 │   └── start-services.sh
 │
 ├── test/                     # Testing scripts
-│   ├── run-all.sh
-│   ├── run-unit.sh
-│   ├── run-integration.sh
-│   ├── run-e2e.sh
-│   ├── run-coverage.sh
-│   └── run-watch.sh
+│   ├── run-all.sh           # Run all tests
+│   ├── run-unit.sh          # Run unit tests
+│   ├── run-integration.sh   # Run integration tests
+│   ├── run-e2e.sh           # Run E2E tests
+│   ├── run-coverage.sh      # Run tests with coverage
+│   ├── run-watch.sh         # Run tests in watch mode
+│   └── smoke-tests.sh       # Run smoke tests
 │
 ├── quality/                  # Code quality scripts
 │   ├── lint.sh
@@ -115,26 +122,31 @@ scripts/
 ## 🎯 Design Principles
 
 ### 1. **Modularity**
+
 - Each script has a single, well-defined purpose
 - Shared functionality is extracted into `lib/` directory
 - Scripts can be run independently or orchestrated via Makefile
 
 ### 2. **Reusability**
+
 - Common functions in `lib/common.sh` (logging, checks, etc.)
 - Service-specific functions in dedicated libraries (docker.sh, terraform.sh)
 - All scripts source the appropriate libraries
 
 ### 3. **Consistency**
+
 - All scripts follow the same structure
 - Consistent error handling and logging
 - Consistent naming conventions
 
 ### 4. **Safety**
+
 - Confirmation prompts for destructive operations
 - Environment checks before deployment
 - Automatic rollback on failure (where possible)
 
 ### 5. **Conditional Logic**
+
 - Check if resources exist before creating
 - Skip steps if already completed
 - Graceful handling of missing optional dependencies
@@ -322,6 +334,7 @@ DRY_RUN=1 ./scripts/deploy/staging.sh
 ## 📝 Documentation
 
 Each script should:
+
 - Have a clear description at the top
 - Document required environment variables
 - Document expected arguments
@@ -392,6 +405,7 @@ cd infrastructure/terraform && terraform state list
 ## 📞 Support
 
 For issues or questions:
+
 1. Check this README
 2. Run `make help` to see available commands
 3. Check individual script comments
@@ -402,4 +416,3 @@ For issues or questions:
 - [Makefile](../Makefile) - Command orchestration
 - [Infrastructure README](../infrastructure/README.md) - Infrastructure setup
 - [Architecture Docs](../docs/architecture/) - System architecture
-

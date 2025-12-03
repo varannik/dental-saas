@@ -113,9 +113,7 @@ scripts/
 │   ├── audit-security.sh             🔄 Security audit
 │   └── analyze-bundle.sh             🔄 Analyze bundle size
 │
-├── fix-permissions.sh                ✅ Fix script permissions
-├── verify-setup.sh                   ✅ Verify setup
-└── create-stubs.sh                   ✅ Create stub scripts
+└── create-stubs.sh                   ✅ Create stub scripts (utility)
 
 Legend:
 ✅ Fully implemented
@@ -179,18 +177,21 @@ docs/
 ## 📊 Statistics
 
 ### Scripts
+
 - **Total:** 73 scripts
 - **Implemented:** 12 scripts (16%)
 - **Stubs:** 61 scripts (84%)
 - **Libraries:** 3 shared libraries
 
 ### Lines of Code
+
 - **Makefile:** 352 lines
 - **Shell Scripts:** ~6,000 lines
 - **Documentation:** ~2,000 lines
 - **Total:** ~8,500 lines
 
 ### Commands
+
 - **Make commands:** 60+
 - **Categories:** 15 categories
 - **Self-documented:** Yes (`make help`)
@@ -199,27 +200,27 @@ docs/
 
 ## 🎯 Implementation Status by Category
 
-| Category | Total | Implemented | Stubs | Progress |
-|----------|-------|-------------|-------|----------|
-| **Libraries** | 3 | 3 | 0 | 100% ✅ |
-| **Setup** | 3 | 3 | 0 | 100% ✅ |
-| **Local Dev** | 4 | 1 | 3 | 25% 🔄 |
-| **Docker** | 6 | 0 | 6 | 0% 🔄 |
-| **Terraform** | 5 | 0 | 5 | 0% 🔄 |
-| **Database** | 6 | 0 | 6 | 0% 🔄 |
-| **Redis** | 3 | 0 | 3 | 0% 🔄 |
-| **Deploy** | 3 | 1 | 2 | 33% 🔄 |
-| **Dev Server** | 2 | 0 | 2 | 0% 🔄 |
-| **Testing** | 6 | 0 | 6 | 0% 🔄 |
-| **Quality** | 5 | 0 | 5 | 0% 🔄 |
-| **Build** | 3 | 0 | 3 | 0% 🔄 |
-| **Secrets** | 3 | 0 | 3 | 0% 🔄 |
-| **Monitoring** | 3 | 0 | 3 | 0% 🔄 |
-| **CI/CD** | 4 | 0 | 4 | 0% 🔄 |
-| **Generate** | 3 | 0 | 3 | 0% 🔄 |
-| **Cleanup** | 2 | 0 | 2 | 0% 🔄 |
-| **Maintenance** | 3 | 0 | 3 | 0% 🔄 |
-| **Utilities** | 3 | 3 | 0 | 100% ✅ |
+| Category        | Total | Implemented | Stubs | Progress |
+| --------------- | ----- | ----------- | ----- | -------- |
+| **Libraries**   | 3     | 3           | 0     | 100% ✅  |
+| **Setup**       | 3     | 3           | 0     | 100% ✅  |
+| **Local Dev**   | 4     | 1           | 3     | 25% 🔄   |
+| **Docker**      | 6     | 0           | 6     | 0% 🔄    |
+| **Terraform**   | 5     | 0           | 5     | 0% 🔄    |
+| **Database**    | 6     | 0           | 6     | 0% 🔄    |
+| **Redis**       | 3     | 0           | 3     | 0% 🔄    |
+| **Deploy**      | 3     | 1           | 2     | 33% 🔄   |
+| **Dev Server**  | 2     | 0           | 2     | 0% 🔄    |
+| **Testing**     | 6     | 0           | 6     | 0% 🔄    |
+| **Quality**     | 5     | 0           | 5     | 0% 🔄    |
+| **Build**       | 3     | 0           | 3     | 0% 🔄    |
+| **Secrets**     | 3     | 0           | 3     | 0% 🔄    |
+| **Monitoring**  | 3     | 0           | 3     | 0% 🔄    |
+| **CI/CD**       | 4     | 0           | 4     | 0% 🔄    |
+| **Generate**    | 3     | 0           | 3     | 0% 🔄    |
+| **Cleanup**     | 2     | 0           | 2     | 0% 🔄    |
+| **Maintenance** | 3     | 0           | 3     | 0% 🔄    |
+| **Utilities**   | 3     | 3           | 0     | 100% ✅  |
 
 **Overall:** 16% implemented, 84% stubbed
 
@@ -286,19 +287,25 @@ docs/
 6. `scripts/setup/install-tools.sh` - Install tools
 7. `scripts/local/start.sh` - Start local environment
 8. `scripts/deploy/staging.sh` - Deploy to staging
-9. `scripts/fix-permissions.sh` - Fix permissions
-10. `scripts/verify-setup.sh` - Verify setup
-11. `scripts/create-stubs.sh` - Create stubs
-12. (Plus 3 pre-existing scripts)
+9. `scripts/setup/fix-permissions.sh` - Fix permissions
+10. `scripts/setup/verify-setup.sh` - Verify setup
+11. `scripts/setup/dev-setup.sh` - Dev setup
+12. `scripts/terraform/validate-region.sh` - Region validation
+13. `scripts/test/smoke-tests.sh` - Smoke tests
+14. `scripts/secrets/generate.sh` - Generate secrets
+15. `scripts/create-stubs.sh` - Create stubs (utility)
+16. (Plus 3 pre-existing scripts)
 
 ### 🔄 Stub Scripts (61 scripts)
 
 All created with helpful messages showing:
+
 - What they should do
 - Where to implement them
 - Example code
 
 **Categories:**
+
 - Docker operations (6)
 - Terraform operations (5)
 - Database operations (6)
@@ -377,6 +384,7 @@ These 6 scripts will make `make local` and `make dev` fully functional:
 ## 📈 Progress Tracking
 
 ### Current Status
+
 ```
 Infrastructure:  ████████████████████ 100% ✅
 Core Libraries:  ████████████████████ 100% ✅
@@ -425,7 +433,7 @@ make fix-permissions         # Fix script permissions
 make install                 # Install npm packages
 make install-tools           # Install dev tools
 make deploy-staging          # Deploy to staging (full)
-./scripts/verify-setup.sh    # Verify setup
+./scripts/setup/verify-setup.sh    # Verify setup
 ```
 
 ### **Commands Ready for Implementation**
@@ -443,17 +451,20 @@ make build                   # Build all (needs 1 script)
 ## 🎓 Learning Path
 
 ### **Day 1: Understand the Structure**
+
 1. Read `QUICKSTART.md`
 2. Run `make help`
 3. Read `scripts/README.md`
 4. Study `scripts/lib/common.sh`
 
 ### **Day 2: Implement Essential Scripts**
+
 1. Implement `scripts/docker/start.sh`
 2. Implement `scripts/terraform/init.sh`
 3. Test with `make docker-up`
 
 ### **Day 3: Complete Local Development**
+
 1. Implement remaining essential scripts
 2. Test with `make local`
 3. Start building features
@@ -463,6 +474,7 @@ make build                   # Build all (needs 1 script)
 ## 🏆 Achievement Summary
 
 ### **What You Have**
+
 - ✅ Complete infrastructure framework
 - ✅ Modular, maintainable architecture
 - ✅ Production-ready patterns
@@ -470,11 +482,13 @@ make build                   # Build all (needs 1 script)
 - ✅ Security best practices
 
 ### **What You Need to Do**
+
 - 🔄 Implement 6 essential scripts (1-2 hours)
 - 🔄 Test local development
 - 🔄 Start building features
 
 ### **Estimated Time to Full Implementation**
+
 - Essential scripts: 1-2 hours
 - Testing scripts: 1 hour
 - Build & deploy: 1-2 hours
@@ -494,4 +508,3 @@ make help
 ```
 
 **Then start implementing or start building!** 🚀
-
