@@ -1,0 +1,23 @@
+#!/bin/bash
+# scripts/docker/clean.sh
+# Clean Docker containers and volumes
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/common.sh"
+
+print_header "uClean Docker containers and volumes"
+
+log_warning "This script is not yet implemented"
+log_info "This is a placeholder script"
+
+echo ""
+log_info "What this script should do:"
+echo "  • Clean Docker containers and volumes"
+
+echo ""
+log_info "To implement this script, edit:"
+echo "  scripts/docker/clean.sh"
+
+exit 1

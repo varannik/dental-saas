@@ -44,7 +44,15 @@ git clone https://github.com/your-org/dental-saas.git
 cd dental-saas
 ```
 
-### 2. Check Dependencies
+### 2. Fix Script Permissions (First Time Only)
+
+```bash
+make fix-permissions
+```
+
+This makes all shell scripts executable. You only need to do this once after cloning.
+
+### 3. Check Dependencies
 
 ```bash
 make check-deps
@@ -52,7 +60,7 @@ make check-deps
 
 If any dependencies are missing, install them before continuing.
 
-### 3. Complete Setup
+### 4. Complete Setup
 
 ```bash
 make setup
@@ -67,7 +75,7 @@ This command will:
 
 **Expected time:** 2-3 minutes
 
-### 4. Start Development Server
+### 5. Start Development Server
 
 ```bash
 make dev

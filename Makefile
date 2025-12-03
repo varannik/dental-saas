@@ -304,6 +304,9 @@ ci-deploy-production: ## CI deploy to production
 
 ##@ Utilities
 
+fix-permissions: ## Fix permissions for all shell scripts
+	@$(SCRIPTS_DIR)/fix-permissions.sh
+
 shell-postgres: ## Shell into PostgreSQL container
 	@docker exec -it $$(docker ps -qf "name=postgres") /bin/sh
 
