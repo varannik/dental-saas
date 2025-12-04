@@ -29,20 +29,22 @@ wait_for_postgres "dental-saas-postgres"
 wait_for_redis "dental-saas-redis"
 wait_for_minio "dental-saas-minio"
 
-# Step 4: Apply Terraform configuration
-log_step "Applying Terraform configuration..."
-apply_terraform "local" "true"
+# Step 4: Apply Terraform configuration (SKIPPED for local dev)
+# Terraform/LocalStack not required for local development
+# Using Docker services directly (PostgreSQL, Redis, MinIO)
+log_step "Skipping Terraform (not required for local development)..."
+log_info "Using Docker services directly"
 
-# Step 5: Get connection info
-log_step "Getting connection information..."
-DB_ENDPOINT=$(get_terraform_output "db_endpoint" "local")
-DB_NAME=$(get_terraform_output "db_name" "local")
-REDIS_ENDPOINT=$(get_terraform_output "redis_endpoint" "local")
-S3_ENDPOINT=$(get_terraform_output "s3_endpoint" "local")
+# Step 5: Get connection info (hardcoded for local Docker services)
+log_step "Setting up connection information..."
+DB_ENDPOINT="localhost:5432"
+DB_NAME="dental_saas"
+REDIS_ENDPOINT="localhost:6379"
+S3_ENDPOINT="localhost:9000"
 
-log_info "Database: $DB_ENDPOINT/$DB_NAME"
-log_info "Redis: $REDIS_ENDPOINT"
-log_info "S3 (MinIO): $S3_ENDPOINT"
+log_info "Database: postgresql://postgres:postgres_dev_password@$DB_ENDPOINT/$DB_NAME"
+log_info "Redis: redis://$REDIS_ENDPOINT"
+log_info "S3 (MinIO): http://$S3_ENDPOINT"
 
 # Step 6: Run database migrations
 if [ -f "$PROJECT_ROOT/package.json" ]; then
