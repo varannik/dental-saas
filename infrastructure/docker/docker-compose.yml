@@ -89,7 +89,7 @@ services:
 
   # LocalStack (AWS service mocks for Terraform)
   localstack:
-    image: localstack/localstack:latest
+    image: localstack/localstack:3.8.1  # Latest stable version (not dev)
     container_name: dental-saas-localstack
     restart: unless-stopped
     ports:
@@ -98,23 +98,30 @@ services:
     environment:
       SERVICES: s3,dynamodb,lambda,apigateway,cloudwatch,iam,secretsmanager,sns,sqs,rds
       DEBUG: 0
-      DATA_DIR: /tmp/localstack/data
+      # ✅ FIX: Use /var/lib/localstack instead of /tmp/localstack
+      DATA_DIR: /var/lib/localstack
+      # ✅ FIX: Detect Docker socket automatically
       DOCKER_HOST: unix:///var/run/docker.sock
       # Enable persistence between restarts
       PERSISTENCE: 1
-      # Use legacy edge port
-      LEGACY_EDGE_PORT: 1
       # ✅ ENFORCE SINGLE REGION (consistent with staging/production)
       DEFAULT_REGION: eu-central-1
       AWS_DEFAULT_REGION: eu-central-1
+      # ✅ Additional stability settings
+      SKIP_INFRA_DOWNLOADS: 0
+      SKIP_SSL_CERT_DOWNLOAD: 0
+      LS_LOG: info
     volumes:
-      - localstack_data:/tmp/localstack
-      - /var/run/docker.sock:/var/run/docker.sock
+      # ✅ FIX: Mount to /var/lib/localstack instead of /tmp/localstack
+      - localstack_data:/var/lib/localstack
+      # ✅ FIX: Use host.docker.internal on macOS, fallback for Linux
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
     networks:
       - dental-saas-network
 

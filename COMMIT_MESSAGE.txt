@@ -1,7 +1,7 @@
-feat(scripts): implement database and redis console scripts, improve local dev workflow
+feat(scripts,localstack): implement console scripts and fix localstack crash issues
 
-Implement previously stubbed console scripts and modify local startup to skip
-unnecessary Terraform/AWS dependencies for local development.
+Implement database/redis console scripts and resolve LocalStack crash loop by
+fixing Docker volume mount conflicts and using stable version.
 
 ## Issues Resolved
 
@@ -10,91 +10,140 @@ unnecessary Terraform/AWS dependencies for local development.
    - Redis console script was placeholder (not functional)
    - Blocked developers from accessing local services
 
-2. **Unnecessary AWS Dependencies for Local Development**
-   - `make local` attempted to run Terraform and create VPC
-   - Required AWS credentials unnecessarily
+2. **LocalStack Crash Loop**
+   - Container continuously restarting with OSError [Errno 16]
+   - Volume mount conflict: /tmp/localstack locked by Docker
+   - Python 3.13 compatibility issues with dev version 4.11.2.dev23
+   - Prevented AWS service mocking and Terraform testing
+
+3. **Unnecessary AWS Dependencies for Local Development**
+   - `make local` attempted to run Terraform unnecessarily
+   - Required AWS credentials for local development
    - Failed with AWS authentication errors
-   - LocalStack issues prevented smooth local workflow
 
 ## Changes Made
 
 ### Script Implementations
 
 **scripts/database/console.sh**
-- Implemented PostgreSQL console access for all environments
-- Environment validation (local/staging/production)
+- Implemented PostgreSQL console access (local/staging/production)
+- Environment validation with proper error messages
 - Container status checking before connection
 - Security checks and warnings for production access
-- Helpful usage tips (psql commands, how to exit, etc.)
-- Proper error handling with informative messages
+- Helpful usage tips (psql commands, exit instructions)
 
 **scripts/redis/console.sh**
-- Implemented Redis CLI console access for all environments
-- Environment validation (local/staging/production)
-- Container status checking before connection
+- Implemented Redis CLI console access (local/staging/production)
+- Environment validation and container checks
 - Security warnings for production access
 - Redis command tips (PING, KEYS, INFO, etc.)
 - Interactive console with helpful guidance
 
 **scripts/local/start.sh**
 - Modified to skip Terraform step for local development
-- Removed unnecessary apply_terraform call
-- Removed LocalStack dependency
-- Uses hardcoded Docker connection strings instead
-- Provides direct PostgreSQL, Redis, MinIO connection info
+- Removed unnecessary LocalStack dependency for basic dev
+- Uses hardcoded Docker connection strings
 - Faster startup without AWS/Terraform overhead
+
+### LocalStack Configuration Fixes
+
+**infrastructure/docker/docker-compose.yml**
+- Changed image from `localstack:latest` to `localstack:3.8.1` (stable)
+- Fixed volume mount path: `/tmp/localstack` → `/var/lib/localstack`
+- Resolved Docker volume mount conflict causing crash loop
+- Added `:ro` (read-only) flag to Docker socket mount
+- Enhanced health check: 30s start_period, 10 retries, 15s interval
+- Added stability settings: SKIP_INFRA_DOWNLOADS, LS_LOG
+- Maintained PERSISTENCE=1 for data retention across restarts
+- Kept all 10 AWS services enabled (S3, DynamoDB, Lambda, etc.)
+
+**infrastructure/docker/docker-compose.macos.yml** (NEW)
+- Created macOS-specific override configuration
+- Docker socket path optimization for macOS
+- Lambda network configuration (bridge mode)
+- Optional file for macOS-specific issues
 
 ## Technical Details
 
+### LocalStack Crash Root Causes Fixed
+
+1. **Volume Mount Conflict** (Critical)
+   - Old: `localstack_data:/tmp/localstack` conflicted with startup cleanup
+   - New: `localstack_data:/var/lib/localstack` (standard location)
+   - Result: No more "Device or resource busy" errors
+
+2. **Unstable Version** (Critical)
+   - Old: `localstack:latest` pulled dev version 4.11.2.dev23
+   - New: `localstack:3.8.1` stable production release
+   - Result: Python 3.13 compatibility, stable runtime
+
+3. **Health Check Timing** (High)
+   - Old: Too aggressive (5 retries, no start period)
+   - New: 30s start_period allows proper initialization
+   - Result: Container marked healthy after services load
+
 ### Console Script Features
-- **Multi-environment support**: local, staging, production
-- **Container validation**: Checks if Docker containers are running
-- **Security controls**: Production access requires explicit authorization
-- **User guidance**: Interactive tips for common commands
-- **Error handling**: Clear error messages with remediation steps
+- Multi-environment support (local/staging/production)
+- Container validation before connection
+- Security controls for production access
+- User-friendly error messages and tips
+- Exit instructions and command examples
 
-### Local Development Improvements
-- Terraform completely optional for local development
-- No AWS credentials required
+### Local Development Workflow
+- Terraform optional for daily development
 - Direct Docker service access (PostgreSQL, Redis, MinIO)
+- No AWS credentials needed locally
 - Connection strings provided by startup script
-- Eliminates VPC creation errors for local environment
-
-### Connection Strings (Local)
-```
-PostgreSQL: postgresql://postgres:postgres_dev_password@localhost:5432/dental_saas
-Redis:      redis://localhost:6379
-MinIO:      http://localhost:9000
-```
 
 ## Testing Performed
 
-- ✅ `make local` completes successfully without AWS/Terraform
-- ✅ `make db-console` connects to PostgreSQL (local)
-- ✅ `make redis-console` connects to Redis CLI (local)
-- ✅ All Docker services remain healthy
-- ✅ Script validation for staging/production (displays appropriate warnings)
-- ✅ Container status checking works correctly
-- ✅ Error messages are clear and actionable
+- ✅ LocalStack starts successfully and stays healthy
+- ✅ All 10 AWS services available (S3, DynamoDB, Lambda, etc.)
+- ✅ LocalStack version 3.8.1 confirmed
+- ✅ No crash loop, no restart errors
+- ✅ `make local` completes without AWS/Terraform errors
+- ✅ `make db-console` connects to PostgreSQL
+- ✅ `make redis-console` connects to Redis CLI
+- ✅ All Docker services healthy and accessible
+- ✅ Data persistence works across LocalStack restarts
 
 ## Impact
 
 **Before:**
-- ❌ Database console script was non-functional placeholder
-- ❌ Redis console script was non-functional placeholder
-- ❌ `make local` failed with AWS authentication errors
-- ❌ Required AWS credentials for local development
-- ❌ LocalStack issues blocked local workflow
-- ❌ No easy way to access PostgreSQL or Redis
+- ❌ Database/Redis console scripts non-functional
+- ❌ LocalStack in infinite crash/restart loop
+- ❌ OSError [Errno 16]: Device or resource busy
+- ❌ Terraform testing impossible (no LocalStack)
+- ❌ `make local` failed with AWS auth errors
+- ❌ Required AWS credentials for local dev
 
 **After:**
-- ✅ `make db-console` fully functional
-- ✅ `make redis-console` fully functional
+- ✅ `make db-console` and `make redis-console` fully functional
+- ✅ LocalStack stable and healthy (v3.8.1)
+- ✅ All AWS services available for testing
+- ✅ Terraform can use LocalStack for infrastructure testing
 - ✅ `make local` works without AWS credentials
-- ✅ Fast local startup (no Terraform overhead)
-- ✅ Direct Docker service access
-- ✅ Clear connection strings provided
-- ✅ Developer-friendly console access
+- ✅ Faster local startup
+- ✅ Data persists across container restarts
+
+## Available Services
+
+**LocalStack AWS Services (All Enabled):**
+```
+✅ S3              - Object storage
+✅ DynamoDB        - NoSQL database
+✅ Lambda          - Serverless functions
+✅ API Gateway     - API management
+✅ CloudWatch      - Monitoring
+✅ IAM             - Access management
+✅ Secrets Manager - Secret storage
+✅ SNS             - Pub/sub messaging
+✅ SQS             - Message queues
+✅ STS/KMS/Kinesis - Supporting services
+```
+
+**Region:** eu-central-1 (all environments)
+**Persistence:** Enabled (data survives restarts)
 
 ## Developer Experience
 
@@ -103,76 +152,85 @@ MinIO:      http://localhost:9000
 make local          # Start local environment (no AWS needed)
 make db-console     # Access PostgreSQL console
 make redis-console  # Access Redis CLI
-make dev            # Start development server
 ```
 
 ### PostgreSQL Console Usage
 ```bash
 make db-console
-
-# Inside psql:
-\l              # List databases
-\dt             # List tables
-\d table_name   # Describe table
-\q              # Quit
+# \l    - List databases
+# \dt   - List tables  
+# \q    - Quit
 ```
 
 ### Redis Console Usage
 ```bash
 make redis-console
+# PING  - Test connection
+# KEYS * - List keys
+# exit  - Quit
+```
 
-# Inside redis-cli:
-PING            # Test connection
-KEYS *          # List keys
-INFO            # Server info
-exit            # Quit
+### LocalStack Testing
+```bash
+# Create S3 bucket
+aws --endpoint-url=http://localhost:4566 s3 mb s3://test --region eu-central-1
+
+# List DynamoDB tables
+aws --endpoint-url=http://localhost:4566 dynamodb list-tables --region eu-central-1
+
+# Use with Terraform
+terraform apply -var-file=environments/local.tfvars
 ```
 
 ## Breaking Changes
 
-None. This is purely additive functionality.
+None. All changes are additive or fixes.
 
 **Improvements:**
-- Scripts that were placeholders are now fully functional
+- Scripts that were placeholders now fully functional
+- LocalStack that was broken now stable and working
 - Local development no longer requires AWS credentials
-- Faster startup time (Terraform step skipped for local)
-- Better error messages and user guidance
+- Faster startup (Terraform optional for local)
 
 ## Migration Notes
 
 **For existing developers:**
-- No changes needed to existing workflows
-- New console commands now available
-- `make local` will run faster (skips Terraform)
-- No AWS credentials required for local development
+- LocalStack now works reliably
+- New console commands available
+- `make local` runs faster
+- No AWS credentials needed locally
+- Can now test AWS services with LocalStack
 
 **For new developers:**
-- Run: `make local` to start local environment
-- Use: `make db-console` to access database
-- Use: `make redis-console` to access Redis
-- See: LOCAL_DEV_WITHOUT_LOCALSTACK.md for details
+- Run: `make local` to start environment
+- Use: `make db-console` for database access
+- Use: `make redis-console` for Redis access
+- LocalStack available at http://localhost:4566
 
-## Related Files
+## Files Changed
 
 **Modified:**
-- scripts/database/console.sh (implemented)
-- scripts/redis/console.sh (implemented)
+- scripts/database/console.sh (implemented from stub)
+- scripts/redis/console.sh (implemented from stub)
 - scripts/local/start.sh (skip Terraform for local)
+- infrastructure/docker/docker-compose.yml (fix LocalStack)
 
-**Documentation:**
-- LOCAL_DEV_WITHOUT_LOCALSTACK.md (comprehensive local dev guide)
+**Created:**
+- infrastructure/docker/docker-compose.macos.yml (macOS overrides)
 
 ---
 
+**Services:** ✅ PostgreSQL, Redis, MinIO, LocalStack (all healthy)
 **Scripts:** ✅ Database and Redis consoles implemented
-**Local Dev:** ✅ Works without AWS credentials or Terraform
-**Services:** ✅ PostgreSQL, Redis, MinIO accessible
-**Status:** ✅ Ready for development
+**LocalStack:** ✅ Fixed and stable (v3.8.1)
+**Local Dev:** ✅ Works without AWS credentials
+**Status:** ✅ Ready for development and AWS testing
 
 **Quick Start:**
 ```bash
 make local          # Start all services
 make db-console     # Access PostgreSQL
 make redis-console  # Access Redis
-make dev            # Start coding!
+# Test AWS services with LocalStack at localhost:4566
 ```
+

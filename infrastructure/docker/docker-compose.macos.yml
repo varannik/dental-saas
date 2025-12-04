@@ -1,0 +1,17 @@
+# Docker Compose override for macOS
+# Usage: docker compose -f docker-compose.yml -f docker-compose.macos.yml up -d
+#
+# This file addresses macOS-specific Docker configuration issues,
+# particularly for LocalStack which needs special handling on macOS.
+
+version: '3.8'
+
+services:
+  localstack:
+    environment:
+      # macOS-specific: Docker socket detection
+      DOCKER_HOST: unix:///var/run/docker.sock
+      # Disable Docker features that don't work well on macOS
+      LAMBDA_DOCKER_NETWORK: bridge
+      MAIN_DOCKER_NETWORK: docker_dental-saas-network
+
