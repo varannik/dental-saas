@@ -1,0 +1,58 @@
+refactor(scripts): reorganize shell scripts into logical subdirectories
+
+## Summary
+Reorganized 6 shell scripts from root scripts/ directory into proper
+subdirectories for better maintainability and discoverability.
+
+## Changes
+
+### Scripts Moved
+- scripts/fix-permissions.sh → scripts/setup/fix-permissions.sh
+- scripts/verify-setup.sh → scripts/setup/verify-setup.sh
+- scripts/dev-setup.sh → scripts/setup/dev-setup.sh
+- scripts/validate-region.sh → scripts/terraform/validate-region.sh
+- scripts/smoke-tests.sh → scripts/test/smoke-tests.sh
+- scripts/generate-secrets.sh → scripts/secrets/generate.sh
+
+### Path References Updated
+- Updated library imports from $SCRIPT_DIR to $SCRIPTS_ROOT in moved scripts
+- Fixed verify-setup.sh to scan entire scripts directory
+- Fixed fix-permissions.sh to handle all subdirectories
+- Corrected terraform/validate-region.sh library path (../lib/common.sh)
+
+### Documentation Updated
+- Makefile: Updated fix-permissions target path
+- REGION_CONSISTENCY_CHECK.md: Updated validation script paths
+- PROJECT_STRUCTURE.md: Updated script inventory
+- SETUP_SUMMARY.md: Updated script locations
+- docs/deployment/README.md: Updated smoke-tests path
+- scripts/README.md: Added new scripts to directory structure
+- scripts/setup/verify-setup.sh: Updated essential scripts list
+
+### New Implementations
+- Implemented scripts/terraform/init.sh (replaced stub with full implementation)
+  - Added environment validation (local/development/staging/production)
+  - Added backend configuration handling
+  - Added LocalStack support for local development
+  - Added interactive prompts for reconfiguration
+
+### Cleanup
+- Removed duplicate scripts/validate-region.sh (kept terraform/ version)
+- Created SCRIPTS_ORGANIZED.md for reorganization summary
+- Added terraform/INIT_INSTRUCTIONS.md for backend setup guide
+
+## Final Structure
+- 70 scripts organized across 17 directories
+- Only 1 utility script (create-stubs.sh) remains at root level
+- All path references working correctly
+- All make commands tested and verified
+
+## Testing
+✅ make fix-permissions
+✅ ./scripts/setup/verify-setup.sh
+✅ ./scripts/terraform/validate-region.sh local
+✅ All documentation references verified
+
+## Breaking Changes
+None - all existing make commands continue to work with updated paths
+

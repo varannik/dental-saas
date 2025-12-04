@@ -4,6 +4,8 @@
 
 All scripts have been reorganized into proper subdirectories with updated references!
 
+**Note:** One duplicate file (`scripts/validate-region.sh`) was found at root and deleted - only the correct version at `scripts/terraform/validate-region.sh` remains.
+
 ---
 
 ## 📦 What Was Done
