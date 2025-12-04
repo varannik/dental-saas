@@ -1,7 +1,7 @@
 variable "aws_region" {
   description = "AWS region - SINGLE region for ALL resources (no cross-region)"
   type        = string
-  default     = "us-east-1"
+  default     = "eu-central-1"
   
   validation {
     condition     = can(regex("^[a-z]{2}-[a-z]+-[0-9]{1}$", var.aws_region))

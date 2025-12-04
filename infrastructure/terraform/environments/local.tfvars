@@ -2,7 +2,7 @@
 # Uses LocalStack for AWS service mocks
 
 environment = "local"
-aws_region  = "us-east-1"
+aws_region  = "eu-central-1"
 
 # VPC Configuration (LocalStack doesn't fully support VPC, simplified for local)
 vpc_cidr = "10.0.0.0/16"
