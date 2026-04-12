@@ -1,236 +1,76 @@
-feat(scripts,localstack): implement console scripts and fix localstack crash issues
+docs(status): add comprehensive project review, architecture analysis, and implementation roadmap
 
-Implement database/redis console scripts and resolve LocalStack crash loop by
-fixing Docker volume mount conflicts and using stable version.
+Complete audit of the Dental SaaS Platform after 4 months of inactivity.
+Created detailed status documentation covering current state, gaps, modern
+AI voice technology recommendations, and step-by-step implementation guides.
 
-## Issues Resolved
+## What Was Done
 
-1. **Missing Script Implementations**
-   - Database console script was placeholder (not functional)
-   - Redis console script was placeholder (not functional)
-   - Blocked developers from accessing local services
+Full project review analyzing every file, directory, git history, and
+configuration in the repository. Identified what is implemented vs stubbed,
+documented all inconsistencies, and created a phased roadmap to go from
+the current architecture-only state to a working AI voice assistant product.
 
-2. **LocalStack Crash Loop**
-   - Container continuously restarting with OSError [Errno 16]
-   - Volume mount conflict: /tmp/localstack locked by Docker
-   - Python 3.13 compatibility issues with dev version 4.11.2.dev23
-   - Prevented AWS service mocking and Terraform testing
+## Files Created
 
-3. **Unnecessary AWS Dependencies for Local Development**
-   - `make local` attempted to run Terraform unnecessarily
-   - Required AWS credentials for local development
-   - Failed with AWS authentication errors
+**status/** (11 documents, ~4,400 lines total)
 
-## Changes Made
+- `README.md` — Index with reading order and quick summary
+- `01-PROJECT-REVIEW.md` — Full project audit: timeline, tech stack, what
+  exists, known issues, previous code that was deleted in Dec 2025 refactor
+- `02-CURRENT-ARCHITECTURE.md` — System architecture diagrams, database
+  schema overview (core + agent extensions), data flow, environment matrix,
+  CI/CD pipeline, security architecture
+- `03-WHATS-MISSING.md` — Gap analysis: zero application code, no migrations,
+  no ESLint config, 61 stub scripts, incomplete Terraform, missing .env.example
+- `04-BEST-PRACTICES-AI-VOICE.md` — 2026 technology recommendations:
+  Deepgram Nova-3 for ASR, LangGraph for agent workflows, Drizzle ORM,
+  ECS Fargate, multi-model LLM routing, HIPAA compliance patterns
+- `05-ROADMAP-NEXT-STEPS.md` — 22-week phased plan (6 phases, 5 milestones)
+  from foundation fix through production deployment
+- `06-STEP-BY-STEP-PHASE0-FOUNDATION-FIX.md` — Fix scaffold: ESLint config,
+  .env.example, build scripts, DB password mismatch, region inconsistencies
+- `07-STEP-BY-STEP-PHASE1-CORE-FOUNDATION.md` — Database migrations, shared
+  packages (types/config/utils), auth service, API gateway with code examples
+- `08-STEP-BY-STEP-PHASE2-DENTAL-CORE.md` — Patient CRUD, dental charting,
+  clinical notes, treatment plans, Next.js web app with shadcn/ui
+- `09-STEP-BY-STEP-PHASE3-AI-VOICE-AGENT.md` — WebSocket voice streaming,
+  Deepgram ASR integration, LLM intent parsing, LangGraph workflows,
+  voice confirmation UI, HITL approvals, undo mechanism
+- `10-STEP-BY-STEP-PHASE4-5-AI-AND-PRODUCTION.md` — RAG with pgvector,
+  multi-agent collaboration, imaging AI overlays, AWS Terraform modules,
+  RLS security, HIPAA audit logging, OpenTelemetry, production checklist
 
-### Script Implementations
+**UI_UX_DESIGN_PROMPT.md** — Voice-first dental practice UI design brief
 
-**scripts/database/console.sh**
-- Implemented PostgreSQL console access (local/staging/production)
-- Environment validation with proper error messages
-- Container status checking before connection
-- Security checks and warnings for production access
-- Helpful usage tips (psql commands, exit instructions)
+## Key Findings
 
-**scripts/redis/console.sh**
-- Implemented Redis CLI console access (local/staging/production)
-- Environment validation and container checks
-- Security warnings for production access
-- Redis command tips (PING, KEYS, INFO, etc.)
-- Interactive console with helpful guidance
+- Documentation and architecture design: ~90% complete
+- Application source code: 0% (all apps/services/packages are README-only)
+- Infrastructure: ~30% functional (Docker works, Terraform VPC only)
+- DevOps scripts: 16% implemented (12 of 73)
+- Previously written code (auth, voice agent, subscriptions) deleted in
+  December 2025 refactor but preserved in git history
+- Multiple inconsistencies found: DB passwords, region configs, missing
+  ESLint, broken CI references, stale doc references
 
-**scripts/local/start.sh**
-- Modified to skip Terraform step for local development
-- Removed unnecessary LocalStack dependency for basic dev
-- Uses hardcoded Docker connection strings
-- Faster startup without AWS/Terraform overhead
+## Technology Recommendations
 
-### LocalStack Configuration Fixes
+- ASR: Deepgram Nova-3 (streaming, medical vocabulary)
+- LLM: GPT-4.1 + Claude multi-model router
+- Agent: LangGraph (confirmed best choice for HITL workflows)
+- ORM: Drizzle (pgvector support, multi-tenant friendly)
+- Frontend: Next.js 15 + shadcn/ui + Tailwind v4
+- Container: ECS Fargate (MVP) → EKS (scale)
+- Database: Aurora Serverless v2 (production)
+- Observability: OpenTelemetry + LangSmith
 
-**infrastructure/docker/docker-compose.yml**
-- Changed image from `localstack:latest` to `localstack:3.8.1` (stable)
-- Fixed volume mount path: `/tmp/localstack` → `/var/lib/localstack`
-- Resolved Docker volume mount conflict causing crash loop
-- Added `:ro` (read-only) flag to Docker socket mount
-- Enhanced health check: 30s start_period, 10 retries, 15s interval
-- Added stability settings: SKIP_INFRA_DOWNLOADS, LS_LOG
-- Maintained PERSISTENCE=1 for data retention across restarts
-- Kept all 10 AWS services enabled (S3, DynamoDB, Lambda, etc.)
+## Estimated Timeline
 
-**infrastructure/docker/docker-compose.macos.yml** (NEW)
-- Created macOS-specific override configuration
-- Docker socket path optimization for macOS
-- Lambda network configuration (bridge mode)
-- Optional file for macOS-specific issues
-
-## Technical Details
-
-### LocalStack Crash Root Causes Fixed
-
-1. **Volume Mount Conflict** (Critical)
-   - Old: `localstack_data:/tmp/localstack` conflicted with startup cleanup
-   - New: `localstack_data:/var/lib/localstack` (standard location)
-   - Result: No more "Device or resource busy" errors
-
-2. **Unstable Version** (Critical)
-   - Old: `localstack:latest` pulled dev version 4.11.2.dev23
-   - New: `localstack:3.8.1` stable production release
-   - Result: Python 3.13 compatibility, stable runtime
-
-3. **Health Check Timing** (High)
-   - Old: Too aggressive (5 retries, no start period)
-   - New: 30s start_period allows proper initialization
-   - Result: Container marked healthy after services load
-
-### Console Script Features
-- Multi-environment support (local/staging/production)
-- Container validation before connection
-- Security controls for production access
-- User-friendly error messages and tips
-- Exit instructions and command examples
-
-### Local Development Workflow
-- Terraform optional for daily development
-- Direct Docker service access (PostgreSQL, Redis, MinIO)
-- No AWS credentials needed locally
-- Connection strings provided by startup script
-
-## Testing Performed
-
-- ✅ LocalStack starts successfully and stays healthy
-- ✅ All 10 AWS services available (S3, DynamoDB, Lambda, etc.)
-- ✅ LocalStack version 3.8.1 confirmed
-- ✅ No crash loop, no restart errors
-- ✅ `make local` completes without AWS/Terraform errors
-- ✅ `make db-console` connects to PostgreSQL
-- ✅ `make redis-console` connects to Redis CLI
-- ✅ All Docker services healthy and accessible
-- ✅ Data persistence works across LocalStack restarts
-
-## Impact
-
-**Before:**
-- ❌ Database/Redis console scripts non-functional
-- ❌ LocalStack in infinite crash/restart loop
-- ❌ OSError [Errno 16]: Device or resource busy
-- ❌ Terraform testing impossible (no LocalStack)
-- ❌ `make local` failed with AWS auth errors
-- ❌ Required AWS credentials for local dev
-
-**After:**
-- ✅ `make db-console` and `make redis-console` fully functional
-- ✅ LocalStack stable and healthy (v3.8.1)
-- ✅ All AWS services available for testing
-- ✅ Terraform can use LocalStack for infrastructure testing
-- ✅ `make local` works without AWS credentials
-- ✅ Faster local startup
-- ✅ Data persists across container restarts
-
-## Available Services
-
-**LocalStack AWS Services (All Enabled):**
-```
-✅ S3              - Object storage
-✅ DynamoDB        - NoSQL database
-✅ Lambda          - Serverless functions
-✅ API Gateway     - API management
-✅ CloudWatch      - Monitoring
-✅ IAM             - Access management
-✅ Secrets Manager - Secret storage
-✅ SNS             - Pub/sub messaging
-✅ SQS             - Message queues
-✅ STS/KMS/Kinesis - Supporting services
-```
-
-**Region:** eu-central-1 (all environments)
-**Persistence:** Enabled (data survives restarts)
-
-## Developer Experience
-
-### New Available Commands
-```bash
-make local          # Start local environment (no AWS needed)
-make db-console     # Access PostgreSQL console
-make redis-console  # Access Redis CLI
-```
-
-### PostgreSQL Console Usage
-```bash
-make db-console
-# \l    - List databases
-# \dt   - List tables  
-# \q    - Quit
-```
-
-### Redis Console Usage
-```bash
-make redis-console
-# PING  - Test connection
-# KEYS * - List keys
-# exit  - Quit
-```
-
-### LocalStack Testing
-```bash
-# Create S3 bucket
-aws --endpoint-url=http://localhost:4566 s3 mb s3://test --region eu-central-1
-
-# List DynamoDB tables
-aws --endpoint-url=http://localhost:4566 dynamodb list-tables --region eu-central-1
-
-# Use with Terraform
-terraform apply -var-file=environments/local.tfvars
-```
-
-## Breaking Changes
-
-None. All changes are additive or fixes.
-
-**Improvements:**
-- Scripts that were placeholders now fully functional
-- LocalStack that was broken now stable and working
-- Local development no longer requires AWS credentials
-- Faster startup (Terraform optional for local)
-
-## Migration Notes
-
-**For existing developers:**
-- LocalStack now works reliably
-- New console commands available
-- `make local` runs faster
-- No AWS credentials needed locally
-- Can now test AWS services with LocalStack
-
-**For new developers:**
-- Run: `make local` to start environment
-- Use: `make db-console` for database access
-- Use: `make redis-console` for Redis access
-- LocalStack available at http://localhost:4566
-
-## Files Changed
-
-**Modified:**
-- scripts/database/console.sh (implemented from stub)
-- scripts/redis/console.sh (implemented from stub)
-- scripts/local/start.sh (skip Terraform for local)
-- infrastructure/docker/docker-compose.yml (fix LocalStack)
-
-**Created:**
-- infrastructure/docker/docker-compose.macos.yml (macOS overrides)
-
----
-
-**Services:** ✅ PostgreSQL, Redis, MinIO, LocalStack (all healthy)
-**Scripts:** ✅ Database and Redis consoles implemented
-**LocalStack:** ✅ Fixed and stable (v3.8.1)
-**Local Dev:** ✅ Works without AWS credentials
-**Status:** ✅ Ready for development and AWS testing
-
-**Quick Start:**
-```bash
-make local          # Start all services
-make db-console     # Access PostgreSQL
-make redis-console  # Access Redis
-# Test AWS services with LocalStack at localhost:4566
-```
-
+- Phase 0 (fix scaffold): 1 week
+- Phase 1 (core foundation): 3 weeks
+- Phase 2 (dental features): 4 weeks
+- Phase 3 (AI voice agent): 6 weeks
+- Phase 4 (AI intelligence): 4 weeks
+- Phase 5 (production ready): 4 weeks
+- Total to MVP: ~22 weeks (1 dev) / ~10-12 weeks (2-3 devs)
