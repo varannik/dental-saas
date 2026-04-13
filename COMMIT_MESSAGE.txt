@@ -1,48 +1,29 @@
-feat(docs,tooling): add multilingual architecture support and restore ESLint setup
+chore(dev-env): add env template and align local config defaults
 
-Introduce end-to-end language/locale support in schema and architecture docs
-for Persian-ready voice workflows, and add a working ESLint flat config for
-TypeScript linting in pre-commit.
+Standardize local development configuration by adding a complete `.env.example`,
+fixing PostgreSQL password mismatch in local startup output, and aligning
+Terraform region validation defaults with the project region strategy.
 
 ## What Changed
 
-- Added tenant-level language policy fields in core schema:
-  - `default_locale`
-  - `supported_locales`
-  - `supported_languages`
-- Added user/patient locale + language preference fields for UI and voice routing.
-- Added voice session locale/routing fields:
-  - `input_locale`, `output_locale`
-  - `asr_language`, `tts_voice_id`
-- Added utterance-level language metadata:
-  - `transcript_locale`
-  - `normalized_transcript`
-- Added language-aware agent memory metadata and index in agent extensions:
-  - `content_locale`, `content_language`
-  - `idx_agent_memories_tenant_lang_scope`
-- Updated architecture/status docs to include:
-  - Persian (`fa-IR`) compatibility requirements
-  - RTL UI expectations
-  - language-aware RAG retrieval rules
-  - locale-specific test coverage and remaining implementation gaps
-
-## Tooling Fixes
-
-- Added root `eslint.config.js` (flat config) for JS + TS/TSX.
-- Added required ESLint dependencies in `package.json`:
-  - `eslint`
-  - `@eslint/js`
-  - `@typescript-eslint/parser`
-  - `@typescript-eslint/eslint-plugin`
-  - `globals`
-- Verified lint commands run via pnpm and pre-commit path (`lint-staged`).
+- Added `.env.example` with required variables for:
+  - app/runtime
+  - database/redis
+  - auth/security
+  - AI/voice
+  - storage (S3/MinIO)
+  - AWS/LocalStack
+  - observability and testing
+- Fixed DB credential mismatch in `scripts/local/start.sh`:
+  - replaced incorrect `postgres_dev_password` reference
+  - now logs connection using `postgres:postgres` (matching local Docker defaults)
+- Fixed region inconsistency in `scripts/terraform/validate-region.sh`:
+  - default expected region now uses `AWS_REGION` fallback to `eu-central-1`
+  - local validation uses the same expected region
+  - bucket-region fallback checks now use expected region instead of hardcoded `us-east-1`
 
 ## Files Updated
 
-- `docs/architecture/schema-core.yaml`
-- `docs/architecture/schema-agent-extensions.yaml`
-- `docs/architecture/schema-core.md`
-- `status/03-WHATS-MISSING.md`
-- `status/04-BEST-PRACTICES-AI-VOICE.md`
-- `eslint.config.js` (new)
-- `package.json`
+- `.env.example` (new)
+- `scripts/local/start.sh`
+- `scripts/terraform/validate-region.sh`

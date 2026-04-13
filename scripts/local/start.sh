@@ -39,10 +39,12 @@ log_info "Using Docker services directly"
 log_step "Setting up connection information..."
 DB_ENDPOINT="localhost:5432"
 DB_NAME="dental_saas"
+DB_USER="postgres"
+DB_PASSWORD="postgres"
 REDIS_ENDPOINT="localhost:6379"
 S3_ENDPOINT="localhost:9000"
 
-log_info "Database: postgresql://postgres:postgres_dev_password@$DB_ENDPOINT/$DB_NAME"
+log_info "Database: postgresql://$DB_USER:$DB_PASSWORD@$DB_ENDPOINT/$DB_NAME"
 log_info "Redis: redis://$REDIS_ENDPOINT"
 log_info "S3 (MinIO): http://$S3_ENDPOINT"
 

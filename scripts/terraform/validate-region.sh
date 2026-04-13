@@ -7,14 +7,14 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
 
-EXPECTED_REGION="us-east-1"
+EXPECTED_REGION="${AWS_REGION:-eu-central-1}"
 ENVIRONMENT=${1:-local}
 
 print_header "Region Validation: $ENVIRONMENT"
 
 if [ "$ENVIRONMENT" = "local" ]; then
   ENDPOINT="--endpoint-url=http://localhost:4566"
-  AWS_REGION="us-east-1"
+  AWS_REGION="$EXPECTED_REGION"
   log_info "Using LocalStack endpoint"
 else
   ENDPOINT=""
@@ -35,10 +35,10 @@ if [ -n "$BUCKETS" ]; then
     BUCKET_REGION=$(aws $ENDPOINT s3api get-bucket-location \
       --bucket "$bucket" \
       --query 'LocationConstraint' \
-      --output text 2>/dev/null || echo "us-east-1")
+      --output text 2>/dev/null || echo "$EXPECTED_REGION")
     
     if [ "$BUCKET_REGION" = "None" ] || [ "$BUCKET_REGION" = "null" ] || [ -z "$BUCKET_REGION" ]; then
-      BUCKET_REGION="us-east-1"  # Default region
+      BUCKET_REGION="$EXPECTED_REGION"  # Default region
     fi
     
     if [ "$BUCKET_REGION" = "$EXPECTED_REGION" ]; then
