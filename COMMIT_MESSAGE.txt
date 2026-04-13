@@ -1,76 +1,48 @@
-docs(status): add comprehensive project review, architecture analysis, and implementation roadmap
+feat(docs,tooling): add multilingual architecture support and restore ESLint setup
 
-Complete audit of the Dental SaaS Platform after 4 months of inactivity.
-Created detailed status documentation covering current state, gaps, modern
-AI voice technology recommendations, and step-by-step implementation guides.
+Introduce end-to-end language/locale support in schema and architecture docs
+for Persian-ready voice workflows, and add a working ESLint flat config for
+TypeScript linting in pre-commit.
 
-## What Was Done
+## What Changed
 
-Full project review analyzing every file, directory, git history, and
-configuration in the repository. Identified what is implemented vs stubbed,
-documented all inconsistencies, and created a phased roadmap to go from
-the current architecture-only state to a working AI voice assistant product.
+- Added tenant-level language policy fields in core schema:
+  - `default_locale`
+  - `supported_locales`
+  - `supported_languages`
+- Added user/patient locale + language preference fields for UI and voice routing.
+- Added voice session locale/routing fields:
+  - `input_locale`, `output_locale`
+  - `asr_language`, `tts_voice_id`
+- Added utterance-level language metadata:
+  - `transcript_locale`
+  - `normalized_transcript`
+- Added language-aware agent memory metadata and index in agent extensions:
+  - `content_locale`, `content_language`
+  - `idx_agent_memories_tenant_lang_scope`
+- Updated architecture/status docs to include:
+  - Persian (`fa-IR`) compatibility requirements
+  - RTL UI expectations
+  - language-aware RAG retrieval rules
+  - locale-specific test coverage and remaining implementation gaps
 
-## Files Created
+## Tooling Fixes
 
-**status/** (11 documents, ~4,400 lines total)
+- Added root `eslint.config.js` (flat config) for JS + TS/TSX.
+- Added required ESLint dependencies in `package.json`:
+  - `eslint`
+  - `@eslint/js`
+  - `@typescript-eslint/parser`
+  - `@typescript-eslint/eslint-plugin`
+  - `globals`
+- Verified lint commands run via pnpm and pre-commit path (`lint-staged`).
 
-- `README.md` — Index with reading order and quick summary
-- `01-PROJECT-REVIEW.md` — Full project audit: timeline, tech stack, what
-  exists, known issues, previous code that was deleted in Dec 2025 refactor
-- `02-CURRENT-ARCHITECTURE.md` — System architecture diagrams, database
-  schema overview (core + agent extensions), data flow, environment matrix,
-  CI/CD pipeline, security architecture
-- `03-WHATS-MISSING.md` — Gap analysis: zero application code, no migrations,
-  no ESLint config, 61 stub scripts, incomplete Terraform, missing .env.example
-- `04-BEST-PRACTICES-AI-VOICE.md` — 2026 technology recommendations:
-  Deepgram Nova-3 for ASR, LangGraph for agent workflows, Drizzle ORM,
-  ECS Fargate, multi-model LLM routing, HIPAA compliance patterns
-- `05-ROADMAP-NEXT-STEPS.md` — 22-week phased plan (6 phases, 5 milestones)
-  from foundation fix through production deployment
-- `06-STEP-BY-STEP-PHASE0-FOUNDATION-FIX.md` — Fix scaffold: ESLint config,
-  .env.example, build scripts, DB password mismatch, region inconsistencies
-- `07-STEP-BY-STEP-PHASE1-CORE-FOUNDATION.md` — Database migrations, shared
-  packages (types/config/utils), auth service, API gateway with code examples
-- `08-STEP-BY-STEP-PHASE2-DENTAL-CORE.md` — Patient CRUD, dental charting,
-  clinical notes, treatment plans, Next.js web app with shadcn/ui
-- `09-STEP-BY-STEP-PHASE3-AI-VOICE-AGENT.md` — WebSocket voice streaming,
-  Deepgram ASR integration, LLM intent parsing, LangGraph workflows,
-  voice confirmation UI, HITL approvals, undo mechanism
-- `10-STEP-BY-STEP-PHASE4-5-AI-AND-PRODUCTION.md` — RAG with pgvector,
-  multi-agent collaboration, imaging AI overlays, AWS Terraform modules,
-  RLS security, HIPAA audit logging, OpenTelemetry, production checklist
+## Files Updated
 
-**UI_UX_DESIGN_PROMPT.md** — Voice-first dental practice UI design brief
-
-## Key Findings
-
-- Documentation and architecture design: ~90% complete
-- Application source code: 0% (all apps/services/packages are README-only)
-- Infrastructure: ~30% functional (Docker works, Terraform VPC only)
-- DevOps scripts: 16% implemented (12 of 73)
-- Previously written code (auth, voice agent, subscriptions) deleted in
-  December 2025 refactor but preserved in git history
-- Multiple inconsistencies found: DB passwords, region configs, missing
-  ESLint, broken CI references, stale doc references
-
-## Technology Recommendations
-
-- ASR: Deepgram Nova-3 (streaming, medical vocabulary)
-- LLM: GPT-4.1 + Claude multi-model router
-- Agent: LangGraph (confirmed best choice for HITL workflows)
-- ORM: Drizzle (pgvector support, multi-tenant friendly)
-- Frontend: Next.js 15 + shadcn/ui + Tailwind v4
-- Container: ECS Fargate (MVP) → EKS (scale)
-- Database: Aurora Serverless v2 (production)
-- Observability: OpenTelemetry + LangSmith
-
-## Estimated Timeline
-
-- Phase 0 (fix scaffold): 1 week
-- Phase 1 (core foundation): 3 weeks
-- Phase 2 (dental features): 4 weeks
-- Phase 3 (AI voice agent): 6 weeks
-- Phase 4 (AI intelligence): 4 weeks
-- Phase 5 (production ready): 4 weeks
-- Total to MVP: ~22 weeks (1 dev) / ~10-12 weeks (2-3 devs)
+- `docs/architecture/schema-core.yaml`
+- `docs/architecture/schema-agent-extensions.yaml`
+- `docs/architecture/schema-core.md`
+- `status/03-WHATS-MISSING.md`
+- `status/04-BEST-PRACTICES-AI-VOICE.md`
+- `eslint.config.js` (new)
+- `package.json`

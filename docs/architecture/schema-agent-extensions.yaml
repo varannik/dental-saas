@@ -47,6 +47,8 @@ entities:
       - { name: user_id,        type: uuid,        nullable: true,  references: users.id }
       - { name: patient_id,     type: uuid,        nullable: true,  references: patients.id }
       - { name: encounter_id,   type: uuid,        nullable: true,  references: encounters.id }
+      - { name: input_locale,   type: text,        nullable: true,  comment: "Locale resolved for understanding user input" }
+      - { name: output_locale,  type: text,        nullable: true,  comment: "Locale selected for generated responses" }
       - { name: current_node,   type: text,        nullable: false, comment: "Current state in the graph" }
       - { name: status,         type: text,        nullable: false, default: 'RUNNING', comment: "RUNNING | WAITING_APPROVAL | COMPLETED | FAILED | CANCELLED" }
       - { name: state_snapshot, type: jsonb,       nullable: false, comment: "Full state object (LangGraph state)" }
@@ -207,6 +209,8 @@ entities:
       - { name: scope,          type: text,        nullable: false, comment: "GLOBAL | PATIENT | ENCOUNTER | SESSION" }
       - { name: scope_id,       type: uuid,        nullable: true,  comment: "patient_id, encounter_id, etc." }
       - { name: content,        type: text,        nullable: false }
+      - { name: content_locale, type: text,        nullable: true,  comment: "Locale of memory content, used for language-aware retrieval" }
+      - { name: content_language, type: text,      nullable: true,  comment: "ISO language code for retrieval filtering (e.g., en, fa)" }
       - { name: embedding,      type: vector(1536), nullable: true, comment: "pgvector for semantic search" }
       - { name: source_type,    type: text,        nullable: true,  comment: "VOICE_UTTERANCE | CLINICAL_NOTE | AI_PREDICTION | USER_INPUT" }
       - { name: source_id,      type: uuid,        nullable: true }
@@ -217,6 +221,7 @@ entities:
       - { name: created_at,     type: timestamptz, nullable: false, default: now() }
     indexes:
       - { name: idx_agent_memories_tenant_scope, columns: [tenant_id, scope, scope_id] }
+      - { name: idx_agent_memories_tenant_lang_scope, columns: [tenant_id, content_language, scope, scope_id] }
       - { name: idx_agent_memories_embedding, columns: [embedding], using: ivfflat, comment: "pgvector index" }
 
   - name: AgentContextWindow

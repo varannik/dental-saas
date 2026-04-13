@@ -19,6 +19,19 @@
 
 **Recommendation for this project:** **Deepgram Nova-3** for real-time streaming (low latency critical for chairside use) with custom medical vocabulary. Fall back to Whisper for batch audio processing and compliance recording.
 
+### Multilingual + Persian (fa-IR) Compatibility Requirements
+
+```
+1. Treat locale as first-class per session: input_locale + output_locale (BCP-47, e.g., fa-IR)
+2. Configure ASR with explicit language code (avoid auto-detect for clinical commands)
+3. Configure TTS voice per locale (persist provider voice id per session/tenant)
+4. Store transcript_locale per utterance and normalized_transcript for downstream NLU
+5. Add Persian normalization rules before intent parsing:
+   - Normalize Arabic/Persian variants (ي→ی, ك→ک)
+   - Normalize Persian digits (۰۱۲۳۴۵۶۷۸۹) to canonical form for parsers
+6. Use language-aware confidence thresholds (ASR and intent confidence may differ by locale)
+```
+
 ### Text-to-Speech (TTS) for Agent Responses
 
 | Technology                       | Quality    | Latency           | Notes                            |
@@ -88,6 +101,11 @@ Technology Stack:
 - Pinecone or Weaviate for large clinical knowledge base
 - Cohere Rerank for result quality
 - LangChain for orchestration
+
+Language-aware retrieval:
+- Store `content_locale` and `content_language` alongside embeddings
+- Filter retrieval by tenant + language before vector similarity
+- Fall back to cross-lingual retrieval only when same-language recall is low
 ```
 
 ---
@@ -161,6 +179,17 @@ Your choice of Next.js is correct. 2026 best practices:
 6. AI confidence badges: color-coded (green/yellow/orange)
 7. Minimal text input: voice should handle 90%+ of interactions
 8. Quick-action floating buttons for common voice-alternative actions
+```
+
+### Internationalization (i18n) + RTL UI Requirements
+
+```
+1. Implement locale switcher at tenant and user level (default from tenant policy)
+2. Render RTL layouts for Persian (`dir="rtl"`) including transcript and confirmation cards
+3. Keep dental chart tooth numbering and CDT codes locale-neutral (never translated)
+4. Localize AI prompts, confirmations, and undo messages with ICU message formatting
+5. Support Persian numerals in display, but normalize to canonical numeric format in forms
+6. Capture locale in telemetry for voice latency/error dashboards by language
 ```
 
 ---
@@ -358,6 +387,10 @@ Custom metrics (your agent_metrics table):
 6. Undo flow tests: Execute → undo within window → verify rollback
 7. Concurrent session tests: Multiple dentists in same practice
 8. Approval timeout tests: HITL timeout → escalation flow
+9. Locale routing tests: `fa-IR` picks Persian-capable ASR/TTS models
+10. RTL UI tests: transcript, confirmations, undo cards render correctly in `dir="rtl"`
+11. Persian normalization tests: mixed Arabic/Persian characters map to expected intents
+12. Mixed-language tests: Persian command with English CDT code still maps correctly
 ```
 
 ### LLM Testing Strategy

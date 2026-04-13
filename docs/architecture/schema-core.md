@@ -66,6 +66,9 @@ This document defines the logical data model for a multi‑tenant, AI‑enabled 
     - `type` (enum: SOLO_PRACTICE, GROUP_PRACTICE, DSO, ACADEMIC, PAYER, REGULATOR, AI_VENDOR, OTHER)
     - `parent_tenant_id` (FK → `tenants.id`, nullable; supports DSO hierarchies)
     - `primary_region` (for data residency/sharding)
+    - `default_locale` (BCP-47 default UI/voice locale, e.g. `en-US`, `fa-IR`)
+    - `supported_locales` (JSON list of allowed UI locales)
+    - `supported_languages` (JSON list of language codes used by ASR/TTS/RAG routing)
     - `partition_strategy` (enum: ROW_LEVEL, SCHEMA, DATABASE; used by provisioning layer)
     - `status` (ACTIVE, SUSPENDED, CLOSED)
 
@@ -116,6 +119,7 @@ This document defines the logical data model for a multi‑tenant, AI‑enabled 
     - `email` (unique)
     - `full_name`
     - `preferred_locale`
+    - `preferred_language` (language for voice + generated text)
     - `status` (ACTIVE, INVITED, DISABLED)
 
 - `user_auth_identities`
@@ -150,6 +154,7 @@ This document defines the logical data model for a multi‑tenant, AI‑enabled 
 #### **Session Management Architecture**
 
 **Primary Session Store: Redis** (in-memory, fast, ephemeral)
+
 - ✅ Active user sessions stored in Redis with automatic TTL (typically 24 hours)
 - ✅ Session data includes: `user_id`, `tenant_id`, `roles`, `permissions`, `device_info`
 - ✅ Redis key pattern: `session:{session_id}`
@@ -157,6 +162,7 @@ This document defines the logical data model for a multi‑tenant, AI‑enabled 
 - ✅ Use cases: Authentication, authorization, permission caching, rate limiting
 
 **Secondary Session Store: PostgreSQL** (persistent, audit-only)
+
 - `sessions` table (optional, for compliance/forensics)
   - **NOT used for active session validation** (Redis is authoritative)
   - Written asynchronously (non-blocking) on login/logout for audit trail
@@ -175,12 +181,14 @@ This document defines the logical data model for a multi‑tenant, AI‑enabled 
     - `idx_sessions_cleanup` (for periodic cleanup of expired sessions)
 
 **Session Lifecycle:**
+
 1. **Login**: Validate credentials (PostgreSQL) → Create session in Redis → Optionally write to `sessions` table → Return JWT
 2. **Request**: Extract JWT → Check Redis for session → Attach user context to request
 3. **Logout**: Delete from Redis → Add JWT to blacklist (Redis) → Update `sessions.revoked_at` (PostgreSQL)
 4. **Expiry**: Redis auto-deletes after TTL → Periodic job cleans up PostgreSQL `sessions` table
 
 **Redis Data Structures:**
+
 - `session:{session_id}` → JSON (user_id, tenant_id, roles, permissions, created_at)
 - `permissions:{user_id}:{tenant_id}` → JSON array (cached for 5 minutes)
 - `rate_limit:{tenant_id}:{user_id}` → Counter (1-minute TTL)
@@ -245,7 +253,7 @@ This document defines the logical data model for a multi‑tenant, AI‑enabled 
     - `primary_location_id` (nullable)
     - `first_name`, `last_name`, `dob`, `sex_at_birth`, `gender_identity` (optional)
     - `contact_email`, `phone_mobile`, `phone_home`
-    - `preferred_language`, `preferred_contact_method`
+    - `preferred_locale`, `preferred_language`, `preferred_contact_method`
     - `status` (ACTIVE, INACTIVE, DECEASED)
 
 - `patient_identifiers`
@@ -853,6 +861,8 @@ To support an **AI voice agent** that listens to spoken commands, executes actio
     - `patient_id` (FK → `patients.id`, if the session is about a specific patient)
     - `encounter_id` (FK → `encounters.id`, if tied to a visit)
     - `channel` (MOBILE_APP, BROWSER, PHONE, DEVICE)
+    - `input_locale`, `output_locale` (selected locale for understanding and responding)
+    - `asr_language` (provider language code), `tts_voice_id` (provider voice profile)
     - `started_at`, `ended_at`
     - `meta` (JSONB; device, locale, ASR engine, etc.)
 
@@ -865,6 +875,7 @@ To support an **AI voice agent** that listens to spoken commands, executes actio
     - `sequence_no` (int; order within session)
     - `speaker` (USER, PATIENT, AGENT)
     - `transcript` (final text string)
+    - `transcript_locale` and `normalized_transcript` (language-aware normalization for NLU/RAG)
     - `is_final` (bool; partial vs. final ASR result)
     - `intent` (high‑level command, e.g., `create_note`, `schedule_appointment`)
     - `entities` (JSONB; structured slots such as tooth numbers, procedure codes, dates)
@@ -902,5 +913,3 @@ To support an **AI voice agent** that listens to spoken commands, executes actio
     - `data_retention_policies` (shorter retention for audio vs. core clinical record),
     - Access logging via `audit_events` whenever audio is played back or exported.
 - This ensures the AI agent can **reliably perform and audit actions from voice** while minimizing PHI risk from long‑term audio storage.
-
-

@@ -43,6 +43,8 @@ The schema exists only as YAML documentation. No SQL DDL has been generated, no 
 - [ ] Migration files for agent extensions (13+ tables)
 - [ ] Seed data for development and testing
 - [ ] pgvector extension setup for RAG/embeddings
+- [ ] Locale/language schema rollout (tenant defaults, supported locales, voice locale columns)
+- [ ] Language-aware indexes for RAG metadata (content_language + scope filters)
 
 ---
 
@@ -62,6 +64,9 @@ The AI voice agent IS the product, and it doesn't exist yet. Only the schema and
 - [ ] Human-in-the-loop approval UI and API
 - [ ] Undo/rollback mechanism with 5-minute window
 - [ ] Voice confirmation system (3-tier: quick, standard, critical)
+- [ ] Language routing layer (input locale → ASR model, output locale → TTS voice)
+- [ ] Persian normalization pipeline (character variants + numeral normalization)
+- [ ] RTL UI support for transcripts/confirmations in Persian locale
 
 ---
 

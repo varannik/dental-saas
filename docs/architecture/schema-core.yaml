@@ -30,6 +30,9 @@ entities:
       - { name: type,          type: text,        nullable: false, comment: "SOLO_PRACTICE | GROUP_PRACTICE | DSO | ACADEMIC | PAYER | REGULATOR | AI_VENDOR | OTHER" }
       - { name: parent_tenant_id, type: uuid,     nullable: true,  references: tenants.id }
       - { name: primary_region,  type: text,      nullable: true }
+      - { name: default_locale, type: text,       nullable: false, default: 'en-US', comment: "BCP-47 locale for UI and voice defaults (e.g., en-US, fa-IR)" }
+      - { name: supported_locales, type: jsonb,   nullable: false, default: '["en-US"]', comment: "Allowed UI locales for this tenant" }
+      - { name: supported_languages, type: jsonb, nullable: false, default: '["en"]', comment: "ISO language codes enabled for ASR/TTS/RAG routing" }
       - { name: partition_strategy, type: text,   nullable: false, default: 'ROW_LEVEL', comment: "ROW_LEVEL | SCHEMA | DATABASE" }
       - { name: status,        type: text,        nullable: false, default: 'ACTIVE' }
       - { name: created_at,    type: timestamptz, nullable: false, default: now() }
@@ -62,6 +65,7 @@ entities:
       - { name: email,        type: citext,      nullable: false, unique: true }
       - { name: full_name,    type: text,        nullable: false }
       - { name: preferred_locale, type: text,    nullable: true }
+      - { name: preferred_language, type: text,  nullable: true, comment: "ISO code used for voice and generated text output" }
       - { name: status,       type: text,        nullable: false, default: 'ACTIVE' }
       - { name: created_at,   type: timestamptz, nullable: false, default: now() }
       - { name: updated_at,   type: timestamptz, nullable: false, default: now() }
@@ -202,6 +206,7 @@ entities:
       - { name: contact_email,      type: text,        nullable: true }
       - { name: phone_mobile,       type: text,        nullable: true }
       - { name: phone_home,         type: text,        nullable: true }
+      - { name: preferred_locale,   type: text,        nullable: true, comment: "Locale for patient-facing content (e.g., fa-IR)" }
       - { name: preferred_language, type: text,        nullable: true }
       - { name: preferred_contact_method, type: text,  nullable: true }
       - { name: status,             type: text,        nullable: false, default: 'ACTIVE' }
@@ -432,6 +437,10 @@ entities:
       - { name: patient_id,     type: uuid,        nullable: true,  references: patients.id }
       - { name: encounter_id,   type: uuid,        nullable: true,  references: encounters.id }
       - { name: channel,        type: text,        nullable: false, comment: "MOBILE_APP | BROWSER | PHONE | DEVICE" }
+      - { name: input_locale,   type: text,        nullable: true,  comment: "Locale expected from user speech (e.g., fa-IR)" }
+      - { name: output_locale,  type: text,        nullable: true,  comment: "Locale for agent responses (text + TTS)" }
+      - { name: asr_language,   type: text,        nullable: true,  comment: "ASR language code sent to provider" }
+      - { name: tts_voice_id,   type: text,        nullable: true,  comment: "Provider voice identifier selected for locale" }
       - { name: started_at,     type: timestamptz, nullable: false, default: now() }
       - { name: ended_at,       type: timestamptz, nullable: true }
       - { name: meta,           type: jsonb,       nullable: true,  comment: "Device info, locale, etc." }
@@ -448,6 +457,8 @@ entities:
       - { name: sequence_no,    type: integer,     nullable: false }
       - { name: speaker,        type: text,        nullable: false, comment: "USER | PATIENT | AGENT" }
       - { name: transcript,     type: text,        nullable: true }
+      - { name: transcript_locale, type: text,     nullable: true,  comment: "Locale identified by ASR for this utterance" }
+      - { name: normalized_transcript, type: text, nullable: true,  comment: "Locale-normalized transcript for NLU/RAG indexing" }
       - { name: is_final,       type: boolean,     nullable: false, default: true, comment: "Final vs partial ASR result" }
       - { name: intent,         type: text,        nullable: true }
       - { name: entities,       type: jsonb,       nullable: true, comment: "Extracted entities, slots, parameters" }
