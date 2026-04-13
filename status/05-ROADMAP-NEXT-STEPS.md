@@ -12,17 +12,17 @@
 
 **Goal:** Make the existing scaffold actually work.
 
-| Task                                                                           | Effort  | Priority |
-| ------------------------------------------------------------------------------ | ------- | -------- |
-| Fix ESLint configuration (create `eslint.config.js`)                           | 2 hours | P0       |
-| Create `.env.example` with all required variables                              | 2 hours | P0       |
-| Fix pnpm-lock.yaml (run `pnpm install` properly)                               | 1 hour  | P0       |
-| Create `scripts/build/` directory and implement build scripts                  | 3 hours | P0       |
-| Fix DB password mismatch in `local/start.sh`                                   | 30 min  | P0       |
-| Fix region inconsistency in `validate-region.sh`                               | 30 min  | P0       |
-| Implement critical stub scripts (docker start/stop, db migrate)                | 4 hours | P0       |
-| Create missing `lib/aws.sh` or remove reference                                | 1 hour  | P1       |
-| Delete references to non-existent docs (IMPLEMENTATION_STATUS.md, COMPLETE.md) | 30 min  | P1       |
+| Task                                                            | Effort  | Priority |
+| --------------------------------------------------------------- | ------- | -------- |
+| Fix ESLint configuration (create `eslint.config.js`)            | 2 hours | P0       |
+| Create `.env.example` with all required variables               | 2 hours | P0       |
+| Fix pnpm-lock.yaml (run `pnpm install` properly)                | 1 hour  | P0       |
+| Create `scripts/build/` directory and implement build scripts   | 3 hours | P0       |
+| Fix DB password mismatch in `local/start.sh`                    | 30 min  | P0       |
+| Fix region inconsistency in `validate-region.sh`                | 30 min  | P0       |
+| Implement critical stub scripts (docker start/stop, db migrate) | 4 hours | P0       |
+| Create missing `lib/aws.sh` or remove reference                 | 1 hour  | P1       |
+| Delete stale references to non-existent documentation files     | 30 min  | P1       |
 
 ---
 

@@ -160,16 +160,14 @@ The Makefile references `scripts/build/build-all.sh`, `scripts/build/build-servi
 
 ## Documentation Gaps (Minor)
 
-| Document                             | Status                       |
-| ------------------------------------ | ---------------------------- |
-| `IMPLEMENTATION_STATUS.md`           | Referenced but doesn't exist |
-| `COMPLETE.md`                        | Referenced but doesn't exist |
-| `.env.example` with all variables    | Doesn't exist                |
-| API OpenAPI/Swagger spec             | Not generated from schema    |
-| Runbook for production operations    | Not created                  |
-| Architecture Decision Records (ADRs) | Not started                  |
-| Data flow diagrams per service       | Not created                  |
-| Performance benchmarks / targets     | Not documented               |
+| Document                             | Status                    |
+| ------------------------------------ | ------------------------- |
+| `.env.example` with all variables    | Doesn't exist             |
+| API OpenAPI/Swagger spec             | Not generated from schema |
+| Runbook for production operations    | Not created               |
+| Architecture Decision Records (ADRs) | Not started               |
+| Data flow diagrams per service       | Not created               |
+| Performance benchmarks / targets     | Not documented            |
 
 ---
 

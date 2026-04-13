@@ -133,7 +133,7 @@ This is a **Dental SaaS Platform** with an AI Voice Assistant — a voice-first 
 5. **DB password mismatch** — `local/start.sh` uses `postgres_dev_password`, compose uses `postgres`
 6. **Region inconsistency** — `validate-region.sh` still references `us-east-1` in some places
 7. **Missing `.env.example`** — README mentions copying env files that don't exist
-8. **`IMPLEMENTATION_STATUS.md` and `COMPLETE.md`** — Referenced but not in repo
+8. **Stale documentation references** — Some setup docs reference files that are not in repo
 9. **Missing `lib/aws.sh`** — Referenced in scripts README but doesn't exist
 10. **Previous code deleted** — Auth service (TypeScript), FastAPI voice agent, subscription service all existed in earlier commits but were removed during Dec 2025 refactor
 

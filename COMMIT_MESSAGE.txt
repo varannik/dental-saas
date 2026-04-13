@@ -1,29 +1,30 @@
-chore(dev-env): add env template and align local config defaults
+chore(scripts,docs): implement critical ops scripts and remove stale doc references
 
-Standardize local development configuration by adding a complete `.env.example`,
-fixing PostgreSQL password mismatch in local startup output, and aligning
-Terraform region validation defaults with the project region strategy.
+Replace key placeholder scripts with functional Docker/database operations and
+clean up outdated documentation references so setup verification and roadmap
+docs match the current repository state.
 
 ## What Changed
 
-- Added `.env.example` with required variables for:
-  - app/runtime
-  - database/redis
-  - auth/security
-  - AI/voice
-  - storage (S3/MinIO)
-  - AWS/LocalStack
-  - observability and testing
-- Fixed DB credential mismatch in `scripts/local/start.sh`:
-  - replaced incorrect `postgres_dev_password` reference
-  - now logs connection using `postgres:postgres` (matching local Docker defaults)
-- Fixed region inconsistency in `scripts/terraform/validate-region.sh`:
-  - default expected region now uses `AWS_REGION` fallback to `eu-central-1`
-  - local validation uses the same expected region
-  - bucket-region fallback checks now use expected region instead of hardcoded `us-east-1`
+- Implemented critical script stubs:
+  - `scripts/docker/start.sh` now validates Docker/Compose, starts containers, and waits for service readiness
+  - `scripts/docker/stop.sh` now validates Docker/Compose and cleanly shuts down containers
+  - `scripts/database/migrate.sh` now supports `local|staging|production`, validates prerequisites, and runs `pnpm run db:migrate`
+- Added missing shared AWS helper library:
+  - `scripts/lib/aws.sh` with reusable AWS CLI, credential, region, and command wrapper functions
+- Removed references to non-existent docs (`IMPLEMENTATION_STATUS.md`, `COMPLETE.md`) and replaced with existing status docs
+- Updated setup verification docs/checks to point to real files in `status/`
 
 ## Files Updated
 
-- `.env.example` (new)
-- `scripts/local/start.sh`
-- `scripts/terraform/validate-region.sh`
+- `scripts/docker/start.sh`
+- `scripts/docker/stop.sh`
+- `scripts/database/migrate.sh`
+- `scripts/lib/aws.sh` (new)
+- `scripts/setup/verify-setup.sh`
+- `SETUP_SUMMARY.md`
+- `PROJECT_STRUCTURE.md`
+- `status/01-PROJECT-REVIEW.md`
+- `status/03-WHATS-MISSING.md`
+- `status/05-ROADMAP-NEXT-STEPS.md`
+- `status/06-STEP-BY-STEP-PHASE0-FOUNDATION-FIX.md`

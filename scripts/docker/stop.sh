@@ -6,18 +6,23 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
+source "$SCRIPT_DIR/../lib/docker.sh"
 
-print_header "uStop Docker containers"
+print_header "Stop Docker Containers"
 
-log_warning "This script is not yet implemented"
-log_info "This is a placeholder script"
+# Validate prerequisites
+check_docker || die "Docker is required"
+check_docker_running || die "Docker daemon is not running"
+check_docker_compose || die "Docker Compose is required"
 
+if [ ! -f "$COMPOSE_FILE" ]; then
+  die "Compose file not found: $COMPOSE_FILE"
+fi
+
+log_step "Stopping local infrastructure containers..."
+stop_containers
+
+print_separator
+log_success "Docker containers stopped"
+print_separator
 echo ""
-log_info "What this script should do:"
-echo "  • Stop Docker containers"
-
-echo ""
-log_info "To implement this script, edit:"
-echo "  scripts/docker/stop.sh"
-
-exit 1

@@ -372,8 +372,8 @@ chmod +x scripts/docker/start.sh scripts/docker/stop.sh scripts/database/migrate
 
 ```bash
 # Remove references to non-existent files in SETUP_SUMMARY.md
-# Search for IMPLEMENTATION_STATUS.md and COMPLETE.md references
-grep -r "IMPLEMENTATION_STATUS\|COMPLETE.md" *.md docs/
+# Search for stale documentation references
+rg "non-existent|stale.*reference" *.md docs/
 ```
 
 Edit files to remove or update references to these non-existent docs.

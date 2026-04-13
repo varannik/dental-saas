@@ -41,7 +41,7 @@ Your development and deployment infrastructure is now ready.
 ### 4. **Documentation**
 
 - ✅ `QUICKSTART.md` - 5-minute setup guide
-- ✅ `IMPLEMENTATION_STATUS.md` - Current status & next steps
+- ✅ `status/05-ROADMAP-NEXT-STEPS.md` - Current status & next steps
 - ✅ `scripts/README.md` - Complete scripts documentation
 - ✅ `docs/SETUP_COMPLETE.md` - Architecture overview
 
@@ -146,7 +146,7 @@ make deploy-staging
 ### Quick Reference
 
 - **QUICKSTART.md** - 5-minute setup guide
-- **IMPLEMENTATION_STATUS.md** - What's done, what's next
+- **status/05-ROADMAP-NEXT-STEPS.md** - What's done, what's next
 - **scripts/README.md** - Complete scripts documentation
 
 ### Examples
@@ -308,7 +308,7 @@ make test                    # 🔄 Stub
 1. Read [QUICKSTART.md](./QUICKSTART.md)
 2. Run `make help`
 3. Try `make check-deps`
-4. Read [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md)
+4. Read [status/05-ROADMAP-NEXT-STEPS.md](./status/05-ROADMAP-NEXT-STEPS.md)
 
 ### Understanding the Code
 
@@ -319,7 +319,7 @@ make test                    # 🔄 Stub
 
 ### Implementing Scripts
 
-1. Check [IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md) for templates
+1. Check [status/06-STEP-BY-STEP-PHASE0-FOUNDATION-FIX.md](./status/06-STEP-BY-STEP-PHASE0-FOUNDATION-FIX.md) for implementation templates
 2. Use existing scripts as examples
 3. Test with `make <command>`
 4. Iterate and improve
@@ -389,7 +389,7 @@ make deploy-staging
 ```bash
 # Study the documentation
 cat QUICKSTART.md
-cat IMPLEMENTATION_STATUS.md
+cat status/05-ROADMAP-NEXT-STEPS.md
 cat scripts/README.md
 ```
 
@@ -400,7 +400,7 @@ cat scripts/README.md
 - **Documentation**: Check `docs/` directory
 - **Examples**: Look at implemented scripts
 - **Help**: Run `make help`
-- **Status**: Check `IMPLEMENTATION_STATUS.md`
+- **Status**: Check `status/05-ROADMAP-NEXT-STEPS.md`
 
 ---
 

@@ -88,7 +88,6 @@ fi
 log_step "Checking documentation..."
 docs=(
   "QUICKSTART.md"
-  "IMPLEMENTATION_STATUS.md"
   "SETUP_SUMMARY.md"
   "scripts/README.md"
 )
@@ -153,7 +152,7 @@ if [ "$all_checks_passed" = true ]; then
   echo "  1. Run 'make check-deps' to verify dependencies"
   echo "  2. Run 'make help' to see all commands"
   echo "  3. Read QUICKSTART.md for setup instructions"
-  echo "  4. Read IMPLEMENTATION_STATUS.md for next steps"
+  echo "  4. Read status/05-ROADMAP-NEXT-STEPS.md for next steps"
   echo ""
   exit 0
 else
