@@ -1,24 +1,34 @@
-chore(tooling,scripts): add Drizzle tooling and implement docker status command
+feat(config): bootstrap @dental/config with validated env and DB client
 
-Prepare Phase 1 foundation work by adding Drizzle migration tooling, updating
-pnpm build-script policy, and replacing the docker status stub with a working
-implementation used by `make docker-ps`.
+Create a production-ready shared config package for Phase 1 foundation work so
+services can consume strongly validated environment configuration and a reusable
+Drizzle/Postgres database connection layer.
 
 ## What Changed
 
-- Added `drizzle-kit` to root dev dependencies for schema/migration workflows.
-- Updated workspace policy in `pnpm-workspace.yaml`:
-  - added `allowBuilds` entry for `esbuild` handling.
-- Implemented `scripts/docker/status.sh`:
-  - loads shared docker helpers
-  - validates Docker + Docker Compose availability
-  - gracefully handles daemon not running
-  - prints compose service status instead of exiting as a placeholder error
-- Added `packages/config/package.json` scaffold to bootstrap shared config package setup.
+- Rewrote `packages/config/package.json` as a proper workspace package:
+  - scoped name `@dental/config`
+  - ESM exports + dist entry points
+  - build/dev/typecheck scripts
+  - runtime dependencies for env validation and DB access
+- Added `packages/config/tsconfig.json` for package-local NodeNext compilation:
+  - `rootDir`/`outDir`
+  - declaration output and source maps
+  - Node types enabled
+- Added `packages/config/src/env.ts` with best-practice environment handling:
+  - `.env` + `.env.local` loading
+  - Zod schema validation with clear aggregated error output
+  - empty-string normalization for optional secrets
+  - cached accessor (`getEnv`) and exported singleton (`env`)
+- Added `packages/config/src/database.ts` with a reusable Drizzle/Postgres layer:
+  - typed `pg` pool creation
+  - connection pooling defaults and overrides
+  - singleton DB client access (`getDatabase`)
+  - graceful shutdown helper (`closeDatabase`)
 
 ## Files Updated
 
-- `package.json`
-- `pnpm-workspace.yaml`
-- `scripts/docker/status.sh`
-- `packages/config/package.json` (new)
+- `packages/config/package.json`
+- `packages/config/tsconfig.json` (new)
+- `packages/config/src/env.ts` (new)
+- `packages/config/src/database.ts` (new)

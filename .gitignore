@@ -48,6 +48,7 @@ id_rsa*
 # Node modules
 node_modules/
 jspm_packages/
+.pnpm-store/
 
 # Python
 __pycache__/
