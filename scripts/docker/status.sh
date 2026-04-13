@@ -6,18 +6,25 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
+source "$SCRIPT_DIR/../lib/docker.sh"
 
-print_header "uShow Docker container status"
+print_header "Show Docker Container Status"
 
-log_warning "This script is not yet implemented"
-log_info "This is a placeholder script"
+check_docker || die "Docker is required"
+
+if ! check_docker_running; then
+  log_warning "Docker daemon is not running; no container status available"
+  exit 0
+fi
+
+check_docker_compose || die "Docker Compose is required"
+
+if [ ! -f "$COMPOSE_FILE" ]; then
+  die "Compose file not found: $COMPOSE_FILE"
+fi
+
+log_step "Listing Docker Compose service status..."
+show_status
 
 echo ""
-log_info "What this script should do:"
-echo "  • Show Docker container status"
-
-echo ""
-log_info "To implement this script, edit:"
-echo "  scripts/docker/status.sh"
-
-exit 1
+log_success "Container status displayed"
