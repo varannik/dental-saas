@@ -1,34 +1,31 @@
-feat(config): bootstrap @dental/config with validated env and DB client
+feat(types): add shared domain type modules and config package entrypoint
 
-Create a production-ready shared config package for Phase 1 foundation work so
-services can consume strongly validated environment configuration and a reusable
-Drizzle/Postgres database connection layer.
+Expand the shared typing layer for Phase 1 by adding schema-derived domain type
+modules and exposing a single public export surface for `@dental/config`.
 
 ## What Changed
 
-- Rewrote `packages/config/package.json` as a proper workspace package:
-  - scoped name `@dental/config`
-  - ESM exports + dist entry points
-  - build/dev/typecheck scripts
-  - runtime dependencies for env validation and DB access
-- Added `packages/config/tsconfig.json` for package-local NodeNext compilation:
-  - `rootDir`/`outDir`
-  - declaration output and source maps
-  - Node types enabled
-- Added `packages/config/src/env.ts` with best-practice environment handling:
-  - `.env` + `.env.local` loading
-  - Zod schema validation with clear aggregated error output
-  - empty-string normalization for optional secrets
-  - cached accessor (`getEnv`) and exported singleton (`env`)
-- Added `packages/config/src/database.ts` with a reusable Drizzle/Postgres layer:
-  - typed `pg` pool creation
-  - connection pooling defaults and overrides
-  - singleton DB client access (`getDatabase`)
-  - graceful shutdown helper (`closeDatabase`)
+- Added `packages/config/src/index.ts`:
+  - re-exports typed env APIs (`env`, `getEnv`, `loadEnv`, `Env`)
+  - re-exports DB APIs (`createDatabasePool`, `createDatabaseConnection`, `getDatabase`, `closeDatabase`)
+  - keeps NodeNext-safe `.js` re-export paths
+- Added schema-derived domain type modules under `packages/types/src/`:
+  - `tenancy.ts` (tenant/user/membership/role/access context)
+  - `clinical.ts` (patient/encounter/clinical note shapes)
+  - `imaging.ts` (study/object/AI prediction shapes)
+  - `voice.ts` (session/utterance/recording shapes)
+  - `agent.ts` (workflow/execution/step shapes)
+  - `billing.ts` (treatment plan/claim/claim line shapes)
+- Standardized reusable primitives and literal unions:
+  - UUID and ISODateTime aliases
+  - const-array enum patterns for strong type safety across modules
 
 ## Files Updated
 
-- `packages/config/package.json`
-- `packages/config/tsconfig.json` (new)
-- `packages/config/src/env.ts` (new)
-- `packages/config/src/database.ts` (new)
+- `packages/config/src/index.ts` (new)
+- `packages/types/src/tenancy.ts` (new)
+- `packages/types/src/clinical.ts` (new)
+- `packages/types/src/imaging.ts` (new)
+- `packages/types/src/voice.ts` (new)
+- `packages/types/src/agent.ts` (new)
+- `packages/types/src/billing.ts` (new)
