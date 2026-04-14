@@ -8,3 +8,5 @@ export {
   getDatabase,
 } from './database.js';
 export type { DatabaseClient, DatabaseConnectionOptions } from './database.js';
+
+export * from './schema/index.js';

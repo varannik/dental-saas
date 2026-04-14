@@ -1,31 +1,33 @@
-feat(types): add shared domain type modules and config package entrypoint
+feat(config): add complete Drizzle schema modules from YAML
 
-Expand the shared typing layer for Phase 1 by adding schema-derived domain type
-modules and exposing a single public export surface for `@dental/config`.
+Implement the Phase 1 database foundation by creating a full Drizzle schema layer
+in `@dental/config`, aligned to `schema-core.yaml` and `schema-agent-extensions.yaml`.
 
 ## What Changed
 
-- Added `packages/config/src/index.ts`:
-  - re-exports typed env APIs (`env`, `getEnv`, `loadEnv`, `Env`)
-  - re-exports DB APIs (`createDatabasePool`, `createDatabaseConnection`, `getDatabase`, `closeDatabase`)
-  - keeps NodeNext-safe `.js` re-export paths
-- Added schema-derived domain type modules under `packages/types/src/`:
-  - `tenancy.ts` (tenant/user/membership/role/access context)
-  - `clinical.ts` (patient/encounter/clinical note shapes)
-  - `imaging.ts` (study/object/AI prediction shapes)
-  - `voice.ts` (session/utterance/recording shapes)
-  - `agent.ts` (workflow/execution/step shapes)
-  - `billing.ts` (treatment plan/claim/claim line shapes)
-- Standardized reusable primitives and literal unions:
-  - UUID and ISODateTime aliases
-  - const-array enum patterns for strong type safety across modules
+- Added modular schema definitions under `packages/config/src/schema/`:
+  - `tenancy.ts` (tenants, users, sessions, RBAC, audit)
+  - `clinical.ts` (patients, encounters, clinical notes)
+  - `imaging.ts` (imaging studies/objects, AI models, jobs, predictions)
+  - `billing.ts` (treatment plans, claim headers/lines)
+  - `voice.ts` (voice sessions, utterances, recordings)
+  - `agent.ts` (workflows, executions, tools, HITL, memory, metrics, undo history)
+- Added `packages/config/src/schema/index.ts` barrel for a clean schema export surface.
+- Updated `packages/config/src/index.ts` to re-export all schema modules.
+- Preserved multilingual support fields (locale/language) for UI, voice, and agent flows.
+- Added production-ready indexes, composite keys, and foreign key relationships.
+
+## Validation
+
+- `pnpm --filter @dental/config run typecheck` passes successfully.
 
 ## Files Updated
 
-- `packages/config/src/index.ts` (new)
-- `packages/types/src/tenancy.ts` (new)
-- `packages/types/src/clinical.ts` (new)
-- `packages/types/src/imaging.ts` (new)
-- `packages/types/src/voice.ts` (new)
-- `packages/types/src/agent.ts` (new)
-- `packages/types/src/billing.ts` (new)
+- `packages/config/src/index.ts`
+- `packages/config/src/schema/index.ts` (new)
+- `packages/config/src/schema/tenancy.ts` (new)
+- `packages/config/src/schema/clinical.ts` (new)
+- `packages/config/src/schema/imaging.ts` (new)
+- `packages/config/src/schema/billing.ts` (new)
+- `packages/config/src/schema/voice.ts` (new)
+- `packages/config/src/schema/agent.ts` (new)
