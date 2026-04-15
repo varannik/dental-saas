@@ -8,6 +8,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   vector,
 } from 'drizzle-orm/pg-core';
@@ -118,7 +119,10 @@ export const agentTools = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index('idx_agent_tools_tenant_active').on(table.tenantId, table.isActive)]
+  (table) => [
+    uniqueIndex('agent_tools_name_unique').on(table.name),
+    index('idx_agent_tools_tenant_active').on(table.tenantId, table.isActive),
+  ]
 );
 
 export const toolExecutions = pgTable(
@@ -338,12 +342,12 @@ export const actionHistory = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    index('idx_action_history_user_recent').on(table.userId, table.createdAt),
+    index('idx_action_history_user_recent').on(table.userId, table.createdAt.desc()),
     index('idx_action_history_undoable')
       .on(table.tenantId, table.isUndone, table.undoExpiresAt)
       .where(sql`is_undone = false AND undo_expires_at > NOW()`),
     index('idx_action_history_voice_session').on(table.voiceSessionId),
-    index('idx_action_history_entity').on(table.entityType, table.entityId, table.createdAt),
+    index('idx_action_history_entity').on(table.entityType, table.entityId, table.createdAt.desc()),
     index('idx_action_history_cleanup')
       .on(table.undoExpiresAt)
       .where(sql`is_undone = false`),

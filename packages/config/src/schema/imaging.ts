@@ -6,6 +6,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   bigint,
   boolean,
@@ -109,7 +110,9 @@ export const aiModelVersions = pgTable(
     sbomUri: text('sbom_uri'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index('idx_ai_model_versions_model_version').on(table.modelId, table.versionTag)]
+  (table) => [
+    uniqueIndex('idx_ai_model_versions_model_version').on(table.modelId, table.versionTag),
+  ]
 );
 
 export const aiInferenceJobs = pgTable(

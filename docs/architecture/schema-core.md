@@ -394,7 +394,7 @@ This document defines the logical data model for a multi‑tenant, AI‑enabled 
 
 - `ai_predictions`
   - Atomic predicted findings:
-    - `id`, `job_id`, `tenant_id`, `patient_id`, `imaging_object_id` (nullable), `prediction_type` (CARIES, BONE_LOSS, PATHOLOGY, RISK_SCORE, TREATMENT_RECOMMENDATION), `code` (maps to clinical concept), `confidence`, `severity`, `roi_ref` (FK → `image_annotations.id`, nullable), `raw_output` (JSONB).
+    - `id`, `job_id`, `tenant_id`, `patient_id`, `imaging_object_id` (nullable), `prediction_type` (CARIES, BONE_LOSS, PATHOLOGY, RISK_SCORE, TREATMENT_RECOMMENDATION), `code` (maps to clinical concept), `confidence`, `severity`, `roi_annotation_id` (FK → `image_annotations.id`, nullable), `raw_output` (JSONB).
 
 - `ai_review_events`
   - Human review and overrides:
