@@ -2,6 +2,12 @@
 
 **Date:** April 12, 2026
 
+**Status Update (Schema Prerequisites):**
+
+- Core + extension schema definitions are now canonized in YAML and implemented in Drizzle schema modules.
+- Treat any inline "create table" snippets below as historical examples unless they match current canonical YAML/Drizzle definitions.
+- Remaining Phase 4/5 focus is runtime implementation, operations, and production controls.
+
 ---
 
 ## Phase 4: AI Intelligence Layer (Weeks 15-18)

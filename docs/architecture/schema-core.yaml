@@ -100,6 +100,8 @@ entities:
       - { name: is_active,     type: boolean,       nullable: false, default: true }
       - { name: created_at,    type: timestamptz,   nullable: false, default: now() }
       - { name: updated_at,    type: timestamptz,   nullable: false, default: now() }
+    indexes:
+      - { name: subscription_plans_code_unique, columns: [code], unique: true }
 
   - name: TenantSubscription
     table: tenant_subscriptions
@@ -137,6 +139,7 @@ entities:
       - { name: updated_at, type: timestamptz, nullable: false, default: now() }
     indexes:
       - { name: idx_tenant_features_tenant_enabled, columns: [tenant_id, is_enabled] }
+      - { name: uq_tenant_features_tenant_feature, columns: [tenant_id, feature_key], unique: true }
 
   - name: TenantQuota
     table: tenant_quotas
@@ -166,6 +169,7 @@ entities:
       - { name: updated_at,  type: timestamptz, nullable: false, default: now() }
     indexes:
       - { name: idx_teams_tenant_location, columns: [tenant_id, location_id] }
+      - { name: uq_teams_tenant_name, columns: [tenant_id, name], unique: true }
 
   - name: TeamMember
     table: team_members
@@ -199,6 +203,7 @@ entities:
       - { name: updated_at,       type: timestamptz, nullable: false, default: now() }
     indexes:
       - { name: idx_user_auth_identities_user, columns: [user_id] }
+      - { name: uq_user_auth_identities_provider_uid, columns: [provider, provider_user_id], unique: true }
 
   - name: UserRole
     table: user_roles
@@ -219,6 +224,7 @@ entities:
     indexes:
       - { name: idx_user_roles_user_tenant, columns: [user_id, tenant_id] }
       - { name: idx_user_roles_role_tenant, columns: [role_id, tenant_id] }
+      - { name: uq_user_roles_assignment, columns: [user_id, role_id, tenant_id, location_id, team_id], unique: true }
 
   - name: User
     table: users
@@ -233,6 +239,8 @@ entities:
       - { name: status,       type: text,        nullable: false, default: 'ACTIVE' }
       - { name: created_at,   type: timestamptz, nullable: false, default: now() }
       - { name: updated_at,   type: timestamptz, nullable: false, default: now() }
+    indexes:
+      - { name: users_email_unique, columns: [email], unique: true }
 
   - name: ApiClient
     table: api_clients
@@ -252,6 +260,7 @@ entities:
       - { name: updated_at,       type: timestamptz, nullable: false, default: now() }
     indexes:
       - { name: idx_api_clients_tenant, columns: [tenant_id] }
+      - { name: api_clients_client_id_unique, columns: [client_id], unique: true }
 
   - name: Session
     table: sessions
@@ -316,6 +325,8 @@ entities:
       - { name: id,         type: uuid,        nullable: false, default: uuid_generate_v4() }
       - { name: key,        type: text,        nullable: false, unique: true, comment: "e.g. patient.view, imaging.run_ai" }
       - { name: description,type: text,        nullable: true }
+    indexes:
+      - { name: permissions_key_unique, columns: [key], unique: true }
 
   - name: RolePermission
     table: role_permissions
@@ -373,6 +384,7 @@ entities:
     indexes:
       - { name: idx_consents_subject, columns: [tenant_id, subject_type, subject_id, consent_type] }
       - { name: idx_consents_active, columns: [tenant_id, consent_type, status, expires_at], where: "status = 'GRANTED'" }
+      - { name: uq_consents_subject_type_scope_active, columns: [tenant_id, subject_type, subject_id, consent_type, status], unique: true }
 
   - name: PHIAccessLog
     table: phi_access_logs
@@ -417,6 +429,7 @@ entities:
       - { name: updated_at,         type: timestamptz, nullable: false, default: now() }
     indexes:
       - { name: idx_retention_tenant_class, columns: [tenant_id, data_class, is_active] }
+      - { name: uq_retention_policy_tenant_data_class_active, columns: [tenant_id, data_class, is_active], unique: true }
 
   - name: LegalHold
     table: legal_holds
@@ -450,6 +463,7 @@ entities:
     indexes:
       - { name: idx_legal_hold_links_lookup, columns: [tenant_id, entity_type, entity_id] }
       - { name: idx_legal_hold_links_hold, columns: [legal_hold_id, tenant_id] }
+      - { name: uq_legal_hold_link, columns: [legal_hold_id, entity_type, entity_id, data_class], unique: true }
 
   # ---------------------------------------------------------------------------
   # Clinical Master & Encounters
@@ -560,6 +574,7 @@ entities:
       - { name: idx_perio_tenant_patient_time, columns: [tenant_id, patient_id, measured_at] }
       - { name: idx_perio_patient_tooth_site_time, columns: [patient_id, tooth_number, site, measured_at] }
       - { name: idx_perio_encounter, columns: [encounter_id], where: "encounter_id IS NOT NULL" }
+      - { name: uq_perio_measurement_point, columns: [patient_id, encounter_id, tooth_number, site, measured_at], unique: true }
 
   - name: PatientIdentifier
     table: patient_identifiers
@@ -576,6 +591,7 @@ entities:
       - { name: updated_at,  type: timestamptz, nullable: false, default: now() }
     indexes:
       - { name: idx_patient_identifiers_tenant_patient, columns: [tenant_id, patient_id] }
+      - { name: uq_patient_identifiers_patient_system_value, columns: [patient_id, system, value], unique: true }
 
   - name: PatientAddress
     table: patient_addresses
@@ -738,6 +754,7 @@ entities:
       - { name: updated_at,     type: timestamptz, nullable: false, default: now() }
     indexes:
       - { name: idx_encounter_diagnoses_tenant_encounter, columns: [tenant_id, encounter_id] }
+      - { name: uq_encounter_diagnoses_encounter_sequence, columns: [encounter_id, sequence], unique: true }
 
   - name: VitalSign
     table: vital_signs
@@ -1758,6 +1775,7 @@ entities:
       - { name: updated_at, type: timestamptz, nullable: false, default: now() }
     indexes:
       - { name: idx_code_systems_active, columns: [tenant_id, system_key, is_active] }
+      - { name: uq_code_systems_scope_key_version, columns: [tenant_id, system_key, version], unique: true }
 
   - name: CodeValue
     table: code_values
@@ -1782,6 +1800,7 @@ entities:
       - { name: idx_code_values_lookup, columns: [tenant_id, system_id, code, is_active] }
       - { name: idx_code_values_category, columns: [tenant_id, category, is_active] }
       - { name: idx_code_values_display_search, columns: [system_id, display] }
+      - { name: uq_code_values_scope_system_code, columns: [tenant_id, system_id, code], unique: true }
 
   - name: ProcedureCatalog
     table: procedure_catalog
@@ -1802,6 +1821,7 @@ entities:
     indexes:
       - { name: idx_procedure_catalog_active, columns: [tenant_id, is_active] }
       - { name: idx_procedure_catalog_code, columns: [code_value_id] }
+      - { name: uq_procedure_catalog_scope_code, columns: [tenant_id, code_value_id], unique: true }
 
   - name: FeeSchedule
     table: fee_schedules
@@ -1821,6 +1841,7 @@ entities:
       - { name: updated_at,     type: timestamptz, nullable: false, default: now() }
     indexes:
       - { name: idx_fee_schedules_active, columns: [tenant_id, is_active, effective_from] }
+      - { name: uq_fee_schedules_scope_name_effective, columns: [tenant_id, scope_type, scope_id, name, effective_from], unique: true }
 
   - name: FeeScheduleItem
     table: fee_schedule_items
@@ -1839,6 +1860,7 @@ entities:
     indexes:
       - { name: idx_fee_schedule_items_schedule, columns: [fee_schedule_id] }
       - { name: idx_fee_schedule_items_procedure, columns: [procedure_catalog_id] }
+      - { name: uq_fee_schedule_items_unique, columns: [fee_schedule_id, procedure_catalog_id], unique: true }
 
   # ---------------------------------------------------------------------------
   # Voice & Conversational AI

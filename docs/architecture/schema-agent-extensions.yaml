@@ -118,6 +118,7 @@ entities:
       - { name: created_at,     type: timestamptz, nullable: false, default: now() }
       - { name: updated_at,     type: timestamptz, nullable: false, default: now() }
     indexes:
+      - { name: agent_tools_name_unique, columns: [name], unique: true }
       - { name: idx_agent_tools_tenant_active, columns: [tenant_id, is_active] }
 
   - name: ToolExecution

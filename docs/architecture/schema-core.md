@@ -52,6 +52,12 @@ This document defines the logical data model for a multi‑tenant, AI‑enabled 
 - **Multi-tenancy**: Hybrid row-level isolation (default) with optional schema/database isolation for large tenants
 - **Compliance**: HIPAA, GDPR, FDA-ready with encryption at rest/in transit, audit logs, and data retention policies
 
+### **Documentation Scope Policy**
+
+- **Implemented (Canonical)**: Tables and constraints that exist in `schema-core.yaml` / `schema-agent-extensions.yaml` and in Drizzle schema code.
+- **Conceptual (Planned)**: Architecture candidates not yet canonized in YAML/Drizzle.
+- **Analytical Layer (Non-OLTP)**: Warehouse-oriented `fact_*` and `dim_*` models handled via ETL/ELT.
+
 ---
 
 ## I. Multi‑Tenancy & Tenant Management
@@ -239,6 +245,9 @@ This document defines the logical data model for a multi‑tenant, AI‑enabled 
 
 - `legal_holds`
   - Records of entities under legal hold; overrides retention deletion until released.
+
+- `legal_hold_links`
+  - Links legal holds to scoped entities/data classes for enforcement and lookup.
 
 ---
 
@@ -434,8 +443,9 @@ This document defines the logical data model for a multi‑tenant, AI‑enabled 
 - `dicom_transactions`
   - Records of DICOM C‑STORE/C‑FIND/C‑MOVE interactions with external PACS.
 
-- `webhook_subscriptions` / `webhook_events` / `webhook_deliveries`
-  - Event‑driven integration with third‑party systems.
+- `webhook_subscriptions`
+  - Implemented outbound webhook subscriptions for event-driven integration.
+- Conceptual (not canonical OLTP yet): `webhook_events`, `webhook_deliveries`.
 
 ---
 
@@ -469,6 +479,9 @@ This document defines the logical data model for a multi‑tenant, AI‑enabled 
 
 - `fee_schedules`
   - Fee tables per tenant, per location, or per payer.
+
+- `fee_schedule_items`
+  - Line-level price rows linking fee schedules to procedure catalog entries.
 
 - `claims`
   - Insurance claim header: `id`, `tenant_id`, `patient_id`, `payer_id`, `claim_number`, `status`, submission dates, total billed/allowed/paid amounts.
@@ -542,8 +555,9 @@ This layer is implemented via ETL/ELT (e.g., dbt + columnar warehouse), not as p
 - `code_values`
   - Individual codes and descriptions; used for diagnoses, procedures, findings.
 
-- `drug_reference`, `material_reference`, `equipment_reference`
-  - Structured master data for drugs, dental materials, and devices.
+- Implemented: `drug_reference`
+  - Structured medication reference data for prescribing and reconciliation workflows.
+- Conceptual (not canonical OLTP yet): `material_reference`, `equipment_reference`.
 
 ### 2. Custom Fields & Workflow
 
@@ -558,8 +572,9 @@ This layer is implemented via ETL/ELT (e.g., dbt + columnar warehouse), not as p
 - `workflows`
   - Configurable workflows (e.g., AI‑assisted review, claim appeals).
 
-- `workflow_instances`, `workflow_transitions`
-  - State machine implementation for individual cases, with auditability.
+- Implemented: `workflow_instances`
+  - Runtime state machine records for individual workflow executions.
+- Conceptual (not canonical OLTP yet): `workflow_transitions`.
 
 ---
 
@@ -913,3 +928,40 @@ To support an **AI voice agent** that listens to spoken commands, executes actio
     - `data_retention_policies` (shorter retention for audio vs. core clinical record),
     - Access logging via `audit_events` whenever audio is played back or exported.
 - This ensures the AI agent can **reliably perform and audit actions from voice** while minimizing PHI risk from long‑term audio storage.
+
+---
+
+## XV. Agent Runtime Extension Schema (Canonical)
+
+The following agent runtime tables are implemented and canonical in `docs/architecture/schema-agent-extensions.yaml` and `packages/config/src/schema/agent.ts`:
+
+- `agent_workflows`
+  - Reusable graph/workflow definitions for agent behaviors.
+- `agent_executions`
+  - Runtime execution instances with status and state snapshots.
+- `agent_steps`
+  - Step-level trace of LLM/tool/decision actions.
+- `agent_tools`
+  - Registered callable tools with execution policy metadata.
+- `tool_executions`
+  - Concrete calls to tools including status, latency, and errors.
+- `agent_conversations`
+  - Multi-agent or user-agent conversation containers.
+- `agent_messages`
+  - Ordered messages/events inside agent conversations.
+- `agent_memories`
+  - Long-term memory rows with optional vector embeddings (`pgvector`).
+- `agent_context_windows`
+  - Context packing/pruning records per execution step.
+- `agent_approval_requests`
+  - Human-in-the-loop approval queue for sensitive actions.
+- `agent_interventions`
+  - Human override/correction events for agent behavior.
+- `action_history`
+  - Undo/rollback ledger for reversible action windows.
+- `agent_metrics`
+  - Execution KPI metrics for observability and optimization.
+
+Implementation note:
+
+- For exact column, FK, and index contracts, treat `schema-agent-extensions.yaml` as canonical and keep this narrative section synchronized to it.

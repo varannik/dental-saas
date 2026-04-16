@@ -4,6 +4,11 @@
 
 **Time Estimate:** 3 weeks
 
+**Status Update (Schema Layer):**
+
+- Canonical YAML + Drizzle schema implementation has been completed and expanded well beyond the original Phase 1 scope.
+- Keep this guide for execution sequencing, but treat schema-creation steps as largely completed and focus remaining effort on runtime/service validation.
+
 ---
 
 ## Week 2: Database + Shared Packages
@@ -515,9 +520,10 @@ curl -X POST http://localhost:4000/api/v1/tenants \
 
 At the end of Phase 1, verify:
 
-- [ ] All 25+ core schema tables exist in PostgreSQL
-- [ ] `packages/types` exports TypeScript interfaces for all entities
-- [ ] `packages/config` provides database connection and env loading
+- [x] Canonical schema definitions exist and are implemented in `packages/config/src/schema/*`
+- [ ] All canonical tables exist in a running PostgreSQL instance via verified migrations
+- [ ] `packages/types` exports TypeScript interfaces for all entities (or explicitly scoped subset by design)
+- [x] `packages/config` provides schema/env/database foundation
 - [ ] `packages/utils` provides validation utilities
 - [ ] Auth service: register, login, logout, refresh, me endpoints work
 - [ ] Auth service: Redis sessions created/destroyed on login/logout

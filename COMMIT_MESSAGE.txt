@@ -1,33 +1,35 @@
-feat(config): add complete Drizzle schema modules from YAML
+docs(schema): sync canonical docs with full implementation parity
 
-Implement the Phase 1 database foundation by creating a full Drizzle schema layer
-in `@dental/config`, aligned to `schema-core.yaml` and `schema-agent-extensions.yaml`.
+Complete the documentation synchronization pass so canonical YAML, Drizzle schema modules,
+architecture narrative docs, and status docs all reflect the current schema implementation.
 
 ## What Changed
 
-- Added modular schema definitions under `packages/config/src/schema/`:
-  - `tenancy.ts` (tenants, users, sessions, RBAC, audit)
-  - `clinical.ts` (patients, encounters, clinical notes)
-  - `imaging.ts` (imaging studies/objects, AI models, jobs, predictions)
-  - `billing.ts` (treatment plans, claim headers/lines)
-  - `voice.ts` (voice sessions, utterances, recordings)
-  - `agent.ts` (workflows, executions, tools, HITL, memory, metrics, undo history)
-- Added `packages/config/src/schema/index.ts` barrel for a clean schema export surface.
-- Updated `packages/config/src/index.ts` to re-export all schema modules.
-- Preserved multilingual support fields (locale/language) for UI, voice, and agent flows.
-- Added production-ready indexes, composite keys, and foreign key relationships.
+- Added full doc-sync execution plan:
+  - `status/11-DOC-SYNC-PATCH-PLAN.md` (new)
+- Regenerated parity report with current audited counts:
+  - `status/12-SCHEMA-PARITY-MATRIX.md` (new)
+- Updated canonical schema docs to include missing unique constraints and index parity:
+  - `docs/architecture/schema-core.yaml`
+  - `docs/architecture/schema-agent-extensions.yaml`
+- Updated architecture narrative coverage for implemented tables and clarified conceptual vs canonical scope:
+  - `docs/architecture/schema-core.md`
+- Updated stale status docs to reflect current schema implementation reality:
+  - `status/03-WHATS-MISSING.md`
+  - `status/07-STEP-BY-STEP-PHASE1-CORE-FOUNDATION.md`
+  - `status/10-STEP-BY-STEP-PHASE4-5-AI-AND-PRODUCTION.md`
+
+## Parity Outcome
+
+- YAML tables: 108
+- Drizzle tables: 108
+- Missing/extra tables: 0 / 0
+- YAML index names: 185
+- Drizzle index names: 185
+- Missing/extra indexes: 0 / 0
+- Implemented tables missing from `schema-core.md`: 0
 
 ## Validation
 
-- `pnpm --filter @dental/config run typecheck` passes successfully.
-
-## Files Updated
-
-- `packages/config/src/index.ts`
-- `packages/config/src/schema/index.ts` (new)
-- `packages/config/src/schema/tenancy.ts` (new)
-- `packages/config/src/schema/clinical.ts` (new)
-- `packages/config/src/schema/imaging.ts` (new)
-- `packages/config/src/schema/billing.ts` (new)
-- `packages/config/src/schema/voice.ts` (new)
-- `packages/config/src/schema/agent.ts` (new)
+- `pnpm --filter @dental/config run typecheck` passes.
+- Readonly parity audits confirm table-set, column-set, and index-name alignment.

@@ -6,11 +6,15 @@
 
 ## Critical Missing Pieces (Blocking Any Demo/MVP)
 
-### 1. Application Source Code — NOTHING EXISTS
+### 1. Repository Baseline Status (Updated)
 
-The entire `apps/`, `services/`, and `packages/` directories contain only README placeholders. There is zero TypeScript/JavaScript application code in the current repo.
+This document originally captured an early-repo state. Current status is materially different:
 
-**Impact:** Cannot run any feature, cannot demo anything, cannot test anything meaningful.
+- `packages/config/src/schema/*` now contains implemented Drizzle schema modules.
+- Canonical schema YAML (`schema-core.yaml`, `schema-agent-extensions.yaml`) is expanded and synced at table/column level with implementation.
+- Several architecture/status artifacts have progressed beyond "placeholder-only" status.
+
+Use this file as a "remaining runtime/platform gaps" tracker, not as a schema-implementation status source.
 
 | Missing Component                                              | Priority | Estimated Effort |
 | -------------------------------------------------------------- | -------- | ---------------- |
@@ -31,16 +35,15 @@ The entire `apps/`, `services/`, and `packages/` directories contain only README
 
 ---
 
-### 2. Database Migrations — SCHEMA NOT DEPLOYED
+### 2. Database Runtime/Migration Gaps — DEPLOYMENT NOT YET VERIFIED
 
-The schema exists only as YAML documentation. No SQL DDL has been generated, no migration tool is configured, and no actual tables exist in the database.
+Canonical schema design and Drizzle schema code now exist. Remaining risk is operational deployment and migration verification in real environments.
 
 **Missing:**
 
 - [ ] DDL generation script (`scripts/generate/ddl.sh` is a stub)
-- [ ] Migration framework (e.g., Drizzle, Prisma, or node-pg-migrate)
-- [ ] Migration files for core schema (25+ tables)
-- [ ] Migration files for agent extensions (13+ tables)
+- [ ] Migration execution pipeline verified end-to-end in local and CI
+- [ ] Migration files validated against current canonical schema (all promoted waves)
 - [ ] Seed data for development and testing
 - [ ] pgvector extension setup for RAG/embeddings
 - [ ] Locale/language schema rollout (tenant defaults, supported locales, voice locale columns)
@@ -50,7 +53,7 @@ The schema exists only as YAML documentation. No SQL DDL has been generated, no 
 
 ### 3. AI Voice Agent — CORE PRODUCT NOT BUILT
 
-The AI voice agent IS the product, and it doesn't exist yet. Only the schema and architecture docs exist.
+AI voice schema substrate exists. Remaining gaps are runtime services, model integrations, and production hardening.
 
 **Missing:**
 
