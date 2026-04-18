@@ -1,35 +1,37 @@
-docs(schema): sync canonical docs with full implementation parity
+feat(config,types): establish schema-aligned shared packages
 
-Complete the documentation synchronization pass so canonical YAML, Drizzle schema modules,
-architecture narrative docs, and status docs all reflect the current schema implementation.
+Create production-ready `@saas/config` and `@saas/types` foundations, then sync
+types to Drizzle schema fields and NodeNext ESM import rules for consistent cross-service contracts.
 
 ## What Changed
 
-- Added full doc-sync execution plan:
-  - `status/11-DOC-SYNC-PATCH-PLAN.md` (new)
-- Regenerated parity report with current audited counts:
-  - `status/12-SCHEMA-PARITY-MATRIX.md` (new)
-- Updated canonical schema docs to include missing unique constraints and index parity:
-  - `docs/architecture/schema-core.yaml`
-  - `docs/architecture/schema-agent-extensions.yaml`
-- Updated architecture narrative coverage for implemented tables and clarified conceptual vs canonical scope:
-  - `docs/architecture/schema-core.md`
-- Updated stale status docs to reflect current schema implementation reality:
-  - `status/03-WHATS-MISSING.md`
-  - `status/07-STEP-BY-STEP-PHASE1-CORE-FOUNDATION.md`
-  - `status/10-STEP-BY-STEP-PHASE4-5-AI-AND-PRODUCTION.md`
+- Standardized workspace package setup for `packages/config`:
+  - Replaced scaffolded `package.json` with scoped internal package metadata and scripts.
+  - Added typed exports for env/database/schema usage.
+- Hardened environment config:
+  - Improved dotenv load order by environment.
+  - Added cache reset/reload support for tests and runtime refresh.
+- Hardened database config:
+  - Added schema-typed Drizzle client wiring.
+  - Added safer pool lifecycle behavior and shutdown handling.
+  - Added richer connection options (timeouts, keepalive, SSL mode handling).
+- Created and expanded `packages/types` package:
+  - Added complete domain type modules and root barrel export.
+  - Added package exports for all major domains.
+- Synced type interfaces to implemented schema:
+  - Regenerated `packages/types/src/*` interfaces to match `packages/config/src/schema/*` fields.
+  - Resolved field-level drift across all mapped entities.
+- Fixed NodeNext import compatibility:
+  - Updated relative imports/exports in `packages/types/src` to explicit `.js` paths.
 
-## Parity Outcome
+## Sync Outcome
 
-- YAML tables: 108
-- Drizzle tables: 108
-- Missing/extra tables: 0 / 0
-- YAML index names: 185
-- Drizzle index names: 185
-- Missing/extra indexes: 0 / 0
-- Implemented tables missing from `schema-core.md`: 0
+- Mapped schema entities audited: 108
+- Field-level mismatches after sync: 0
+- `packages/types/src` NodeNext import extension issues: resolved
 
 ## Validation
 
-- `pnpm --filter @dental/config run typecheck` passes.
-- Readonly parity audits confirm table-set, column-set, and index-name alignment.
+- `pnpm --filter @saas/config typecheck` passes.
+- `pnpm --filter @saas/types typecheck` passes.
+- `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --strict src/*.ts` (from `packages/types`) passes.

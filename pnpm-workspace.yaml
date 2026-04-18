@@ -12,3 +12,4 @@ packages:
   - 'tests/e2e'
 allowBuilds:
   esbuild: false
+storeDir: .pnpm-store

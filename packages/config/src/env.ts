@@ -1,6 +1,8 @@
 import { config as loadDotenv } from 'dotenv';
 import { z } from 'zod';
 
+const NODE_ENV_VALUES = ['development', 'test', 'staging', 'production'] as const;
+
 const optionalString = z.preprocess((value) => {
   if (typeof value !== 'string') return value;
   const trimmed = value.trim();
@@ -13,14 +15,27 @@ let cachedEnv: Env | null = null;
 function loadEnvFiles(): void {
   if (dotenvLoaded) return;
 
+  const runtimeNodeEnv =
+    typeof process.env.NODE_ENV === 'string' ? process.env.NODE_ENV.trim() : undefined;
+  const scopedNodeEnv = runtimeNodeEnv && runtimeNodeEnv.length > 0 ? runtimeNodeEnv : undefined;
+
+  const dotenvPaths = [
+    scopedNodeEnv ? `.env.${scopedNodeEnv}.local` : undefined,
+    '.env.local',
+    scopedNodeEnv ? `.env.${scopedNodeEnv}` : undefined,
+    '.env',
+  ].filter((path): path is string => Boolean(path));
+
   // Keep injected runtime variables untouched.
-  loadDotenv({ path: '.env.local', override: false });
-  loadDotenv({ path: '.env', override: false });
+  for (const path of dotenvPaths) {
+    loadDotenv({ path, override: false });
+  }
+
   dotenvLoaded = true;
 }
 
 const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
+  NODE_ENV: z.enum(NODE_ENV_VALUES).default('development'),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 
   DATABASE_URL: z.string().url().describe('PostgreSQL connection string'),
@@ -55,8 +70,22 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
-export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
-  loadEnvFiles();
+interface LoadEnvOptions {
+  reload?: boolean;
+}
+
+export function loadEnv(
+  source: NodeJS.ProcessEnv = process.env,
+  options: LoadEnvOptions = {}
+): Env {
+  if (options.reload) {
+    dotenvLoaded = false;
+    cachedEnv = null;
+  }
+
+  if (source === process.env) {
+    loadEnvFiles();
+  }
 
   const result = envSchema.safeParse(source);
   if (result.success) return result.data;
@@ -68,12 +97,17 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   throw new Error(`Invalid environment configuration:\n${issues}`);
 }
 
-export function getEnv(): Env {
-  if (!cachedEnv) {
-    cachedEnv = loadEnv();
+export function getEnv(options: LoadEnvOptions = {}): Env {
+  if (!cachedEnv || options.reload) {
+    cachedEnv = loadEnv(process.env, options);
   }
 
   return cachedEnv;
+}
+
+export function resetEnvCache(): void {
+  cachedEnv = null;
+  dotenvLoaded = false;
 }
 
 export const env = getEnv();

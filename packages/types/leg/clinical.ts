@@ -1,4 +1,27 @@
-import type { ISODateTime, JsonObject, UUID } from './tenancy.js';
+import type { ISODateTime, UUID } from '../src/tenancy.js';
+
+export const PATIENT_STATUSES = ['ACTIVE', 'INACTIVE', 'DECEASED'] as const;
+export type PatientStatus = (typeof PATIENT_STATUSES)[number];
+
+export const ENCOUNTER_TYPES = [
+  'EXAM',
+  'EMERGENCY',
+  'HYGIENE',
+  'ORTHO',
+  'IMPLANT',
+  'TEACHING',
+] as const;
+export type EncounterType = (typeof ENCOUNTER_TYPES)[number];
+
+export const ENCOUNTER_STATUSES = [
+  'SCHEDULED',
+  'CHECKED_IN',
+  'IN_PROGRESS',
+  'COMPLETED',
+  'CANCELLED',
+  'NO_SHOW',
+] as const;
+export type EncounterStatus = (typeof ENCOUNTER_STATUSES)[number];
 
 export interface Patient {
   id: UUID;
@@ -6,7 +29,7 @@ export interface Patient {
   primaryLocationId: UUID | null;
   firstName: string;
   lastName: string;
-  dob: ISODateTime | null;
+  dob: string | null;
   sexAtBirth: string | null;
   genderIdentity: string | null;
   contactEmail: string | null;
@@ -15,7 +38,7 @@ export interface Patient {
   preferredLocale: string | null;
   preferredLanguage: string | null;
   preferredContactMethod: string | null;
-  status: string;
+  status: PatientStatus;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
 }
@@ -26,8 +49,8 @@ export interface Encounter {
   patientId: UUID;
   locationId: UUID;
   providerId: UUID | null;
-  encounterType: string;
-  status: string;
+  encounterType: EncounterType;
+  status: EncounterStatus;
   scheduledStartAt: ISODateTime | null;
   checkInAt: ISODateTime | null;
   checkOutAt: ISODateTime | null;
@@ -35,45 +58,18 @@ export interface Encounter {
   updatedAt: ISODateTime;
 }
 
+/**
+ * Practical domain shape used by services that generate encounter notes.
+ * The schema stores notes in related clinical tables.
+ */
 export interface ClinicalNote {
   id: UUID;
   tenantId: UUID;
   patientId: UUID;
   encounterId: UUID | null;
-  authorId: UUID;
+  authoredById: UUID | null;
   noteType: string;
   content: string;
-  language: string | null;
-  locale: string | null;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
-}
-
-export interface ToothChartSnapshot {
-  id: UUID;
-  tenantId: UUID;
-  patientId: UUID;
-  encounterId: UUID | null;
-  createdById: UUID | null;
-  source: string;
-  chartJson: JsonObject;
-  createdAt: ISODateTime;
-}
-
-export interface PerioMeasurement {
-  id: UUID;
-  tenantId: UUID;
-  patientId: UUID;
-  encounterId: UUID | null;
-  measuredAt: ISODateTime;
-  measuredById: UUID | null;
-  toothNumber: string;
-  site: string;
-  pocketDepthMm: number | null;
-  gingivalMarginMm: number | null;
-  bleedingOnProbing: boolean | null;
-  mobilityGrade: string | null;
-  furcationInvolvement: string | null;
-  notes: string | null;
-  createdAt: ISODateTime;
 }

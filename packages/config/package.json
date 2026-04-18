@@ -1,16 +1,15 @@
 {
-  "name": "@dental/config",
-  "version": "0.0.1",
+  "name": "@saas/config",
+  "version": "0.1.0",
   "private": true,
-  "description": "Shared runtime configuration and environment validation for Dental SaaS services.",
+  "description": "Shared configuration, environment utilities, and schema definitions.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
+      "import": "./dist/index.js"
     }
   },
   "files": [
@@ -19,19 +18,23 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsc --watch -p tsconfig.json",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "dev": "tsc -p tsconfig.json --watch",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "dotenv": "^16.4.0",
-    "drizzle-orm": "^0.45.2",
-    "pg": "^8.20.0",
-    "zod": "^3.23.0"
+    "dotenv": "^17.2.3",
+    "drizzle-orm": "^0.44.7",
+    "pg": "^8.16.3",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
-    "@types/node": "^25.6.0",
-    "@types/pg": "^8.20.0",
-    "typescript": "^5.4.0"
-  }
+    "@types/node": "^24.7.2",
+    "@types/pg": "^8.15.6"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "pnpm@10.33.0"
 }

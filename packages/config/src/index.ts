@@ -1,4 +1,4 @@
-export { env, getEnv, loadEnv } from './env.js';
+export { env, getEnv, loadEnv, resetEnvCache } from './env.js';
 export type { Env } from './env.js';
 
 export {
@@ -6,7 +6,10 @@ export {
   createDatabaseConnection,
   createDatabasePool,
   getDatabase,
+  getDatabasePool,
+  isDatabaseInitialized,
 } from './database.js';
-export type { DatabaseClient, DatabaseConnectionOptions } from './database.js';
+export type { DatabaseClient, DatabaseConnectionOptions, DatabaseSchema } from './database.js';
 
+export * as schema from './schema/index.js';
 export * from './schema/index.js';

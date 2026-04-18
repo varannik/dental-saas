@@ -1,10 +1,4 @@
-import type { ISODateTime, UUID } from './tenancy';
-
-export const IMAGING_MODALITIES = ['INTRAORAL', 'PANORAMIC', 'CBCT', 'PHOTO', 'VIDEO'] as const;
-export type ImagingModality = (typeof IMAGING_MODALITIES)[number];
-
-export const IMAGING_OBJECT_TYPES = ['DICOM', 'JPEG', 'PNG', 'STL', 'MP4'] as const;
-export type ImagingObjectType = (typeof IMAGING_OBJECT_TYPES)[number];
+import type { ISODateTime, JsonObject, UUID } from './tenancy.js';
 
 export interface ImagingStudy {
   id: UUID;
@@ -12,7 +6,7 @@ export interface ImagingStudy {
   patientId: UUID;
   encounterId: UUID | null;
   studyUid: string | null;
-  modality: ImagingModality;
+  modality: string;
   bodyPart: string | null;
   acquisitionDatetime: ISODateTime | null;
   sourceSystem: string | null;
@@ -25,15 +19,63 @@ export interface ImagingObject {
   studyId: UUID;
   seriesId: UUID | null;
   sopInstanceUid: string | null;
-  objectType: ImagingObjectType;
+  objectType: string;
   storageUri: string;
   hash: string | null;
-  byteSize: number | null;
+  byteSize: unknown | null;
   width: number | null;
   height: number | null;
   depthSlices: number | null;
   isOriginal: boolean;
-  processingPipeline: Record<string, unknown> | null;
+  processingPipeline: JsonObject | null;
+  createdAt: ISODateTime;
+}
+
+export interface ImageAnnotation {
+  id: UUID;
+  tenantId: UUID;
+  imagingObjectId: UUID;
+  annotationType: string;
+  annotationData: JsonObject;
+  createdByUserId: UUID | null;
+  createdAt: ISODateTime;
+}
+
+export interface AIModel {
+  id: UUID;
+  name: string;
+  domain: string;
+  vendor: string;
+  regulatoryClass: string;
+  createdAt: ISODateTime;
+}
+
+export interface AIModelVersion {
+  id: UUID;
+  modelId: UUID;
+  versionTag: string;
+  artifactUri: string;
+  inputTypes: string[];
+  outputTypes: string[];
+  performanceMetrics: JsonObject | null;
+  validatedOn: ISODateTime | null;
+  validationSummaryUri: string | null;
+  sbomUri: string | null;
+  createdAt: ISODateTime;
+}
+
+export interface AIInferenceJob {
+  id: UUID;
+  tenantId: UUID;
+  modelVersionId: UUID;
+  inputType: string;
+  inputRefId: UUID;
+  requestedByUserId: UUID | null;
+  status: string;
+  startedAt: ISODateTime | null;
+  completedAt: ISODateTime | null;
+  computeEnv: JsonObject | null;
+  errorDetails: string | null;
   createdAt: ISODateTime;
 }
 
@@ -48,6 +90,6 @@ export interface AIPrediction {
   confidence: number | null;
   severity: string | null;
   roiAnnotationId: UUID | null;
-  rawOutput: Record<string, unknown> | null;
+  rawOutput: JsonObject | null;
   createdAt: ISODateTime;
 }

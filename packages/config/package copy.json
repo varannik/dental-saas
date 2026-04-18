@@ -1,0 +1,35 @@
+{
+  "name": "@dental/config",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Shared runtime configuration and environment validation for Dental SaaS services.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc --watch -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.0",
+    "drizzle-orm": "^0.45.2",
+    "pg": "^8.20.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/pg": "^8.20.0",
+    "typescript": "^5.4.0"
+  }
+}

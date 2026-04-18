@@ -1,11 +1,33 @@
-import type { ISODateTime, UUID } from './tenancy.js';
+import type { ISODateTime, UUID } from '../src/tenancy.js';
+
+export const TREATMENT_PLAN_STATUSES = [
+  'DRAFT',
+  'PRESENTED',
+  'ACCEPTED',
+  'DECLINED',
+  'PARTIALLY_ACCEPTED',
+  'COMPLETED',
+] as const;
+export type TreatmentPlanStatus = (typeof TREATMENT_PLAN_STATUSES)[number];
+
+export const CLAIM_STATUSES = [
+  'DRAFT',
+  'READY',
+  'SUBMITTED',
+  'PENDING',
+  'PARTIALLY_PAID',
+  'PAID',
+  'DENIED',
+  'VOIDED',
+] as const;
+export type ClaimStatus = (typeof CLAIM_STATUSES)[number];
 
 export interface TreatmentPlan {
   id: UUID;
   tenantId: UUID;
   patientId: UUID;
   createdById: UUID;
-  status: string;
+  status: TreatmentPlanStatus;
   totalEstimatedCost: number | null;
   estimatedInsuranceCoverage: number | null;
   notes: string | null;
@@ -31,7 +53,7 @@ export interface Claim {
   patientId: UUID;
   payerId: UUID | null;
   claimNumber: string | null;
-  status: string;
+  status: ClaimStatus;
   submittedAt: ISODateTime | null;
   totalBilledAmount: number | null;
   totalAllowedAmount: number | null;
