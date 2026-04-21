@@ -233,7 +233,7 @@ export const agentMemories = pgTable(
       table.scope,
       table.scopeId
     ),
-    index('idx_agent_memories_embedding').using('ivfflat', table.embedding),
+    index('idx_agent_memories_embedding').using('ivfflat', table.embedding.op('vector_cosine_ops')),
   ]
 );
 
@@ -345,7 +345,7 @@ export const actionHistory = pgTable(
     index('idx_action_history_user_recent').on(table.userId, table.createdAt.desc()),
     index('idx_action_history_undoable')
       .on(table.tenantId, table.isUndone, table.undoExpiresAt)
-      .where(sql`is_undone = false AND undo_expires_at > NOW()`),
+      .where(sql`is_undone = false`),
     index('idx_action_history_voice_session').on(table.voiceSessionId),
     index('idx_action_history_entity').on(table.entityType, table.entityId, table.createdAt.desc()),
     index('idx_action_history_cleanup')

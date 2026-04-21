@@ -113,7 +113,7 @@ export const sessions = pgTable(
     uniqueIndex('idx_sessions_token_hash').on(table.tokenHash),
     index('idx_sessions_cleanup')
       .on(table.expiresAt)
-      .where(sql`revoked_at IS NULL AND expires_at < NOW()`),
+      .where(sql`revoked_at IS NULL`),
   ]
 );
 
