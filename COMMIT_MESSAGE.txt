@@ -1,7 +1,7 @@
-feat(config,types,db): finalize schema foundation, migrations, and seeding
+feat(platform): complete Phase 1 foundation for schema, migrations, seeds, and shared packages
 
-Complete Phase 1 core foundation by hardening config/types packages, fixing Drizzle migration blockers,
-enabling pgvector locally, and adding an idempotent seed script aligned with the implemented schema.
+Deliver a production-ready core foundation by stabilizing config/types utilities, unblocking Drizzle/Postgres migration flow
+with pgvector support, and adding shared seed and helper packages for downstream services.
 
 ## What Changed
 
@@ -28,6 +28,11 @@ enabling pgvector locally, and adding an idempotent seed script aligned with the
   - Resolved lint errors from stale staged imports.
 - Added seed workflow:
   - Created `packages/config/src/seed.ts` with idempotent default tenant/user/roles/permissions/sample patients.
+- Added shared utils package:
+  - Created `@saas/utils` with validation, ID, and date helpers.
+  - Added package build/lint/typecheck scripts and TypeScript configuration.
+- Added schema onboarding documentation:
+  - Added `docs/architecture/schema-entity-cheatsheet.md` with per-entity purpose references.
 
 ## Outcome
 
@@ -42,4 +47,6 @@ enabling pgvector locally, and adding an idempotent seed script aligned with the
 - `pnpm --filter @saas/types lint` passes.
 - `pnpm --filter @saas/types typecheck` passes.
 - `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --strict src/*.ts` (from `packages/types`) passes.
+- `pnpm --filter @saas/utils lint` passes.
+- `pnpm --filter @saas/utils typecheck` passes.
 - Local DB verification confirms all 108 schema tables exist.
