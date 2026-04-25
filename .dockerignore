@@ -1,0 +1,23 @@
+.git
+.github
+.cursor
+.vscode
+
+**/node_modules
+**/dist
+**/coverage
+**/.turbo
+**/.next
+
+agent-transcripts
+status
+docs
+tests
+
+*.log
+.DS_Store
+
+# Do not send local env files to Docker context.
+.env
+.env.local
+.env.*.local

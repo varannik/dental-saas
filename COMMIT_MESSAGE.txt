@@ -1,52 +1,35 @@
-feat(platform): complete Phase 1 foundation for schema, migrations, seeds, and shared packages
+feat(auth): scaffold auth service and local Docker runtime
 
-Deliver a production-ready core foundation by stabilizing config/types utilities, unblocking Drizzle/Postgres migration flow
-with pgvector support, and adding shared seed and helper packages for downstream services.
+Introduce the new `@saas/auth` workspace service with initial API routes, token/session flows,
+and local container wiring so authentication can run as part of the platform stack.
 
 ## What Changed
 
-- Finalized `@saas/config` package setup:
-  - Replaced scaffold package metadata with workspace-ready config.
-  - Added stable exports for env/database/schema utilities.
-- Hardened runtime config and DB setup:
-  - Improved env loading behavior and cache controls in `env.ts`.
-  - Improved DB connection/pool lifecycle and typed schema wiring in `database.ts`.
-- Added Drizzle project config:
-  - Introduced root `drizzle.config.ts` with env-aware DB URL loading.
-- Fixed migration blockers:
-  - Updated pgvector index op class on `agent_memories.embedding` to `vector_cosine_ops`.
-  - Removed non-immutable `NOW()` predicates from partial index definitions used by migrations.
-- Enabled pgvector support in local Docker Postgres:
-  - Switched Postgres image to `pgvector/pgvector:pg16` in compose config.
-  - Verified extension availability in local instance.
-- Completed schema migration generation and application path:
-  - Regenerated initial migration SQL in `drizzle/`.
-  - Verified full table creation in local DB.
-- Built out `@saas/types` package:
-  - Added domain type modules and root barrel exports.
-  - Synced interfaces to implemented Drizzle schema and fixed NodeNext `.js` path requirements.
-  - Resolved lint errors from stale staged imports.
-- Added seed workflow:
-  - Created `packages/config/src/seed.ts` with idempotent default tenant/user/roles/permissions/sample patients.
-- Added shared utils package:
-  - Created `@saas/utils` with validation, ID, and date helpers.
-  - Added package build/lint/typecheck scripts and TypeScript configuration.
-- Added schema onboarding documentation:
-  - Added `docs/architecture/schema-entity-cheatsheet.md` with per-entity purpose references.
-
-## Outcome
-
-- Expected schema tables from Drizzle definitions: 108
-- Actual tables in local `public` schema: 108
-- Missing/extra table mismatch: 0 / 0
-- Type/schema entity mapping mismatch (audited): 0
+- Added new `@saas/auth` package:
+  - Created `services/auth/package.json` with build/dev/lint/typecheck/test scripts.
+  - Added service TypeScript config (`services/auth/tsconfig.json`).
+  - Added app entrypoint bootstrap in `services/auth/src/index.ts`.
+- Implemented initial auth API surface:
+  - Added route registration and handlers for:
+    - `POST /auth/register`
+    - `POST /auth/login`
+    - `POST /auth/logout`
+    - `POST /auth/refresh`
+    - `GET /auth/me`
+    - `GET /auth/sessions`
+  - Added Zod request schemas for login/register/refresh payloads.
+- Added core auth/session/token services:
+  - Implemented password-based register/login flows with Drizzle queries and bcrypt hashing.
+  - Added JWT access/refresh token issue + refresh helpers.
+  - Added session creation/revocation/listing using Postgres (`sessions` table) and Redis cache.
+- Added middleware utilities and service scaffolding:
+  - Added bearer token parsing, permission helper, and tenant context helpers.
+  - Added initial placeholder test files for auth services and key routes.
+- Added containerization and local stack integration:
+  - Added multi-stage Dockerfile for auth service (`services/auth/Dockerfile`).
+  - Updated local compose to build and run `auth` service on port `4001` with DB/Redis dependencies.
+  - Added root `.dockerignore` to reduce Docker build context and exclude local env files.
 
 ## Validation
 
-- `pnpm --filter @saas/config typecheck` passes.
-- `pnpm --filter @saas/types lint` passes.
-- `pnpm --filter @saas/types typecheck` passes.
-- `pnpm exec tsc --noEmit --module NodeNext --moduleResolution NodeNext --target ES2022 --strict src/*.ts` (from `packages/types`) passes.
-- `pnpm --filter @saas/utils lint` passes.
-- `pnpm --filter @saas/utils typecheck` passes.
-- Local DB verification confirms all 108 schema tables exist.
+- Validation commands were not run as part of this message rewrite.

@@ -4,6 +4,29 @@ version: '3.8'
 # This Docker Compose file provides PostgreSQL, Redis, and MinIO for local development
 
 services:
+  # Auth Service
+  auth:
+    build:
+      context: ../../
+      dockerfile: services/auth/Dockerfile
+    image: dental-saas-auth:local
+    container_name: dental-saas-auth
+    restart: unless-stopped
+    env_file:
+      - ../../.env
+    environment:
+      AUTH_HOST: 0.0.0.0
+      AUTH_PORT: 4001
+    ports:
+      - "4001:4001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - dental-saas-network
+
   # PostgreSQL Database
   postgres:
     image: pgvector/pgvector:pg16
