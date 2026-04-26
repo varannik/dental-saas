@@ -19,11 +19,11 @@
     "test:all": "pnpm test:unit && pnpm test:integration && pnpm test:contract"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/cors": "^11.1.0",
     "@saas/config": "workspace:*",
     "@saas/types": "workspace:*",
     "@saas/utils": "workspace:*",
-    "@fastify/cookie": "^11.0.2",
-    "@fastify/cors": "^11.1.0",
     "bcryptjs": "^3.0.2",
     "drizzle-orm": "^0.44.7",
     "fastify": "^5.6.1",
@@ -36,6 +36,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.7.2",
+    "@types/pg": "^8.20.0",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"

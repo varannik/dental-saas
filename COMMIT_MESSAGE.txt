@@ -1,30 +1,32 @@
-test(auth): consolidate auth tests and add full service coverage
+test(auth): complete auth test coverage and deduplicate integration layout
 
-Move auth testing to the service-local test suite and replace placeholder coverage with
-route/unit/integration/contract checks so auth behavior is validated end-to-end in one place.
+Consolidate auth testing under the auth service, replace placeholders with real route/unit/integration/contract tests,
+and add reusable test runners plus integration data cleanup utilities.
 
 ## What Changed
 
-- Consolidated auth tests into `services/auth/src/__tests__`:
-  - Removed duplicated top-level auth integration scaffolding under `tests/integration`.
-  - Cleaned empty integration subdirectories and updated integration docs ownership guidance.
-- Added comprehensive auth route tests:
-  - `routes/register.test.ts`
-  - `routes/login.test.ts`
-  - `routes/logout.test.ts`
-  - `routes/refresh.test.ts`
-  - `routes/me.test.ts`
-  - `routes/sessions.test.ts`
-  - Covers success and validation/error-path behavior for request handling.
-- Added core unit tests:
-  - `token.service.test.ts` for issue/verify/refresh behavior and invalid-token rejection.
-  - `middleware/authenticate.test.ts` for bearer header parsing edge cases.
+- Consolidated test ownership for microservice best practices:
+  - Removed duplicated top-level auth integration scaffolding from `tests/integration`.
+  - Removed empty `tests/integration/api` and `tests/integration/helpers` directories.
+  - Updated `tests/integration/README.md` to document cross-service vs service-local test boundaries.
+- Added full auth route tests under `services/auth/src/__tests__/routes`:
+  - `register`, `login`, `logout`, `refresh`, `me`, `sessions`
+  - Covers success paths and invalid/validation scenarios where applicable.
+- Added and expanded unit tests:
+  - `token.service.test.ts` for issue/verify/refresh behavior and invalid token handling.
+  - `middleware/authenticate.test.ts` for bearer-token parsing edge cases.
   - `auth.service.test.ts` for logout delegation behavior.
-- Added service-level integration and contract suites:
+- Added service-local integration and contract suites:
   - `integration/auth.integration.test.ts` for register/login/logout/me lifecycle checks.
-  - `integration/auth.contract.test.ts` for response-shape and key field contract assertions.
-- Extended auth test scripts:
-  - Added `test:integration`, `test:contract`, and `test:all` in `services/auth/package.json`.
+  - `integration/auth.contract.test.ts` for response-shape contract validation across auth endpoints.
+- Added integration helper utilities in `integration/helpers.ts`:
+  - Test client helpers for API requests.
+  - Database/Redis setup and cleanup for `itest-*` data and `dental:session:*` keys.
+  - Resilient fallback logging when direct DB/Redis test URLs differ from runtime environment.
+- Updated auth package test scripts:
+  - Added `test:integration`, `test:contract`, and `test:all`.
+- Added typing support needed by integration helper cleanup:
+  - Added `@types/pg` to `services/auth` dev dependencies.
 
 ## Validation
 
