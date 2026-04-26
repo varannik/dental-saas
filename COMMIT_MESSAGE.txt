@@ -1,36 +1,39 @@
-test(auth): complete auth test coverage and deduplicate integration layout
+feat(api-gateway): scaffold gateway app with proxy and security plugins
 
-Consolidate auth testing under the auth service, replace placeholders with real route/unit/integration/contract tests,
-and add reusable test runners plus integration data cleanup utilities.
+Add the API Gateway app for Week 4 with Fastify-based proxy routes, shared middleware/plugins,
+and a comprehensive gateway test suite to validate auth, tenant resolution, rate limiting, and routing behavior.
 
 ## What Changed
 
-- Consolidated test ownership for microservice best practices:
-  - Removed duplicated top-level auth integration scaffolding from `tests/integration`.
-  - Removed empty `tests/integration/api` and `tests/integration/helpers` directories.
-  - Updated `tests/integration/README.md` to document cross-service vs service-local test boundaries.
-- Added full auth route tests under `services/auth/src/__tests__/routes`:
-  - `register`, `login`, `logout`, `refresh`, `me`, `sessions`
-  - Covers success paths and invalid/validation scenarios where applicable.
-- Added and expanded unit tests:
-  - `token.service.test.ts` for issue/verify/refresh behavior and invalid token handling.
-  - `middleware/authenticate.test.ts` for bearer-token parsing edge cases.
-  - `auth.service.test.ts` for logout delegation behavior.
-- Added service-local integration and contract suites:
-  - `integration/auth.integration.test.ts` for register/login/logout/me lifecycle checks.
-  - `integration/auth.contract.test.ts` for response-shape contract validation across auth endpoints.
-- Added integration helper utilities in `integration/helpers.ts`:
-  - Test client helpers for API requests.
-  - Database/Redis setup and cleanup for `itest-*` data and `dental:session:*` keys.
-  - Resilient fallback logging when direct DB/Redis test URLs differ from runtime environment.
-- Updated auth package test scripts:
-  - Added `test:integration`, `test:contract`, and `test:all`.
-- Added typing support needed by integration helper cleanup:
-  - Added `@types/pg` to `services/auth` dev dependencies.
+- Created new workspace app `@saas/api-gateway`:
+  - Added `apps/api-gateway/package.json` with scripts for `dev`, `build`, `start`, `typecheck`, and `test`.
+  - Added `apps/api-gateway/tsconfig.json` and updated app README.
+- Implemented gateway server entry and registration flow:
+  - Added `src/index.ts` with plugin/middleware/route registration.
+  - Added service config defaults (`GATEWAY_HOST`, `GATEWAY_PORT`) and `/health` endpoint.
+  - Added centralized error handler returning `{ error: string }` payloads.
+- Added middleware and plugins:
+  - `middleware/request-id.ts` for request ID propagation.
+  - `middleware/logging.ts` for response logging.
+  - `middleware/tenant-resolver.ts` for JWT claim extraction (`tenantId`, `userId`, `roles`).
+  - `plugins/auth.ts` for JWT authorization checks.
+  - `plugins/rate-limit.ts` with Redis key pattern `dental:ratelimit:{tenant}:{user}:{endpoint}` and role-based limits.
+  - `plugins/cors.ts` and `plugins/websocket.ts`.
+  - Wrapped shared plugins/middleware using `fastify-plugin` to avoid encapsulation visibility issues.
+- Added proxy and placeholder routes:
+  - `routes/auth.proxy.ts` -> forwards `/api/v1/auth/*` to auth service.
+  - `routes/users.proxy.ts` -> forwards `/api/v1/users/*` to users service (auth-protected).
+  - `routes/patients.proxy.ts` placeholder with auth + 501 response.
+  - `routes/voice.proxy.ts` websocket placeholder route.
+  - Fixed proxy path rewriting to strip `/api/v1/{service}` prefixes correctly.
+- Added comprehensive gateway tests under `apps/api-gateway/src/__tests__`:
+  - `index.test.ts` for health, auth protection, proxy forwarding, upstream error contract, CORS route registration, websocket route registration.
+  - `auth-plugin.test.ts` for missing/valid token behavior.
+  - `tenant-resolver.test.ts` for JWT claim extraction behavior.
+  - `rate-limit-plugin.test.ts` for `429` enforcement and Redis-unavailable fallback behavior.
 
 ## Validation
 
-- `pnpm --filter @saas/auth test:unit`
-- `TEST_TENANT_ID=11111111-1111-4111-8111-111111111111 pnpm --filter @saas/auth test:integration`
-- `TEST_TENANT_ID=11111111-1111-4111-8111-111111111111 pnpm --filter @saas/auth test:contract`
-- `TEST_TENANT_ID=11111111-1111-4111-8111-111111111111 pnpm --filter @saas/auth test:all`
+- `pnpm --filter @saas/api-gateway test`
+- `pnpm --filter @saas/api-gateway typecheck`
+- `pnpm --filter @saas/api-gateway build`
