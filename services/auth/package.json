@@ -13,7 +13,10 @@
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run",
+    "test:integration": "RUN_INTEGRATION_TESTS=true vitest run src/__tests__/integration/auth.integration.test.ts",
+    "test:contract": "RUN_INTEGRATION_TESTS=true vitest run src/__tests__/integration/auth.contract.test.ts",
+    "test:all": "pnpm test:unit && pnpm test:integration && pnpm test:contract"
   },
   "dependencies": {
     "@saas/config": "workspace:*",

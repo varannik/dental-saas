@@ -1,34 +1,31 @@
 # Integration Tests
 
-API and service integration tests.
+Cross-service integration tests only.
 
 ## Structure
 
 ```
 integration/
-├── api/
-│   ├── auth.test.ts
-│   ├── users.test.ts
-│   └── billing.test.ts
-├── services/
-│   └── stripe.test.ts
-├── helpers/
-│   ├── api-client.ts
-│   └── database.ts
-└── setup.ts
+├── api/            # tests that require multiple services together
+├── services/       # external-provider integration tests spanning services
+└── README.md
 ```
+
+## Ownership Rules
+
+- Service-specific integration/contract tests live with the service code.
+  - Example: auth integration tests live in `services/auth/src/__tests__/integration`.
+- Top-level `tests/integration` is reserved for cross-service scenarios.
 
 ## Running Tests
 
 ```bash
-# Run all integration tests
-pnpm test:integration
+# Service-specific integration tests (example: auth)
+TEST_TENANT_ID=11111111-1111-4111-8111-111111111111 pnpm --filter @saas/auth test:integration
 
-# Run with database setup
-docker-compose -f docker-compose.test.yml up -d
-pnpm test:integration
+# Service-specific contract tests (example: auth)
+TEST_TENANT_ID=11111111-1111-4111-8111-111111111111 pnpm --filter @saas/auth test:contract
 
-# Run specific test file
-pnpm test:integration api/auth.test.ts
+# Cross-service integration tests (top-level)
+pnpm test:integration
 ```
-
