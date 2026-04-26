@@ -1,39 +1,41 @@
-feat(api-gateway): scaffold gateway app with proxy and security plugins
+feat(users): add user service APIs with comprehensive tests
 
-Add the API Gateway app for Week 4 with Fastify-based proxy routes, shared middleware/plugins,
-and a comprehensive gateway test suite to validate auth, tenant resolution, rate limiting, and routing behavior.
+Create Week 4 User Service with Fastify routes for users, tenants, locations, and roles,
+plus schema, service, and server-level test coverage to validate core behavior.
 
 ## What Changed
 
-- Created new workspace app `@saas/api-gateway`:
-  - Added `apps/api-gateway/package.json` with scripts for `dev`, `build`, `start`, `typecheck`, and `test`.
-  - Added `apps/api-gateway/tsconfig.json` and updated app README.
-- Implemented gateway server entry and registration flow:
-  - Added `src/index.ts` with plugin/middleware/route registration.
-  - Added service config defaults (`GATEWAY_HOST`, `GATEWAY_PORT`) and `/health` endpoint.
-  - Added centralized error handler returning `{ error: string }` payloads.
-- Added middleware and plugins:
-  - `middleware/request-id.ts` for request ID propagation.
-  - `middleware/logging.ts` for response logging.
-  - `middleware/tenant-resolver.ts` for JWT claim extraction (`tenantId`, `userId`, `roles`).
-  - `plugins/auth.ts` for JWT authorization checks.
-  - `plugins/rate-limit.ts` with Redis key pattern `dental:ratelimit:{tenant}:{user}:{endpoint}` and role-based limits.
-  - `plugins/cors.ts` and `plugins/websocket.ts`.
-  - Wrapped shared plugins/middleware using `fastify-plugin` to avoid encapsulation visibility issues.
-- Added proxy and placeholder routes:
-  - `routes/auth.proxy.ts` -> forwards `/api/v1/auth/*` to auth service.
-  - `routes/users.proxy.ts` -> forwards `/api/v1/users/*` to users service (auth-protected).
-  - `routes/patients.proxy.ts` placeholder with auth + 501 response.
-  - `routes/voice.proxy.ts` websocket placeholder route.
-  - Fixed proxy path rewriting to strip `/api/v1/{service}` prefixes correctly.
-- Added comprehensive gateway tests under `apps/api-gateway/src/__tests__`:
-  - `index.test.ts` for health, auth protection, proxy forwarding, upstream error contract, CORS route registration, websocket route registration.
-  - `auth-plugin.test.ts` for missing/valid token behavior.
-  - `tenant-resolver.test.ts` for JWT claim extraction behavior.
-  - `rate-limit-plugin.test.ts` for `429` enforcement and Redis-unavailable fallback behavior.
+- Scaffoled new workspace service `@saas/users`:
+  - Added `services/users/package.json` with scripts for `dev`, `build`, `start`, `typecheck`, and `test`.
+  - Added `services/users/tsconfig.json`.
+  - Updated `services/users/README.md` with run/test commands.
+- Implemented users service server entrypoint:
+  - Added `services/users/src/index.ts` with:
+    - `getDefaultUsersServiceConfig()` using `USERS_HOST`/`USERS_PORT` defaults.
+    - `/health` endpoint.
+    - central error handler for validation/runtime errors.
+    - route registration via `registerUserServiceRoutes`.
+- Added route modules under `services/users/src/routes`:
+  - `users.ts` for user CRUD.
+  - `tenants.ts` for tenant list/get/create.
+  - `locations.ts` for location list/create/delete.
+  - `roles.ts` for role list/create/delete.
+  - `index.ts` to register all route groups.
+- Added request validation schemas under `services/users/src/schemas`:
+  - `user.schema.ts`, `tenant.schema.ts`, `location.schema.ts`, `role.schema.ts`.
+- Added service layer modules under `services/users/src/services`:
+  - `user.service.ts` (list/get/create/update/delete, duplicate email guard, optional user-tenant link).
+  - `tenant.service.ts` (list/create/get).
+  - `location.service.ts` (list/create/delete).
+  - `role.service.ts` (list/create/delete, permission-key mapping to `role_permissions`).
+- Expanded test suite under `services/users/src/__tests__`:
+  - `schemas.test.ts` for schema-level validation/defaults.
+  - `routes.users.test.ts`, `routes.tenants.test.ts`, `routes.locations.test.ts`, `routes.roles.test.ts` for route behavior and status codes.
+  - `user.service.test.ts`, `tenant.service.test.ts`, `location.service.test.ts`, `role.service.test.ts` for service logic with mocked DB/Drizzle dependencies.
+  - `index.test.ts` for `/health` and server-level error contract behavior.
 
 ## Validation
 
-- `pnpm --filter @saas/api-gateway test`
-- `pnpm --filter @saas/api-gateway typecheck`
-- `pnpm --filter @saas/api-gateway build`
+- `pnpm --filter @saas/users test`
+- `pnpm --filter @saas/users typecheck`
+- `pnpm --filter @saas/users build`
