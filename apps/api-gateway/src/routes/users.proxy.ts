@@ -19,8 +19,9 @@ export const usersProxyRoute: FastifyPluginAsync = async (app): Promise<void> =>
       typeof request.headers['x-request-id'] === 'string'
         ? request.headers['x-request-id']
         : undefined;
+    const contentTypeHeader = request.headers['content-type'];
     const headers: Record<string, string> = {
-      'content-type': request.headers['content-type'] ?? 'application/json',
+      ...(typeof contentTypeHeader === 'string' ? { 'content-type': contentTypeHeader } : {}),
       ...(request.headers.authorization ? { authorization: request.headers.authorization } : {}),
       ...(requestIdHeader ? { 'x-request-id': requestIdHeader } : {}),
     };
@@ -41,6 +42,7 @@ export const usersProxyRoute: FastifyPluginAsync = async (app): Promise<void> =>
     return reply.send(await response.text());
   };
 
+  app.all('/users', proxyRequest);
   app.all('/users/*', proxyRequest);
   app.all('/tenants', proxyRequest);
   app.all('/tenants/*', proxyRequest);

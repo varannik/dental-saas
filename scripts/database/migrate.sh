@@ -82,10 +82,19 @@ if [ "$ENVIRONMENT" = "local" ]; then
     -U postgres \
     -d dental_saas \
     -t -A \
-    -c "select to_regclass('public.__drizzle_migrations');" | xargs)
+    -c "select to_regclass('drizzle.__drizzle_migrations');" | xargs)
 
-  if [ "$migrations_table" != "__drizzle_migrations" ]; then
-    log_warning "__drizzle_migrations table not found; falling back to schema verification checks"
+  if [ "$migrations_table" != "drizzle.__drizzle_migrations" ]; then
+    log_warning "drizzle.__drizzle_migrations table not found; falling back to schema verification checks"
+  fi
+
+  migrations_count=""
+  if [ "$migrations_table" = "drizzle.__drizzle_migrations" ]; then
+    migrations_count=$(docker exec dental-saas-postgres psql \
+      -U postgres \
+      -d dental_saas \
+      -t -A \
+      -c "select count(*) from drizzle.__drizzle_migrations;" | xargs)
   fi
 
   public_table_count=$(docker exec dental-saas-postgres psql \
@@ -132,7 +141,11 @@ if [ "$ENVIRONMENT" = "local" ]; then
     exit 1
   fi
 
-  log_success "Migration verification passed (users table present, public tables: $public_table_count)"
+  if [ -n "$migrations_count" ]; then
+    log_success "Migration verification passed (ledger rows: $migrations_count, users table present, public tables: $public_table_count)"
+  else
+    log_success "Migration verification passed (users table present, public tables: $public_table_count)"
+  fi
 fi
 
 print_separator

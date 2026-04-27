@@ -17,8 +17,9 @@ export const authProxyRoute: FastifyPluginAsync = async (app): Promise<void> => 
       typeof request.headers['x-request-id'] === 'string'
         ? request.headers['x-request-id']
         : undefined;
+    const contentTypeHeader = request.headers['content-type'];
     const headers: Record<string, string> = {
-      'content-type': request.headers['content-type'] ?? 'application/json',
+      ...(typeof contentTypeHeader === 'string' ? { 'content-type': contentTypeHeader } : {}),
       ...(request.headers.authorization ? { authorization: request.headers.authorization } : {}),
       ...(requestIdHeader ? { 'x-request-id': requestIdHeader } : {}),
     };

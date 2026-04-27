@@ -10,6 +10,10 @@ vi.mock('../../../../packages/config/src/database.js', () => ({
 }));
 vi.mock('drizzle-orm', () => ({
   eq: mocks.eq,
+  sql: vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({
+    strings: [...strings],
+    values,
+  })),
 }));
 vi.mock('../../../../packages/config/src/schema/tenancy.js', () => ({
   tenants: {

@@ -1,33 +1,28 @@
-chore(dev): harden local service orchestration and gateway smoke flow
+fix(gateway): proxy headers and users path; extend smoke CRUD; migration ledger check
 
-Make local full-stack verification deterministic by improving migration/seed/start/smoke scripts,
-stabilizing gateway upstream resolution, and fixing tenant creation behavior used by gateway tests.
+Align gateway forwarding with Fastify upstream expectations, exercise full user CRUD through the gateway
+in smoke checks, verify Drizzle’s migration ledger in the correct schema, and keep users service unit
+tests green after tenant inserts started using `sql` fragments.
 
-## What Changed
+## What changed
 
-- Strengthened database automation:
-  - Updated `scripts/database/migrate.sh` to run real Drizzle migrations, verify tables, and apply SQL fallback when schema is missing.
-  - Updated `scripts/database/seed.sh` to ensure required local tenant data exists idempotently and clean up integration test artifacts.
-- Added and wired gateway smoke coverage:
-  - Added `scripts/test/gateway-smoke-checks.sh` to run register/login/me/create-tenant flow through API gateway.
-  - Added `make gateway-smoke-checks` target in `Makefile`.
-  - Enhanced smoke failure output to print response bodies for faster debugging.
-- Improved local service startup reliability:
-  - Updated `scripts/dev/start-services.sh` to validate Docker/Postgres/Redis readiness, free conflicting ports, start auth/users/gateway with logs and pid files, and run health checks.
-  - Passed explicit upstream env vars to gateway startup to avoid ambiguous local host resolution.
-- Stabilized gateway proxy/runtime defaults:
-  - Updated auth/users proxy defaults in `apps/api-gateway/src/routes/auth.proxy.ts` and `apps/api-gateway/src/routes/users.proxy.ts` to loopback-safe upstreams.
-  - Updated Redis fallback in `apps/api-gateway/src/plugins/rate-limit.ts` for consistent local connectivity.
-  - Updated gateway tests in `apps/api-gateway/src/__tests__/index.test.ts` for tenant proxy behavior.
-- Fixed users tenant creation path used by smoke checks:
-  - Updated `services/users/src/services/tenant.service.ts` to serialize locale/language arrays safely for DB insert values.
-- Refined local infra wiring:
-  - Updated `scripts/lib/docker.sh` and `infrastructure/docker/docker-compose.yml` for improved local dependency readiness and consistency.
-  - Added `services/users/Dockerfile` and aligned compose/service config usage.
+- API gateway proxies (`apps/api-gateway/src/routes/auth.proxy.ts`, `users.proxy.ts`):
+  - Forward `Content-Type` only when the client sent it, so body-less methods (for example `DELETE`)
+    are not forced to `application/json` and no longer trigger empty-body JSON parse errors upstream.
+  - Register `GET|POST|… /api/v1/users` on `/users` in addition to `/users/*`, so the collection route
+    is proxied (previously only `/users/...` matched).
+- Gateway smoke script (`scripts/test/gateway-smoke-checks.sh`):
+  - After register/login/me/create-tenant, run user CRUD through the gateway: create, list (assert id
+    present), get by id, patch, delete; add `http_patch_json` / `http_delete_auth`; widen DB cleanup
+    to remove both the auth smoke user and the CRUD user email.
+- Local migration verification (`scripts/database/migrate.sh`):
+  - Check `drizzle.__drizzle_migrations` (not `public`), optionally report ledger row count, and keep
+    table-count checks as fallback messaging.
+- Users tests (`services/users/src/__tests__/tenant.service.test.ts`):
+  - Mock `sql` on `drizzle-orm` so `createTenant` unit tests match the real service.
 
 ## Validation
 
-- `pnpm --filter @saas/api-gateway typecheck`
-- `pnpm --filter @saas/users typecheck`
-- `make start-services`
-- `make gateway-smoke-checks` (full flow passed)
+- `pnpm --filter @saas/users exec vitest run`
+- `pnpm --filter @saas/api-gateway exec vitest run` (if you touch gateway tests in the same change)
+- `make gateway-smoke-checks` (with Docker Postgres/Redis, migrations applied, and services running)
