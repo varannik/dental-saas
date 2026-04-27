@@ -1,9 +1,9 @@
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 
-const USERS_SERVICE_BASE_URL = process.env.USERS_SERVICE_URL ?? 'http://localhost:4002';
+const USERS_SERVICE_BASE_URL = process.env.USERS_SERVICE_URL ?? 'http://127.0.0.1:4002';
 
 export const usersProxyRoute: FastifyPluginAsync = async (app): Promise<void> => {
-  app.all('/users/*', async (request, reply) => {
+  const proxyRequest = async (request: FastifyRequest, reply: FastifyReply) => {
     app.requireAuth(request);
 
     await app.rateLimitGuard({
@@ -13,8 +13,8 @@ export const usersProxyRoute: FastifyPluginAsync = async (app): Promise<void> =>
       role: request.roles?.includes('ADMIN') ? 'admin' : 'authenticated',
     });
 
-    const path = request.url.replace(/^\/api\/v1\/users/, '');
-    const targetUrl = `${USERS_SERVICE_BASE_URL}/users${path}`;
+    const path = request.url.replace(/^\/api\/v1/, '');
+    const targetUrl = `${USERS_SERVICE_BASE_URL}${path}`;
     const requestIdHeader =
       typeof request.headers['x-request-id'] === 'string'
         ? request.headers['x-request-id']
@@ -39,5 +39,9 @@ export const usersProxyRoute: FastifyPluginAsync = async (app): Promise<void> =>
     const contentType = response.headers.get('content-type') ?? 'application/json';
     reply.code(response.status).header('content-type', contentType);
     return reply.send(await response.text());
-  });
+  };
+
+  app.all('/users/*', proxyRequest);
+  app.all('/tenants', proxyRequest);
+  app.all('/tenants/*', proxyRequest);
 };

@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { z } from 'zod';
 
 import { createDatabaseConnection } from '../../../../packages/config/src/database.js';
@@ -14,6 +14,9 @@ export async function listTenants(): Promise<unknown[]> {
 
 export async function createTenant(input: CreateTenantInput): Promise<unknown> {
   const db = createDatabaseConnection();
+  const supportedLocales = input.supportedLocales ?? ['en-US'];
+  const supportedLanguages = input.supportedLanguages ?? ['en'];
+
   const inserted = await db
     .insert(tenants)
     .values({
@@ -21,8 +24,8 @@ export async function createTenant(input: CreateTenantInput): Promise<unknown> {
       type: input.type,
       primaryRegion: input.primaryRegion ?? 'eu-central-1',
       defaultLocale: input.defaultLocale ?? 'en-US',
-      supportedLocales: input.supportedLocales ?? ['en-US'],
-      supportedLanguages: input.supportedLanguages ?? ['en'],
+      supportedLocales: sql`${JSON.stringify(supportedLocales)}::jsonb`,
+      supportedLanguages: sql`${JSON.stringify(supportedLanguages)}::jsonb`,
       partitionStrategy: input.partitionStrategy ?? 'ROW_LEVEL',
       status: input.status ?? 'ACTIVE',
     })

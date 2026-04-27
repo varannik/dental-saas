@@ -174,6 +174,9 @@ dev-mobile: ## Start mobile app (Expo)
 dev-services: ## Start all microservices
 	@$(SCRIPTS_DIR)/dev/start-services.sh
 
+start-services: ## Start auth, users, and gateway services
+	@bash $(SCRIPTS_DIR)/dev/start-services.sh
+
 ##@ Code Quality
 
 lint: ## Run linter on all packages
@@ -210,6 +213,9 @@ test-coverage: ## Run tests with coverage report
 
 test-watch: ## Run tests in watch mode
 	@$(SCRIPTS_DIR)/test/run-watch.sh
+
+gateway-smoke-checks: ## Run gateway full-flow smoke checks
+	@bash $(SCRIPTS_DIR)/test/gateway-smoke-checks.sh local
 
 ##@ Build & Package
 

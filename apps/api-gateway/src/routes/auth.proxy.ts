@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-const AUTH_SERVICE_BASE_URL = process.env.AUTH_SERVICE_URL ?? 'http://localhost:4001';
+const AUTH_SERVICE_BASE_URL = process.env.AUTH_SERVICE_URL ?? 'http://127.0.0.1:4001';
 
 export const authProxyRoute: FastifyPluginAsync = async (app): Promise<void> => {
   app.all('/auth/*', async (request, reply) => {

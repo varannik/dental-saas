@@ -1,41 +1,33 @@
-feat(users): add user service APIs with comprehensive tests
+chore(dev): harden local service orchestration and gateway smoke flow
 
-Create Week 4 User Service with Fastify routes for users, tenants, locations, and roles,
-plus schema, service, and server-level test coverage to validate core behavior.
+Make local full-stack verification deterministic by improving migration/seed/start/smoke scripts,
+stabilizing gateway upstream resolution, and fixing tenant creation behavior used by gateway tests.
 
 ## What Changed
 
-- Scaffoled new workspace service `@saas/users`:
-  - Added `services/users/package.json` with scripts for `dev`, `build`, `start`, `typecheck`, and `test`.
-  - Added `services/users/tsconfig.json`.
-  - Updated `services/users/README.md` with run/test commands.
-- Implemented users service server entrypoint:
-  - Added `services/users/src/index.ts` with:
-    - `getDefaultUsersServiceConfig()` using `USERS_HOST`/`USERS_PORT` defaults.
-    - `/health` endpoint.
-    - central error handler for validation/runtime errors.
-    - route registration via `registerUserServiceRoutes`.
-- Added route modules under `services/users/src/routes`:
-  - `users.ts` for user CRUD.
-  - `tenants.ts` for tenant list/get/create.
-  - `locations.ts` for location list/create/delete.
-  - `roles.ts` for role list/create/delete.
-  - `index.ts` to register all route groups.
-- Added request validation schemas under `services/users/src/schemas`:
-  - `user.schema.ts`, `tenant.schema.ts`, `location.schema.ts`, `role.schema.ts`.
-- Added service layer modules under `services/users/src/services`:
-  - `user.service.ts` (list/get/create/update/delete, duplicate email guard, optional user-tenant link).
-  - `tenant.service.ts` (list/create/get).
-  - `location.service.ts` (list/create/delete).
-  - `role.service.ts` (list/create/delete, permission-key mapping to `role_permissions`).
-- Expanded test suite under `services/users/src/__tests__`:
-  - `schemas.test.ts` for schema-level validation/defaults.
-  - `routes.users.test.ts`, `routes.tenants.test.ts`, `routes.locations.test.ts`, `routes.roles.test.ts` for route behavior and status codes.
-  - `user.service.test.ts`, `tenant.service.test.ts`, `location.service.test.ts`, `role.service.test.ts` for service logic with mocked DB/Drizzle dependencies.
-  - `index.test.ts` for `/health` and server-level error contract behavior.
+- Strengthened database automation:
+  - Updated `scripts/database/migrate.sh` to run real Drizzle migrations, verify tables, and apply SQL fallback when schema is missing.
+  - Updated `scripts/database/seed.sh` to ensure required local tenant data exists idempotently and clean up integration test artifacts.
+- Added and wired gateway smoke coverage:
+  - Added `scripts/test/gateway-smoke-checks.sh` to run register/login/me/create-tenant flow through API gateway.
+  - Added `make gateway-smoke-checks` target in `Makefile`.
+  - Enhanced smoke failure output to print response bodies for faster debugging.
+- Improved local service startup reliability:
+  - Updated `scripts/dev/start-services.sh` to validate Docker/Postgres/Redis readiness, free conflicting ports, start auth/users/gateway with logs and pid files, and run health checks.
+  - Passed explicit upstream env vars to gateway startup to avoid ambiguous local host resolution.
+- Stabilized gateway proxy/runtime defaults:
+  - Updated auth/users proxy defaults in `apps/api-gateway/src/routes/auth.proxy.ts` and `apps/api-gateway/src/routes/users.proxy.ts` to loopback-safe upstreams.
+  - Updated Redis fallback in `apps/api-gateway/src/plugins/rate-limit.ts` for consistent local connectivity.
+  - Updated gateway tests in `apps/api-gateway/src/__tests__/index.test.ts` for tenant proxy behavior.
+- Fixed users tenant creation path used by smoke checks:
+  - Updated `services/users/src/services/tenant.service.ts` to serialize locale/language arrays safely for DB insert values.
+- Refined local infra wiring:
+  - Updated `scripts/lib/docker.sh` and `infrastructure/docker/docker-compose.yml` for improved local dependency readiness and consistency.
+  - Added `services/users/Dockerfile` and aligned compose/service config usage.
 
 ## Validation
 
-- `pnpm --filter @saas/users test`
+- `pnpm --filter @saas/api-gateway typecheck`
 - `pnpm --filter @saas/users typecheck`
-- `pnpm --filter @saas/users build`
+- `make start-services`
+- `make gateway-smoke-checks` (full flow passed)

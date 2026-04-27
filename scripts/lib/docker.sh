@@ -69,9 +69,28 @@ container_exists() {
 # Start Docker containers
 start_containers() {
   local compose_cmd=$(get_compose_cmd)
+  local max_attempts=3
+  local attempt=1
+  local retry_delay=5
   log_info "Starting Docker containers..."
-  $compose_cmd -f "$COMPOSE_FILE" up -d
-  log_success "Docker containers started"
+
+  while [ $attempt -le $max_attempts ]; do
+    if $compose_cmd -f "$COMPOSE_FILE" up -d --build; then
+      log_success "Docker containers started"
+      return 0
+    fi
+
+    if [ $attempt -lt $max_attempts ]; then
+      log_warning "Docker startup failed (attempt $attempt/$max_attempts). Retrying in ${retry_delay}s..."
+      sleep "$retry_delay"
+      retry_delay=$((retry_delay * 2))
+    fi
+
+    attempt=$((attempt + 1))
+  done
+
+  log_error "Docker containers failed to start after $max_attempts attempts"
+  return 1
 }
 
 # Stop Docker containers

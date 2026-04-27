@@ -39,6 +39,19 @@ case "$ENVIRONMENT" in
     fi
 
     wait_for_postgres "dental-saas-postgres"
+
+    # Local default keeps make/db flow deterministic for developers.
+    if [ -z "${DATABASE_URL:-}" ]; then
+      export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/dental_saas"
+      log_info "DATABASE_URL not set. Using local default: $DATABASE_URL"
+    fi
+
+    log_step "Ensuring required PostgreSQL extensions (pgcrypto, vector)..."
+    docker exec dental-saas-postgres psql \
+      -U postgres \
+      -d dental_saas \
+      -v ON_ERROR_STOP=1 \
+      -c "CREATE EXTENSION IF NOT EXISTS pgcrypto; CREATE EXTENSION IF NOT EXISTS vector;" >/dev/null
     ;;
 
   staging|production)
@@ -51,9 +64,76 @@ case "$ENVIRONMENT" in
     ;;
 esac
 
-log_step "Running migration pipeline via pnpm..."
+log_step "Running Drizzle migrations..."
 cd "$PROJECT_ROOT"
-NODE_ENV="$ENVIRONMENT" pnpm run db:migrate
+NODE_ENV="$ENVIRONMENT" pnpm exec drizzle-kit migrate --config=drizzle.config.ts
+
+if [ "$ENVIRONMENT" = "local" ]; then
+  verify_local_schema() {
+    docker exec dental-saas-postgres psql \
+      -U postgres \
+      -d dental_saas \
+      -t -A \
+      -c "select to_regclass('public.users');" | xargs
+  }
+
+  log_step "Verifying migration state..."
+  migrations_table=$(docker exec dental-saas-postgres psql \
+    -U postgres \
+    -d dental_saas \
+    -t -A \
+    -c "select to_regclass('public.__drizzle_migrations');" | xargs)
+
+  if [ "$migrations_table" != "__drizzle_migrations" ]; then
+    log_warning "__drizzle_migrations table not found; falling back to schema verification checks"
+  fi
+
+  public_table_count=$(docker exec dental-saas-postgres psql \
+    -U postgres \
+    -d dental_saas \
+    -t -A \
+    -c "select count(*) from information_schema.tables where table_schema='public';" | xargs)
+
+  users_table=$(verify_local_schema)
+
+  if [ "$users_table" != "users" ]; then
+    log_warning "Schema is still missing required tables after drizzle migrate; applying SQL fallback from ./drizzle/*.sql"
+
+    shopt -s nullglob
+    migration_files=("$PROJECT_ROOT"/drizzle/*.sql)
+    if [ "${#migration_files[@]}" -eq 0 ]; then
+      log_error "Fallback failed: no migration SQL files found in ./drizzle"
+      exit 1
+    fi
+
+    for migration_file in "${migration_files[@]}"; do
+      log_info "Applying fallback migration: $(basename "$migration_file")"
+      docker exec -i dental-saas-postgres psql \
+        -U postgres \
+        -d dental_saas \
+        -v ON_ERROR_STOP=1 < "$migration_file" >/dev/null
+    done
+
+    users_table=$(verify_local_schema)
+    public_table_count=$(docker exec dental-saas-postgres psql \
+      -U postgres \
+      -d dental_saas \
+      -t -A \
+      -c "select count(*) from information_schema.tables where table_schema='public';" | xargs)
+  fi
+
+  if [ "$users_table" != "users" ]; then
+    log_error "Migration verification failed: required table 'users' is missing"
+    exit 1
+  fi
+
+  if [ "${public_table_count:-0}" -lt 1 ]; then
+    log_error "Migration verification failed: no public tables found"
+    exit 1
+  fi
+
+  log_success "Migration verification passed (users table present, public tables: $public_table_count)"
+fi
 
 print_separator
 log_success "Database migrations completed for $ENVIRONMENT"

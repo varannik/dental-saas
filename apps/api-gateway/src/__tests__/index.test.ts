@@ -160,6 +160,36 @@ describe('api-gateway', () => {
     expect(response.json()).toEqual({ profile: true });
   });
 
+  it('proxies tenant creation route to users service', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ tenant: { id: 't1' } }), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const token = issueToken(['ADMIN']);
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tenants',
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+      payload: {
+        name: 'Gateway Smile Clinic',
+        type: 'SOLO_PRACTICE',
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://localhost:4002/tenants');
+    expect(options.method).toBe('POST');
+    expect(response.json()).toEqual({ tenant: { id: 't1' } });
+  });
+
   it('registers websocket voice route', () => {
     const routes = app.printRoutes();
     expect(routes).toContain('voice/ws (GET, HEAD)');

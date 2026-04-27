@@ -10,6 +10,7 @@ services:
       context: ../../
       dockerfile: services/auth/Dockerfile
     image: dental-saas-auth:local
+    pull_policy: never
     container_name: dental-saas-auth
     restart: unless-stopped
     env_file:
@@ -19,6 +20,30 @@ services:
       AUTH_PORT: 4001
     ports:
       - "4001:4001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - dental-saas-network
+
+  # Users Service
+  users:
+    build:
+      context: ../../
+      dockerfile: services/users/Dockerfile
+    image: dental-saas-users:local
+    pull_policy: never
+    container_name: dental-saas-users
+    restart: unless-stopped
+    env_file:
+      - ../../.env
+    environment:
+      USERS_HOST: 0.0.0.0
+      USERS_PORT: 4002
+    ports:
+      - "4002:4002"
     depends_on:
       postgres:
         condition: service_healthy
