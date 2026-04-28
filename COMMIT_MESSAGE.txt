@@ -1,28 +1,36 @@
-fix(gateway): proxy headers and users path; extend smoke CRUD; migration ledger check
+feat(clinical): patients API, gateway proxy, Docker, and gateway smoke coverage
 
-Align gateway forwarding with Fastify upstream expectations, exercise full user CRUD through the gateway
-in smoke checks, verify Drizzle’s migration ledger in the correct schema, and keep users service unit
-tests green after tenant inserts started using `sql` fragments.
+Introduce the @saas/clinical service (tenant-scoped patients CRUD, list/search, history, soft delete)
+behind JWT, wire the API gateway to forward /api/v1/patients* to the clinical service, add a compose
+service and local dev startup, and extend gateway smoke checks with a clear pass summary and optional
+verbose JSON. Phase 2 status doc (`status/08-…`) updated to match.
 
 ## What changed
 
-- API gateway proxies (`apps/api-gateway/src/routes/auth.proxy.ts`, `users.proxy.ts`):
-  - Forward `Content-Type` only when the client sent it, so body-less methods (for example `DELETE`)
-    are not forced to `application/json` and no longer trigger empty-body JSON parse errors upstream.
-  - Register `GET|POST|… /api/v1/users` on `/users` in addition to `/users/*`, so the collection route
-    is proxied (previously only `/users/...` matched).
-- Gateway smoke script (`scripts/test/gateway-smoke-checks.sh`):
-  - After register/login/me/create-tenant, run user CRUD through the gateway: create, list (assert id
-    present), get by id, patch, delete; add `http_patch_json` / `http_delete_auth`; widen DB cleanup
-    to remove both the auth smoke user and the CRUD user email.
-- Local migration verification (`scripts/database/migrate.sh`):
-  - Check `drizzle.__drizzle_migrations` (not `public`), optionally report ledger row count, and keep
-    table-count checks as fallback messaging.
-- Users tests (`services/users/src/__tests__/tenant.service.test.ts`):
-  - Mock `sql` on `drizzle-orm` so `createTenant` unit tests match the real service.
+- **Clinical service** (`services/clinical/`):
+  - Fastify app on port 4003, routes under `/patients`, Drizzle via `@saas/config`, audit hooks, Vitest.
+  - `tsconfig` uses `rootDir: "src"` and package imports from `@saas/config` so `dist/index.js` is the
+    runtime entry.
+  - **Dockerfile**: build `@saas/config` then clinical; runtime copies `packages/config` so
+    `@saas/config` resolves in the image.
+- **API gateway** (`apps/api-gateway/src/routes/patients.proxy.ts`):
+  - Proxies `GET|POST|… /api/v1/patients` and `/patients/*` to `CLINICAL_SERVICE_URL` (default
+    `http://127.0.0.1:4003`), forwarding auth, optional `Content-Type`, and `x-request-id`.
+  - Tests (`index.test.ts`): patients route exercises real proxy behavior via `fetch` mock; upstream
+    URL expectations aligned with `127.0.0.1` defaults.
+- **Docker Compose** (`infrastructure/docker/docker-compose.yml`): `clinical` service, image
+  `dental-saas-clinical:local`, port 4003, depends on healthy Postgres.
+- **Local dev** (`scripts/dev/start-services.sh`): starts clinical on 4003 with `CLINICAL_SERVICE_URL`
+  passed into the gateway; stops `dental-saas-clinical` container when present to avoid port clashes.
+- **Gateway smoke** (`scripts/test/gateway-smoke-checks.sh`): patient flows through the gateway (create,
+  list, get, history, delete), assertion checklist + correlation line; documents upstream URLs and
+  `.run/logs` vs Docker; `SMOKE_VERBOSE=1` dumps full JSON bodies.
+- **Makefile**: help strings for `start-services` and `gateway-smoke-checks`.
 
 ## Validation
 
-- `pnpm --filter @saas/users exec vitest run`
-- `pnpm --filter @saas/api-gateway exec vitest run` (if you touch gateway tests in the same change)
-- `make gateway-smoke-checks` (with Docker Postgres/Redis, migrations applied, and services running)
+- `pnpm --filter @saas/config build && pnpm --filter @saas/clinical build`
+- `pnpm --filter @saas/clinical test`
+- `pnpm --filter @saas/api-gateway exec vitest run`
+- With Postgres/Redis and `make start-services`: `make gateway-smoke-checks`
+- Optional: `docker compose build clinical` and run container against `.env`

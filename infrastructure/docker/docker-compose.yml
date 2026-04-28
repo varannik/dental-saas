@@ -52,6 +52,28 @@ services:
     networks:
       - dental-saas-network
 
+  # Clinical Service (patients, encounters, notes)
+  clinical:
+    build:
+      context: ../../
+      dockerfile: services/clinical/Dockerfile
+    image: dental-saas-clinical:local
+    pull_policy: never
+    container_name: dental-saas-clinical
+    restart: unless-stopped
+    env_file:
+      - ../../.env
+    environment:
+      CLINICAL_HOST: 0.0.0.0
+      CLINICAL_PORT: 4003
+    ports:
+      - "4003:4003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dental-saas-network
+
   # PostgreSQL Database
   postgres:
     image: pgvector/pgvector:pg16

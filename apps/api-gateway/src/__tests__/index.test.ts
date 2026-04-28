@@ -54,26 +54,36 @@ describe('api-gateway', () => {
   it('rejects protected patients route when token is missing', async () => {
     const response = await app.inject({
       method: 'GET',
-      url: '/api/v1/patients/list',
+      url: '/api/v1/patients',
     });
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toEqual({ error: 'Missing bearer token.' });
   });
 
-  it('accepts valid token and returns patients placeholder response', async () => {
+  it('proxies patients route to clinical service when token is valid', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ patients: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
     const response = await app.inject({
       method: 'GET',
-      url: '/api/v1/patients/list',
+      url: '/api/v1/patients',
       headers: {
         authorization: `Bearer ${issueToken(['ADMIN'])}`,
       },
     });
 
-    expect(response.statusCode).toBe(501);
-    expect(response.json()).toEqual({
-      message: 'Patients proxy route not implemented yet.',
-    });
+    expect(response.statusCode).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://127.0.0.1:4003/patients');
+    expect(options.method).toBe('GET');
+    expect(response.json()).toEqual({ patients: [] });
   });
 
   it('proxies auth route to auth service', async () => {
@@ -99,7 +109,7 @@ describe('api-gateway', () => {
     expect(response.statusCode).toBe(201);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe('http://localhost:4001/auth/register');
+    expect(url).toBe('http://127.0.0.1:4001/auth/register');
     expect(options.method).toBe('POST');
     expect(options.body).toBe(JSON.stringify({ email: 'test@local' }));
     expect((options.headers as Record<string, string>)['x-request-id']).toBe('req-123');
@@ -156,7 +166,7 @@ describe('api-gateway', () => {
     expect(response.statusCode).toBe(200);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe('http://localhost:4002/users/profile');
+    expect(url).toBe('http://127.0.0.1:4002/users/profile');
     expect(response.json()).toEqual({ profile: true });
   });
 
@@ -185,7 +195,7 @@ describe('api-gateway', () => {
     expect(response.statusCode).toBe(201);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe('http://localhost:4002/tenants');
+    expect(url).toBe('http://127.0.0.1:4002/tenants');
     expect(options.method).toBe('POST');
     expect(response.json()).toEqual({ tenant: { id: 't1' } });
   });

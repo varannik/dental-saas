@@ -1,8 +1,14 @@
-# Step-by-Step: Phase 2 — Dental Core
+# Step-by-Step: Phase 2 - Dental Core
 
-**Goal:** Patient management, dental charting, clinical notes via API + working web UI.
+**Objective:** Deliver production-ready patient management, dental charting, and clinical note workflows across API and web UI.
 
-**Time Estimate:** 4 weeks (Weeks 5-8)
+**Duration:** 4 weeks (Weeks 5-8)
+
+**Primary Outcomes:**
+
+- API endpoints for patients, encounters, clinical notes, and dental charting are implemented, validated, and tested.
+- Core clinical workflows are available in the web UI and integrated with backend APIs.
+- Security, tenant isolation, and auditability requirements are enforced for all clinical data operations.
 
 ---
 
@@ -10,44 +16,78 @@
 
 ### Step 1: Create Clinical Service
 
-This is the core service handling patients, encounters, and clinical notes. It can either be a new service or added to the users service.
+Create a dedicated `services/clinical` microservice (do not merge into `users`) to keep bounded contexts clean and reduce cross-domain coupling.
 
-**Recommended:** Create a dedicated `services/clinical` service.
+**Why this is best practice**
+
+- Separation of concerns: identity/auth remains in `users`, clinical workflows remain in `clinical`.
+- Safer scaling: clinical traffic and release cadence can evolve independently.
+- Better compliance posture: clinical data controls and audits are isolated at service boundary.
+
+**Implementation standards (must-have)**
+
+- Tenant isolation on every read/write path using `tenant_id` from trusted auth context.
+- Schema-first validation at API boundary (Zod or equivalent), with typed DTOs internally.
+- Idempotency for create/mutate endpoints that can be retried by clients.
+- Structured logging with correlation IDs and audit events for clinical mutations.
+- Soft-delete strategy for patient records and immutable audit trail for clinical notes.
+- Contract and integration tests for all critical routes before UI integration.
+
+**Service bootstrap**
 
 ```bash
-mkdir -p services/clinical/src/{routes,services,schemas,__tests__}
-cd services/clinical && pnpm init
+mkdir -p services/clinical/src/{routes,services,schemas,middleware,lib,__tests__}
+mkdir -p services/clinical/src/__tests__/{integration,unit}
+cd services/clinical
+pnpm init
 ```
 
-**File structure:**
+**Recommended structure**
 
 ```
 services/clinical/src/
 ├── index.ts
+├── app.ts                       # Express/Fastify app wiring
 ├── routes/
-│   ├── patients.ts           # Patient CRUD + search
-│   ├── encounters.ts         # Encounter lifecycle
-│   ├── clinical-notes.ts     # SOAP notes
-│   ├── dental-chart.ts       # Tooth-level charting
-│   └── treatment-plans.ts    # Treatment plan management
+│   ├── patients.ts              # Patient CRUD + search
+│   ├── encounters.ts            # Encounter lifecycle
+│   ├── clinical-notes.ts        # SOAP/progress notes
+│   ├── dental-chart.ts          # Tooth-level charting
+│   └── treatment-plans.ts       # Treatment plan management
 ├── services/
-│   ├── patient.service.ts    # Patient business logic
-│   ├── encounter.service.ts  # Encounter state machine
-│   ├── note.service.ts       # Note creation/signing
-│   ├── chart.service.ts      # Dental chart updates
-│   └── treatment.service.ts  # Treatment planning
+│   ├── patient.service.ts       # Domain business logic
+│   ├── encounter.service.ts     # Encounter state machine
+│   ├── note.service.ts          # Note create/sign/lock
+│   ├── chart.service.ts         # Chart mutation logic
+│   └── treatment.service.ts     # Treatment plan logic
 ├── schemas/
-│   ├── patient.schema.ts     # Zod validation
+│   ├── patient.schema.ts        # Request/response validation
 │   ├── encounter.schema.ts
 │   ├── note.schema.ts
 │   ├── chart.schema.ts
 │   └── treatment.schema.ts
+├── middleware/
+│   ├── auth-context.ts          # Tenant/user extraction
+│   ├── validate.ts              # Schema validation middleware
+│   └── error-handler.ts         # Unified error mapping
+├── lib/
+│   ├── logger.ts                # Structured logger
+│   ├── audit.ts                 # Audit event publisher
+│   └── db.ts                    # DB client and transaction helpers
 └── __tests__/
-    ├── patient.service.test.ts
-    ├── encounter.service.test.ts
-    └── routes/
-        └── patients.test.ts
+    ├── unit/
+    │   ├── patient.service.test.ts
+    │   └── encounter.service.test.ts
+    └── integration/
+        └── patients.routes.test.ts
 ```
+
+**Definition of done for Step 1**
+
+- Service starts locally with health endpoint and base route registration.
+- Tenant context middleware is enforced globally for protected routes.
+- Validation, error handling, logging, and audit plumbing are wired.
+- Test harness is in place (unit + integration) and green in CI.
 
 ### Step 2: Patient API Endpoints
 

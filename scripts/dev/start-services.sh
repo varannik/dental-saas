@@ -40,11 +40,17 @@ fi
 wait_for_postgres "dental-saas-postgres"
 wait_for_redis "dental-saas-redis"
 
-# docker-compose currently includes auth service, which conflicts with local auth on port 4001.
+# docker-compose may run auth/clinical, which conflict with local dev on 4001/4003.
 if container_running "dental-saas-auth"; then
   log_info "Stopping docker auth container to free port 4001..."
   docker stop dental-saas-auth >/dev/null
   log_success "Stopped dental-saas-auth container"
+fi
+
+if container_running "dental-saas-clinical"; then
+  log_info "Stopping docker clinical container to free port 4003..."
+  docker stop dental-saas-clinical >/dev/null
+  log_success "Stopped dental-saas-clinical container"
 fi
 
 RUN_DIR="$PROJECT_ROOT/.run"
@@ -56,6 +62,7 @@ REDIS_URL=${REDIS_URL:-"redis://127.0.0.1:6379"}
 JWT_SECRET=${JWT_SECRET:-"dev-only-jwt-secret-change-me-immediately"}
 AUTH_SERVICE_URL=${AUTH_SERVICE_URL:-"http://127.0.0.1:4001"}
 USERS_SERVICE_URL=${USERS_SERVICE_URL:-"http://127.0.0.1:4002"}
+CLINICAL_SERVICE_URL=${CLINICAL_SERVICE_URL:-"http://127.0.0.1:4003"}
 
 ensure_port_free() {
   local port="$1"
@@ -111,6 +118,7 @@ start_service() {
 
 ensure_port_free 4001 "Auth service"
 ensure_port_free 4002 "Users service"
+ensure_port_free 4003 "Clinical service"
 ensure_port_free 4000 "API gateway"
 
 start_service \
@@ -126,13 +134,20 @@ start_service \
   "$RUN_DIR/users.pid"
 
 start_service \
+  "clinical service" \
+  "cd \"$PROJECT_ROOT\" && DATABASE_URL=\"$DATABASE_URL\" JWT_SECRET=\"$JWT_SECRET\" JWT_ISSUER=\"${JWT_ISSUER:-dental-saas}\" pnpm --filter @saas/clinical exec tsx src/index.ts" \
+  "$LOG_DIR/clinical.log" \
+  "$RUN_DIR/clinical.pid"
+
+start_service \
   "api gateway" \
-  "cd \"$PROJECT_ROOT\" && JWT_SECRET=\"$JWT_SECRET\" REDIS_URL=\"$REDIS_URL\" AUTH_SERVICE_URL=\"$AUTH_SERVICE_URL\" USERS_SERVICE_URL=\"$USERS_SERVICE_URL\" pnpm --filter @saas/api-gateway exec tsx src/index.ts" \
+  "cd \"$PROJECT_ROOT\" && JWT_SECRET=\"$JWT_SECRET\" REDIS_URL=\"$REDIS_URL\" AUTH_SERVICE_URL=\"$AUTH_SERVICE_URL\" USERS_SERVICE_URL=\"$USERS_SERVICE_URL\" CLINICAL_SERVICE_URL=\"$CLINICAL_SERVICE_URL\" pnpm --filter @saas/api-gateway exec tsx src/index.ts" \
   "$LOG_DIR/gateway.log" \
   "$RUN_DIR/gateway.pid"
 
 wait_for_http "http://localhost:4001/auth/me" "Auth service" "200,401"
 wait_for_http "http://localhost:4002/health" "Users service"
+wait_for_http "http://localhost:4003/health" "Clinical service"
 wait_for_http "http://localhost:4000/health" "API gateway"
 
 print_separator
@@ -140,5 +155,6 @@ log_success "All services are running."
 log_info "Logs:"
 echo "  - $LOG_DIR/auth.log"
 echo "  - $LOG_DIR/users.log"
+echo "  - $LOG_DIR/clinical.log"
 echo "  - $LOG_DIR/gateway.log"
 print_separator
