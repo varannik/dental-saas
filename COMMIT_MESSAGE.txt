@@ -1,36 +1,39 @@
-feat(clinical): patients API, gateway proxy, Docker, and gateway smoke coverage
+feat(clinical): encounters, clinical notes, patient encounter list, and gateway proxies
 
-Introduce the @saas/clinical service (tenant-scoped patients CRUD, list/search, history, soft delete)
-behind JWT, wire the API gateway to forward /api/v1/patients* to the clinical service, add a compose
-service and local dev startup, and extend gateway smoke checks with a clear pass summary and optional
-verbose JSON. Phase 2 status doc (`status/08-…`) updated to match.
+Extend the Phase 2 clinical service with tenant-scoped encounters (create, get, check-in / in-progress /
+check-out), paginated encounter listing under each patient, and clinical notes (create and list by
+encounter; get, patch, and sign by note id). The API gateway forwards `/api/v1/encounters/*` and
+`/api/v1/notes/*` to the clinical service with the same auth and header forwarding pattern as
+patients. Shared schema adds signing fields on `clinical_notes` plus an index for encounter-scoped
+listing; Drizzle journal and snapshot metadata are updated for the new migration (generated `*.sql`
+under `drizzle/` remains gitignored by repo rules—run `drizzle-kit generate` locally if the SQL file
+is missing). Phase 2 status doc updates describe the new surface area.
 
 ## What changed
 
+- **Schema** (`packages/config/src/schema/clinical.ts`): `clinical_notes.signed_at`,
+  `clinical_notes.signed_by_id`, and `idx_clinical_notes_encounter_created`.
 - **Clinical service** (`services/clinical/`):
-  - Fastify app on port 4003, routes under `/patients`, Drizzle via `@saas/config`, audit hooks, Vitest.
-  - `tsconfig` uses `rootDir: "src"` and package imports from `@saas/config` so `dist/index.js` is the
-    runtime entry.
-  - **Dockerfile**: build `@saas/config` then clinical; runtime copies `packages/config` so
-    `@saas/config` resolves in the image.
-- **API gateway** (`apps/api-gateway/src/routes/patients.proxy.ts`):
-  - Proxies `GET|POST|… /api/v1/patients` and `/patients/*` to `CLINICAL_SERVICE_URL` (default
-    `http://127.0.0.1:4003`), forwarding auth, optional `Content-Type`, and `x-request-id`.
-  - Tests (`index.test.ts`): patients route exercises real proxy behavior via `fetch` mock; upstream
-    URL expectations aligned with `127.0.0.1` defaults.
-- **Docker Compose** (`infrastructure/docker/docker-compose.yml`): `clinical` service, image
-  `dental-saas-clinical:local`, port 4003, depends on healthy Postgres.
-- **Local dev** (`scripts/dev/start-services.sh`): starts clinical on 4003 with `CLINICAL_SERVICE_URL`
-  passed into the gateway; stops `dental-saas-clinical` container when present to avoid port clashes.
-- **Gateway smoke** (`scripts/test/gateway-smoke-checks.sh`): patient flows through the gateway (create,
-  list, get, history, delete), assertion checklist + correlation line; documents upstream URLs and
-  `.run/logs` vs Docker; `SMOKE_VERBOSE=1` dumps full JSON bodies.
-- **Makefile**: help strings for `start-services` and `gateway-smoke-checks`.
+  - Encounters: routes, Zod schemas, encounter state machine service, Vitest for schemas and routes.
+  - Patients: `GET /patients/:patientId/encounters` with cursor pagination; schema/service tests
+    extended accordingly.
+  - Clinical notes: `note.schema.ts`, `note.service.ts` (author-only update/sign; signed notes return
+    409), nested `POST|GET /encounters/:encounterId/notes`, and `GET|PATCH /notes/:noteId` plus
+    `POST /notes/:noteId/sign`; audit events for create, update, and sign; dedicated route and schema
+    tests.
+  - `routes/index.ts` registers encounters and `/notes` alongside patients.
+- **API gateway** (`apps/api-gateway/`): `encounters.proxy.ts` and `notes.proxy.ts` registered under
+  `/api/v1`; `index.test.ts` covers proxied encounter and note GETs; README notes the clinical
+  proxies.
+- **Drizzle** (`drizzle/meta/`): journal entry and `0001_snapshot.json` for the clinical-notes signing
+  migration tag.
+- **Status** (`status/08-STEP-BY-STEP-PHASE2-DENTAL-CORE.md`): aligned with implemented endpoints and
+  gateway routing comments.
 
 ## Validation
 
-- `pnpm --filter @saas/config build && pnpm --filter @saas/clinical build`
+- `pnpm --filter @saas/config build`
 - `pnpm --filter @saas/clinical test`
-- `pnpm --filter @saas/api-gateway exec vitest run`
-- With Postgres/Redis and `make start-services`: `make gateway-smoke-checks`
-- Optional: `docker compose build clinical` and run container against `.env`
+- `pnpm --filter @saas/api-gateway test`
+- With Postgres up and `DATABASE_URL` set: `pnpm exec drizzle-kit migrate` (and regenerate SQL if your
+  checkout omits it due to `.gitignore`).

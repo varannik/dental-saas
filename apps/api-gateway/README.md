@@ -15,5 +15,6 @@ Default port: `4000`
 - `GET /health`
 - `POST/GET/... /api/v1/auth/*` -> proxied to auth service
 - `POST/GET/... /api/v1/users/*` -> proxied to users service
-- `... /api/v1/patients/*` -> placeholder (not implemented yet)
+- `... /api/v1/patients/*` -> proxied to clinical service (`CLINICAL_SERVICE_URL`)
+- `... /api/v1/encounters/*` -> proxied to clinical service
 - `GET /api/v1/voice/ws` -> placeholder websocket route

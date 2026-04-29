@@ -22,6 +22,7 @@ import {
   toPatientResponse,
   updatePatient,
 } from '../services/patient.service.js';
+import { createPatientBodySchema } from '../schemas/patient.schema.js';
 
 const tenantId = '11111111-1111-4111-8111-111111111111';
 const patientId = '22222222-2222-4222-8222-222222222222';
@@ -147,10 +148,8 @@ describe('patient.service', () => {
       })),
     };
     mocks.createDatabaseConnection.mockReturnValue(db);
-    const r = await createPatient(tenantId, {
-      firstName: 'J',
-      lastName: 'D',
-    });
+    const input = createPatientBodySchema.parse({ firstName: 'J', lastName: 'D' });
+    const r = await createPatient(tenantId, input);
     expect(r.id).toBe(patientId);
   });
 
@@ -214,7 +213,7 @@ describe('patient.service', () => {
     expect(r).toBeNull();
   });
 
-  it('getPatientHistory returns encounters and notes', async () => {
+  it('getPatientHistory maps encounters and notes for API stability', async () => {
     const select = vi
       .fn()
       // patient exists
@@ -244,7 +243,31 @@ describe('patient.service', () => {
     const db = { select };
     mocks.createDatabaseConnection.mockReturnValue(db);
     const r = await getPatientHistory(patientId, tenantId);
-    expect(r).toEqual({ encounters: [{ id: 'e1' }], notes: [{ id: 'n1' }] });
+    expect(r?.encounters).toHaveLength(1);
+    expect(r?.notes).toHaveLength(1);
+    expect(r?.encounters[0]).toMatchObject({ id: 'e1' });
+    expect(r?.notes[0]).toMatchObject({ id: 'n1' });
+  });
+
+  it('searchPatients uses exact lastName+dob path when only those filters are set', async () => {
+    const db = {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            orderBy: vi.fn(() => ({
+              limit: vi.fn().mockResolvedValue([]),
+            })),
+          })),
+        })),
+      })),
+    };
+    mocks.createDatabaseConnection.mockReturnValue(db);
+    await searchPatients(tenantId, {
+      lastName: 'Doe',
+      dob: '1990-05-20',
+      limit: 10,
+    });
+    expect(db.select).toHaveBeenCalled();
   });
 
   it('searchPatients uses filters', async () => {

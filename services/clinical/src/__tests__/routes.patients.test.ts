@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   softDeletePatient: vi.fn(),
   getPatientHistory: vi.fn(),
   searchPatients: vi.fn(),
+  listEncountersForPatient: vi.fn(),
   recordClinicalAudit: vi.fn(),
 }));
 
@@ -20,6 +21,10 @@ vi.mock('../services/patient.service.js', () => ({
   softDeletePatient: mocks.softDeletePatient,
   getPatientHistory: mocks.getPatientHistory,
   searchPatients: mocks.searchPatients,
+}));
+
+vi.mock('../services/encounter.service.js', () => ({
+  listEncountersForPatient: mocks.listEncountersForPatient,
 }));
 
 vi.mock('../lib/audit.js', () => ({
@@ -83,6 +88,15 @@ describe('routes/patients', () => {
     expect(body.error).toBe('Invalid cursor.');
   });
 
+  it('returns 400 when search has no criteria', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/patients/search?limit=5',
+      headers: auth,
+    });
+    expect(response.statusCode).toBe(400);
+  });
+
   it('searches patients', async () => {
     mocks.searchPatients.mockResolvedValue({ patients: [], nextCursor: null });
     const response = await app.inject({
@@ -95,6 +109,32 @@ describe('routes/patients', () => {
       tenantId,
       expect.objectContaining({ lastName: 'Doe', limit: 5 })
     );
+  });
+
+  it('lists encounters for patient', async () => {
+    mocks.listEncountersForPatient.mockResolvedValueOnce({
+      encounters: [{ id: 'e1' }],
+      nextCursor: null,
+    });
+    const response = await app.inject({
+      method: 'GET',
+      url: `/patients/${patientId}/encounters?limit=10`,
+      headers: auth,
+    });
+    expect(response.statusCode).toBe(200);
+    expect(mocks.listEncountersForPatient).toHaveBeenCalledWith(
+      patientId,
+      tenantId,
+      expect.objectContaining({ limit: 10 })
+    );
+
+    mocks.listEncountersForPatient.mockResolvedValueOnce(null);
+    const notFound = await app.inject({
+      method: 'GET',
+      url: `/patients/${patientId}/encounters`,
+      headers: auth,
+    });
+    expect(notFound.statusCode).toBe(404);
   });
 
   it('gets patient by id', async () => {

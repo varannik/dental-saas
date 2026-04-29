@@ -86,6 +86,54 @@ describe('api-gateway', () => {
     expect(response.json()).toEqual({ patients: [] });
   });
 
+  it('proxies encounters route to clinical service when token is valid', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ encounter: { id: 'e1' } }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/encounters/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      headers: {
+        authorization: `Bearer ${issueToken(['ADMIN'])}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://127.0.0.1:4003/encounters/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+    expect(options.method).toBe('GET');
+  });
+
+  it('proxies clinical notes route to clinical service when token is valid', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ note: { id: 'n1' } }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/notes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      headers: {
+        authorization: `Bearer ${issueToken(['ADMIN'])}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://127.0.0.1:4003/notes/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+    expect(options.method).toBe('GET');
+  });
+
   it('proxies auth route to auth service', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ ok: true }), {

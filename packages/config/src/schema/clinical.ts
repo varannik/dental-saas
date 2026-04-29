@@ -89,11 +89,14 @@ export const clinicalNotes = pgTable(
     content: text('content').notNull(),
     language: text('language'),
     locale: text('locale'),
+    signedAt: timestamp('signed_at', { withTimezone: true }),
+    signedById: uuid('signed_by_id').references(() => users.id),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index('idx_clinical_notes_tenant_patient').on(table.tenantId, table.patientId, table.createdAt),
+    index('idx_clinical_notes_encounter_created').on(table.encounterId, table.createdAt),
   ]
 );
 

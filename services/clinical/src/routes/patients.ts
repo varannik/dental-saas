@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 
 import { recordClinicalAudit } from '../lib/audit.js';
+import { listEncountersForPatientQuerySchema } from '../schemas/encounter.schema.js';
 import {
   createPatientBodySchema,
   listPatientsQuerySchema,
@@ -17,6 +18,7 @@ import {
   softDeletePatient,
   updatePatient,
 } from '../services/patient.service.js';
+import { listEncountersForPatient } from '../services/encounter.service.js';
 
 function requestIdFrom(request: FastifyRequest): string | undefined {
   const raw = request.headers['x-request-id'];
@@ -98,6 +100,28 @@ export const patientsRoute: FastifyPluginAsync = async (app) => {
       const data = await getPatientHistory(params.patientId, tenantId);
       if (!data) return reply.code(404).send({ error: 'Patient not found.' });
       return reply.send(data);
+    }
+  );
+
+  app.get(
+    '/:patientId/encounters',
+    async (request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> => {
+      const tenantId = request.tenantId;
+      if (!tenantId) {
+        return reply.code(401).send({ error: 'Missing or invalid auth context.' });
+      }
+      const params = patientIdParamSchema.parse(request.params);
+      const query = listEncountersForPatientQuerySchema.parse(request.query);
+      try {
+        const result = await listEncountersForPatient(params.patientId, tenantId, query);
+        if (!result) return reply.code(404).send({ error: 'Patient not found.' });
+        return reply.send(result);
+      } catch (e) {
+        if (e instanceof Error && e.message === 'Invalid cursor') {
+          return reply.code(400).send({ error: 'Invalid cursor.' });
+        }
+        throw e;
+      }
     }
   );
 

@@ -114,28 +114,38 @@ export async function searchPatients(
   const limit = query.limit;
   const conditions: SQL[] = [eq(patients.tenantId, tenantId), notDeleted];
 
-  if (query.dob) {
-    conditions.push(eq(patients.dob, query.dob));
+  /** Exact lastName + dob uses composite index (tenant_id, last_name, dob). */
+  const lastDobLookup =
+    Boolean(query.lastName) && Boolean(query.dob) && !query.firstName && !query.phone && !query.q;
+
+  if (lastDobLookup) {
+    conditions.push(eq(patients.dob, query.dob as string));
+    conditions.push(eq(patients.lastName, (query.lastName as string).trim()));
+  } else {
+    if (query.dob) {
+      conditions.push(eq(patients.dob, query.dob));
+    }
+    if (query.firstName) {
+      const pattern = `%${query.firstName.split('%').join('\\%')}%`;
+      conditions.push(ilike(patients.firstName, pattern));
+    }
+    if (query.lastName) {
+      const pattern = `%${query.lastName.split('%').join('\\%')}%`;
+      conditions.push(ilike(patients.lastName, pattern));
+    }
+    if (query.phone) {
+      const pattern = `%${query.phone.split('%').join('\\%')}%`;
+      const phoneOr = or(
+        ilike(patients.phoneMobile, pattern),
+        ilike(patients.phoneHome, pattern)
+      ) as SQL;
+      conditions.push(phoneOr);
+    }
+    if (query.q) {
+      conditions.push(buildNamePhoneSearch(query.q));
+    }
   }
-  if (query.firstName) {
-    const pattern = `%${query.firstName.split('%').join('\\%')}%`;
-    conditions.push(ilike(patients.firstName, pattern));
-  }
-  if (query.lastName) {
-    const pattern = `%${query.lastName.split('%').join('\\%')}%`;
-    conditions.push(ilike(patients.lastName, pattern));
-  }
-  if (query.phone) {
-    const pattern = `%${query.phone.split('%').join('\\%')}%`;
-    const phoneOr = or(
-      ilike(patients.phoneMobile, pattern),
-      ilike(patients.phoneHome, pattern)
-    ) as SQL;
-    conditions.push(phoneOr);
-  }
-  if (query.q) {
-    conditions.push(buildNamePhoneSearch(query.q));
-  }
+
   if (query.cursor) {
     conditions.push(cursorKeysetCondition(query.cursor));
   }
@@ -245,6 +255,45 @@ export async function softDeletePatient(patientId: string, tenantId: string): Pr
   return Boolean(updated[0]);
 }
 
+function formatTimestamp(d: Date | string | null | undefined): string | null {
+  if (d == null) return null;
+  if (typeof d === 'string') return d;
+  return d.toISOString();
+}
+
+function toEncounterHistoryRow(row: typeof encounters.$inferSelect): Record<string, unknown> {
+  return {
+    id: row.id,
+    tenantId: row.tenantId,
+    patientId: row.patientId,
+    locationId: row.locationId,
+    providerId: row.providerId,
+    encounterType: row.encounterType,
+    status: row.status,
+    scheduledStartAt: formatTimestamp(row.scheduledStartAt as Date | null),
+    checkInAt: formatTimestamp(row.checkInAt as Date | null),
+    checkOutAt: formatTimestamp(row.checkOutAt as Date | null),
+    createdAt: formatTimestamp(row.createdAt as Date),
+    updatedAt: formatTimestamp(row.updatedAt as Date),
+  };
+}
+
+function toNoteHistoryRow(row: typeof clinicalNotes.$inferSelect): Record<string, unknown> {
+  return {
+    id: row.id,
+    tenantId: row.tenantId,
+    patientId: row.patientId,
+    encounterId: row.encounterId,
+    authorId: row.authorId,
+    noteType: row.noteType,
+    content: row.content,
+    language: row.language,
+    locale: row.locale,
+    createdAt: formatTimestamp(row.createdAt as Date),
+    updatedAt: formatTimestamp(row.updatedAt as Date),
+  };
+}
+
 export async function getPatientHistory(
   patientId: string,
   tenantId: string
@@ -265,11 +314,14 @@ export async function getPatientHistory(
     .from(encounters)
     .where(and(eq(encounters.patientId, patientId), eq(encounters.tenantId, tenantId)) as SQL)
     .orderBy(desc(encounters.scheduledStartAt), desc(encounters.createdAt));
-  const notes = await db
+  const noteRows = await db
     .select()
     .from(clinicalNotes)
     .where(and(eq(clinicalNotes.patientId, patientId), eq(clinicalNotes.tenantId, tenantId)) as SQL)
     .orderBy(desc(clinicalNotes.createdAt));
 
-  return { encounters: enc, notes: notes };
+  return {
+    encounters: enc.map((r) => toEncounterHistoryRow(r)),
+    notes: noteRows.map((r) => toNoteHistoryRow(r)),
+  };
 }

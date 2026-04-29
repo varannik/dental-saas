@@ -108,6 +108,14 @@ GET    /patients/search       # Search by name, DOB, phone
 3. Pagination with cursor-based pagination (better than offset for large datasets)
 4. All queries scoped by `tenant_id` from JWT context
 
+**Current implementation** (`services/clinical`, prefix `/patients`):
+
+- Endpoints above are live with JWT `preHandler`, Zod at the boundary, audit on create/update/delete, and soft-delete (`status: DELETED`).
+- **List** (`GET /patients`): cursor keyset on `(createdAt DESC, id DESC)`; optional `q` filters name/phones.
+- **Search** (`GET /patients/search`): requires at least one of `firstName`, `lastName`, `dob`, `phone`, `q`. When **only** `lastName` + `dob` are supplied, query uses **exact** match on both to favor `idx_patients_tenant_name_dob`; other combinations use `ilike` / phone filters as before.
+- **History**: returns normalized encounter + clinical note payloads (ISO timestamps).
+- Create/update align with `schema-core.yaml` Patient columns on `patients` table; `status` allow-list `ACTIVE` | `INACTIVE` on create/patch (delete uses dedicated route).
+
 ### Step 3: Encounter API Endpoints
 
 ```
@@ -124,6 +132,19 @@ GET    /patients/:id/encounters       # List encounters for patient
 SCHEDULED → CHECKED_IN → IN_PROGRESS → COMPLETED → BILLED
                                     └→ CANCELLED
 ```
+
+**Current implementation** (`services/clinical` + gateway proxy `/api/v1/encounters*`):
+
+| Clinical path                       | Behavior                                                                                             |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `POST /encounters`                  | Creates encounter `SCHEDULED`; validates patient (not `DELETED`) and active **location** for tenant. |
+| `GET /encounters/:id`               | Tenant-scoped detail.                                                                                |
+| `PATCH /encounters/:id/check-in`    | `SCHEDULED` → `CHECKED_IN`, sets `checkInAt`.                                                        |
+| `PATCH /encounters/:id/in-progress` | `CHECKED_IN` → `IN_PROGRESS` (needed for full diagram before check-out).                             |
+| `PATCH /encounters/:id/check-out`   | `CHECKED_IN` or `IN_PROGRESS` → `COMPLETED`, sets `checkOutAt`.                                      |
+| `GET /patients/:id/encounters`      | Cursor list by `createdAt` / `id` (keyset); **404** if patient missing/deleted.                      |
+
+`BILLED` / `CANCELLED` are reserved for billing / future cancel flow (not in this slice). Audit: `ENCOUNTER_*` events. Gateway: `encounters.proxy.ts` → `CLINICAL_SERVICE_URL` (same pattern as patients).
 
 ### Step 4: Clinical Notes API
 

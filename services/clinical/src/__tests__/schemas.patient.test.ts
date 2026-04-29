@@ -33,6 +33,10 @@ describe('patient schemas', () => {
     expect(q.limit).toBe(20);
   });
 
+  it('rejects search with no filters (Zod superRefine)', () => {
+    expect(() => searchPatientsQuerySchema.parse({ limit: 10 })).toThrow();
+  });
+
   it('parses search query with dob', () => {
     const q = searchPatientsQuerySchema.parse({
       dob: '2000-12-01',
