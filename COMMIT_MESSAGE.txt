@@ -1,39 +1,31 @@
-feat(clinical): encounters, clinical notes, patient encounter list, and gateway proxies
+feat(dev): graceful start-services teardown; chore(auth): error handler + integration diagnostics
 
-Extend the Phase 2 clinical service with tenant-scoped encounters (create, get, check-in / in-progress /
-check-out), paginated encounter listing under each patient, and clinical notes (create and list by
-encounter; get, patch, and sign by note id). The API gateway forwards `/api/v1/encounters/*` and
-`/api/v1/notes/*` to the clinical service with the same auth and header forwarding pattern as
-patients. Shared schema adds signing fields on `clinical_notes` plus an index for encounter-scoped
-listing; Drizzle journal and snapshot metadata are updated for the new migration (generated `*.sql`
-under `drizzle/` remains gitignored by repo rules—run `drizzle-kit generate` locally if the SQL file
-is missing). Phase 2 status doc updates describe the new surface area.
+Improve `make start-services` by detecting **TCP LISTEN** sockets per dedicated port before
+bringing up auth (4001), users (4002), clinical (4003), and the API gateway (4000). Busy ports are
+stopped with **SIGTERM** first, polled for up to roughly twenty seconds on a half-second cadence,
+then **SIGKILL** only if listeners remain. Clear stale launcher **`.run/*.pid`** files when
+reconciling ports so restarted runs line up with the actual processes.
+
+Register a Fastify **`registerAuthErrorHandler`** on the auth service (`services/auth/src/lib/error-response.ts`):
+**Zod** validation failures respond with **400** and flattened details; other errors reuse
+**`statusCode`** when present; non‑production payloads include **`error.cause`** chain detail for faster
+debugging while production masks the message behind a generic internal error shape.
+
+Improve auth **integration test helpers**: **`assertHttpStatus`** attaches the parsed response body when
+expectations fail (so Drizzle‑style failures and validation bodies surface in Vitest output), and
+**`assertIntegrationDatabaseReady`** verifies **`public.users`** exists before fixtures run with a clear
+migrate hint and **`TEST_DATABASE_URL`** note. Contract and integration specs call the DB guard in **`beforeAll`**
+and use **`assertHttpStatus`** for endpoint checks.
 
 ## What changed
 
-- **Schema** (`packages/config/src/schema/clinical.ts`): `clinical_notes.signed_at`,
-  `clinical_notes.signed_by_id`, and `idx_clinical_notes_encounter_created`.
-- **Clinical service** (`services/clinical/`):
-  - Encounters: routes, Zod schemas, encounter state machine service, Vitest for schemas and routes.
-  - Patients: `GET /patients/:patientId/encounters` with cursor pagination; schema/service tests
-    extended accordingly.
-  - Clinical notes: `note.schema.ts`, `note.service.ts` (author-only update/sign; signed notes return
-    409), nested `POST|GET /encounters/:encounterId/notes`, and `GET|PATCH /notes/:noteId` plus
-    `POST /notes/:noteId/sign`; audit events for create, update, and sign; dedicated route and schema
-    tests.
-  - `routes/index.ts` registers encounters and `/notes` alongside patients.
-- **API gateway** (`apps/api-gateway/`): `encounters.proxy.ts` and `notes.proxy.ts` registered under
-  `/api/v1`; `index.test.ts` covers proxied encounter and note GETs; README notes the clinical
-  proxies.
-- **Drizzle** (`drizzle/meta/`): journal entry and `0001_snapshot.json` for the clinical-notes signing
-  migration tag.
-- **Status** (`status/08-STEP-BY-STEP-PHASE2-DENTAL-CORE.md`): aligned with implemented endpoints and
-  gateway routing comments.
+- **`scripts/dev/start-services.sh`**: **`port_is_listening`**, **`listeners_on_port`**, **`stop_existing_listener_if_any`**, reconcile step messaging, PID cleanup.
+- **`services/auth/src/lib/error-response.ts`**: new shared error handler helpers.
+- **`services/auth/src/index.ts`**: register error handler during server build.
+- **`services/auth/src/__tests__/integration/helpers.ts`**: **`assertHttpStatus`**, **`assertIntegrationDatabaseReady`**.
+- **`services/auth/src/__tests__/integration/auth.contract.test.ts`** and **`auth.integration.test.ts`**: **`beforeAll`** DB check and **`assertHttpStatus`** assertions.
 
 ## Validation
 
-- `pnpm --filter @saas/config build`
-- `pnpm --filter @saas/clinical test`
-- `pnpm --filter @saas/api-gateway test`
-- With Postgres up and `DATABASE_URL` set: `pnpm exec drizzle-kit migrate` (and regenerate SQL if your
-  checkout omits it due to `.gitignore`).
+- **`bash -n scripts/dev/start-services.sh`**
+- **`pnpm --filter @saas/auth test`** (with Postgres migrated and **`DATABASE_URL` / `TEST_DATABASE_URL`** pointing at that database if your tests use **`TEST_DATABASE_URL`**).

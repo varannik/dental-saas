@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { pathToFileURL } from 'node:url';
 
+import { registerAuthErrorHandler } from './lib/error-response.js';
 import { registerAuthRoutes } from './routes/index.js';
 
 export interface AuthServiceConfig {
@@ -26,6 +27,7 @@ export async function buildServer(
     },
   });
 
+  registerAuthErrorHandler(app);
   await app.register(registerAuthRoutes, { prefix: '/auth' });
   await app.ready();
   app.log.info({ service: config.serviceName }, 'Auth service initialized');

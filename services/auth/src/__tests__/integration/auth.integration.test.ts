@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  assertHttpStatus,
+  assertIntegrationDatabaseReady,
   AuthTestClient,
   clearIntegrationData,
   createTestEmail,
@@ -15,6 +17,7 @@ maybeDescribe('auth integration', () => {
   let client: AuthTestClient;
 
   beforeAll(async () => {
+    await assertIntegrationDatabaseReady();
     await setupIntegrationData();
     client = new AuthTestClient();
   });
@@ -32,14 +35,14 @@ maybeDescribe('auth integration', () => {
       fullName: 'Integration User',
       tenantId: DEMO_TENANT_ID,
     });
-    expect(register.status).toBe(201);
+    assertHttpStatus(register, 201, 'POST /auth/register');
 
     const login = await client.post('/auth/login', {
       email,
       password: DEFAULT_PASSWORD,
       tenantId: DEMO_TENANT_ID,
     });
-    expect(login.status).toBe(200);
+    assertHttpStatus(login, 200, 'POST /auth/login');
     const loginBody = login.data as { accessToken?: string; refreshToken?: string };
     expect(loginBody.accessToken).toBeTypeOf('string');
     expect(loginBody.refreshToken).toBeTypeOf('string');
@@ -47,31 +50,32 @@ maybeDescribe('auth integration', () => {
 
   it('invalidates me response after logout', async () => {
     const email = createTestEmail();
-    await client.post('/auth/register', {
+    const registerFirst = await client.post('/auth/register', {
       email,
       password: DEFAULT_PASSWORD,
       fullName: 'Integration Logout User',
       tenantId: DEMO_TENANT_ID,
     });
+    assertHttpStatus(registerFirst, 201, 'POST /auth/register (logout flow)');
 
     const login = await client.post('/auth/login', {
       email,
       password: DEFAULT_PASSWORD,
       tenantId: DEMO_TENANT_ID,
     });
-    expect(login.status).toBe(200);
+    assertHttpStatus(login, 200, 'POST /auth/login (logout flow)');
     const loginBody = login.data as { accessToken?: string };
     client.setAuthToken(loginBody.accessToken ?? null);
 
     const meBefore = await client.get('/auth/me');
-    expect(meBefore.status).toBe(200);
+    assertHttpStatus(meBefore, 200, 'GET /auth/me (before logout)');
     expect((meBefore.data as { user?: unknown }).user).toBeTruthy();
 
     const logout = await client.post('/auth/logout');
-    expect(logout.status).toBe(204);
+    assertHttpStatus(logout, 204, 'POST /auth/logout');
 
     const meAfter = await client.get('/auth/me');
-    expect(meAfter.status).toBe(200);
+    assertHttpStatus(meAfter, 200, 'GET /auth/me (after logout)');
     expect((meAfter.data as { user?: unknown }).user).toBeNull();
   });
 });

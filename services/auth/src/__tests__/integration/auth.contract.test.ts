@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
+  assertHttpStatus,
+  assertIntegrationDatabaseReady,
   AuthTestClient,
   clearIntegrationData,
   createTestEmail,
@@ -20,6 +22,7 @@ maybeDescribe('auth contract', () => {
   let client: AuthTestClient;
 
   beforeAll(async () => {
+    await assertIntegrationDatabaseReady();
     await setupIntegrationData();
     client = new AuthTestClient();
   });
@@ -37,7 +40,7 @@ maybeDescribe('auth contract', () => {
       fullName: 'Contract User',
       tenantId: DEMO_TENANT_ID,
     });
-    expect(register.status).toBe(201);
+    assertHttpStatus(register, 201, 'POST /auth/register');
     const registerBody = register.data as {
       user?: { id?: string; email?: string; fullName?: string };
     };
@@ -50,7 +53,7 @@ maybeDescribe('auth contract', () => {
       password: DEFAULT_PASSWORD,
       tenantId: DEMO_TENANT_ID,
     });
-    expect(login.status).toBe(200);
+    assertHttpStatus(login, 200, 'POST /auth/login');
     const loginBody = login.data as {
       user?: { id?: string; email?: string; fullName?: string };
       sessionId?: string;
@@ -65,13 +68,13 @@ maybeDescribe('auth contract', () => {
 
     client.setAuthToken(loginBody.accessToken ?? null);
     const me = await client.get('/auth/me');
-    expect(me.status).toBe(200);
+    assertHttpStatus(me, 200, 'GET /auth/me');
     const meBody = me.data as { user?: { userId?: string; tenantId?: string } | null };
     expectString(meBody.user?.userId, 'me.user.userId');
     expect(meBody.user?.tenantId).toBe(DEMO_TENANT_ID);
 
     const sessions = await client.get('/auth/sessions');
-    expect(sessions.status).toBe(200);
+    assertHttpStatus(sessions, 200, 'GET /auth/sessions');
     const sessionsBody = sessions.data as {
       sessions?: Array<{
         sessionId?: string;
@@ -90,7 +93,7 @@ maybeDescribe('auth contract', () => {
     const refresh = await client.post('/auth/refresh', {
       refreshToken: loginBody.refreshToken,
     });
-    expect(refresh.status).toBe(200);
+    assertHttpStatus(refresh, 200, 'POST /auth/refresh');
     const refreshBody = refresh.data as { accessToken?: string; refreshToken?: string };
     expectString(refreshBody.accessToken, 'refresh.accessToken');
     expectString(refreshBody.refreshToken, 'refresh.refreshToken');

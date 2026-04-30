@@ -15,6 +15,22 @@ export interface TestResponse {
   data: unknown;
 }
 
+/** Use in integration tests so failures include the JSON body (e.g. Drizzle `Failed query`, Zod details). */
+export function assertHttpStatus(
+  response: TestResponse,
+  expectedStatus: number,
+  context: string
+): void {
+  if (response.status === expectedStatus) return;
+  const body =
+    typeof response.data === 'object' && response.data !== null
+      ? JSON.stringify(response.data, null, 2)
+      : String(response.data);
+  throw new Error(
+    `${context}: expected HTTP ${expectedStatus}, got ${response.status}.\nResponse body:\n${body}`
+  );
+}
+
 export class AuthTestClient {
   private authToken: string | null = null;
   private readonly baseUrl: string;
@@ -76,6 +92,28 @@ function createRedisClient(): Redis {
   return new Redis(getRedisUrl(), {
     lazyConnect: true,
     maxRetriesPerRequest: 1,
+  });
+}
+
+/** Fails fast when the DB used for integration helpers is missing core auth tables. */
+export async function assertIntegrationDatabaseReady(): Promise<void> {
+  await withClient(async (client) => {
+    const result = await client.query<{ exists: boolean }>(
+      `
+      select exists (
+        select 1
+        from information_schema.tables
+        where table_schema = 'public'
+          and table_name = 'users'
+      ) as exists
+      `
+    );
+    const exists = result.rows[0]?.exists === true;
+    if (!exists) {
+      throw new Error(
+        'Integration DB check failed: public.users is missing. Run migrations against this database (e.g. from repo root: `DATABASE_URL=... pnpm exec drizzle-kit migrate`). Use the same DATABASE_URL as the auth service (set TEST_DATABASE_URL for the test process if it differs from DATABASE_URL).'
+      );
+    }
   });
 }
 

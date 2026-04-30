@@ -57,6 +57,9 @@ RUN_DIR="$PROJECT_ROOT/.run"
 LOG_DIR="$PROJECT_ROOT/.run/logs"
 mkdir -p "$RUN_DIR" "$LOG_DIR"
 
+# PID files reference the previous launcher; clear them whenever we reconcile ports.
+rm -f "$RUN_DIR/auth.pid" "$RUN_DIR/users.pid" "$RUN_DIR/clinical.pid" "$RUN_DIR/gateway.pid"
+
 DATABASE_URL=${DATABASE_URL:-"postgresql://postgres:postgres@localhost:5432/dental_saas"}
 REDIS_URL=${REDIS_URL:-"redis://127.0.0.1:6379"}
 JWT_SECRET=${JWT_SECRET:-"dev-only-jwt-secret-change-me-immediately"}
@@ -64,21 +67,71 @@ AUTH_SERVICE_URL=${AUTH_SERVICE_URL:-"http://127.0.0.1:4001"}
 USERS_SERVICE_URL=${USERS_SERVICE_URL:-"http://127.0.0.1:4002"}
 CLINICAL_SERVICE_URL=${CLINICAL_SERVICE_URL:-"http://127.0.0.1:4003"}
 
-ensure_port_free() {
+port_is_listening() {
+  local port="$1"
+  lsof -i ":$port" -sTCP:LISTEN >/dev/null 2>&1
+}
+
+listeners_on_port() {
+  local port="$1"
+  # LISTEN avoids unrelated client sockets on ephemeral ports talking to localhost.
+  lsof -ti "tcp:$port" -sTCP:LISTEN 2>/dev/null || true
+}
+
+stop_existing_listener_if_any() {
   local port="$1"
   local service_name="$2"
-  if lsof -i ":$port" >/dev/null 2>&1; then
-    local pids
-    pids=$(lsof -ti "tcp:$port" | xargs)
-    log_warning "$service_name port $port is busy (pid: $pids). Stopping existing process..."
-    kill -9 $pids >/dev/null 2>&1 || true
-    sleep 1
+
+  if ! port_is_listening "$port"; then
+    return 0
   fi
-  if lsof -i ":$port" >/dev/null 2>&1; then
+
+  local pids
+  pids=$(listeners_on_port "$port")
+  if [ -z "$pids" ]; then
+    pids=$(lsof -ti "tcp:$port" 2>/dev/null || true)
+  fi
+
+  local pid_list
+  pid_list="$(printf '%s\n' "$pids" | sort -u | tr '\n' ' ' | sed 's/ *$//')"
+
+  log_info "$service_name: port $port is in use (pid: $pid_list). Stopping before start..."
+  for pid in $(printf '%s\n' "$pids" | sort -u); do
+    case "$pid" in
+      '' | *[!0-9]*) continue ;;
+      *) kill -TERM "$pid" 2>/dev/null || true ;;
+    esac
+  done
+
+  local attempt=1
+  local max_attempts=40
+  while port_is_listening "$port"; do
+    if [ "$attempt" -ge "$max_attempts" ]; then
+      log_warning "$service_name: still listening after SIGTERM; forcing shutdown (SIGKILL)..."
+      local killer_pids
+      killer_pids=$(listeners_on_port "$port")
+      if [ -z "$killer_pids" ]; then
+        killer_pids=$(lsof -ti "tcp:$port" 2>/dev/null || true)
+      fi
+      for pid in $(printf '%s\n' "$killer_pids" | sort -u); do
+        case "$pid" in
+          '' | *[!0-9]*) continue ;;
+          *) kill -9 "$pid" 2>/dev/null || true ;;
+        esac
+      done
+      sleep 1
+      break
+    fi
+    sleep 0.5
+    attempt=$((attempt + 1))
+  done
+
+  if port_is_listening "$port"; then
     log_error "$service_name cannot start: port $port is still in use"
     log_info "Stop the process on port $port, then rerun this command."
     exit 1
   fi
+  log_success "$service_name: previous listener on port $port stopped"
 }
 
 wait_for_http() {
@@ -116,10 +169,11 @@ start_service() {
   log_info "$name started (pid=$pid, log=$log_file)"
 }
 
-ensure_port_free 4001 "Auth service"
-ensure_port_free 4002 "Users service"
-ensure_port_free 4003 "Clinical service"
-ensure_port_free 4000 "API gateway"
+log_step "Reconciling ports (stop any existing listener before start)..."
+stop_existing_listener_if_any 4001 "Auth service"
+stop_existing_listener_if_any 4002 "Users service"
+stop_existing_listener_if_any 4003 "Clinical service"
+stop_existing_listener_if_any 4000 "API gateway"
 
 start_service \
   "auth service" \
