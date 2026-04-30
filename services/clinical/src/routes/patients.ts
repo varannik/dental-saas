@@ -3,6 +3,11 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { recordClinicalAudit } from '../lib/audit.js';
 import { listEncountersForPatientQuerySchema } from '../schemas/encounter.schema.js';
 import {
+  createDentalChartEntryBodySchema,
+  listChartHistoryQuerySchema,
+} from '../schemas/dental-chart.schema.js';
+import { createTreatmentPlanBodySchema } from '../schemas/treatment-plan.schema.js';
+import {
   createPatientBodySchema,
   listPatientsQuerySchema,
   patientIdParamSchema,
@@ -19,6 +24,18 @@ import {
   updatePatient,
 } from '../services/patient.service.js';
 import { listEncountersForPatient } from '../services/encounter.service.js';
+import {
+  createDentalChartEntry,
+  getDentalChartForPatient,
+  ChartEncounterMismatchError,
+  ChartPatientNotFoundError,
+  listDentalChartHistory,
+} from '../services/dental-chart.service.js';
+import {
+  createTreatmentPlan,
+  listTreatmentPlansForPatient,
+  TreatmentPlanPatientNotFoundError,
+} from '../services/treatment-plan.service.js';
 
 function requestIdFrom(request: FastifyRequest): string | undefined {
   const raw = request.headers['x-request-id'];
@@ -88,6 +105,140 @@ export const patientsRoute: FastifyPluginAsync = async (app) => {
     }
     return reply.code(201).send({ patient });
   });
+
+  app.get(
+    '/:patientId/chart/history',
+    async (request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> => {
+      const tenantId = request.tenantId;
+      if (!tenantId) {
+        return reply.code(401).send({ error: 'Missing or invalid auth context.' });
+      }
+      const params = patientIdParamSchema.parse(request.params);
+      const query = listChartHistoryQuerySchema.parse(request.query);
+      try {
+        const history = await listDentalChartHistory(params.patientId, tenantId, query);
+        return reply.send({ history });
+      } catch (e) {
+        if (e instanceof ChartPatientNotFoundError) {
+          return reply.code(404).send({ error: e.message });
+        }
+        throw e;
+      }
+    }
+  );
+
+  app.post(
+    '/:patientId/chart/entries',
+    async (request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> => {
+      const tenantId = request.tenantId;
+      const userId = request.userId;
+      if (!tenantId || !userId) {
+        return reply.code(401).send({ error: 'Missing or invalid auth context.' });
+      }
+      const params = patientIdParamSchema.parse(request.params);
+      const payload = createDentalChartEntryBodySchema.parse(request.body);
+      try {
+        const entry = await createDentalChartEntry(tenantId, params.patientId, userId, payload);
+        const rid = requestIdFrom(request);
+        try {
+          await recordClinicalAudit({
+            tenantId,
+            userId,
+            eventType: 'DENTAL_CHART_ENTRY_CREATED',
+            resourceType: 'dental_chart_entry',
+            resourceId: String(entry.id),
+            requestId: rid,
+          });
+        } catch {
+          /* non-blocking */
+        }
+        return reply.code(201).send({ entry });
+      } catch (e) {
+        if (e instanceof ChartPatientNotFoundError) {
+          return reply.code(404).send({ error: e.message });
+        }
+        if (e instanceof ChartEncounterMismatchError) {
+          return reply.code(400).send({ error: e.message });
+        }
+        throw e;
+      }
+    }
+  );
+
+  app.get(
+    '/:patientId/chart',
+    async (request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> => {
+      const tenantId = request.tenantId;
+      if (!tenantId) {
+        return reply.code(401).send({ error: 'Missing or invalid auth context.' });
+      }
+      const params = patientIdParamSchema.parse(request.params);
+      try {
+        const chart = await getDentalChartForPatient(params.patientId, tenantId);
+        return reply.send(chart);
+      } catch (e) {
+        if (e instanceof ChartPatientNotFoundError) {
+          return reply.code(404).send({ error: e.message });
+        }
+        throw e;
+      }
+    }
+  );
+
+  app.get(
+    '/:patientId/treatment-plans',
+    async (request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> => {
+      const tenantId = request.tenantId;
+      if (!tenantId) {
+        return reply.code(401).send({ error: 'Missing or invalid auth context.' });
+      }
+      const params = patientIdParamSchema.parse(request.params);
+      try {
+        const data = await listTreatmentPlansForPatient(params.patientId, tenantId);
+        return reply.send(data);
+      } catch (e) {
+        if (e instanceof TreatmentPlanPatientNotFoundError) {
+          return reply.code(404).send({ error: e.message });
+        }
+        throw e;
+      }
+    }
+  );
+
+  app.post(
+    '/:patientId/treatment-plans',
+    async (request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> => {
+      const tenantId = request.tenantId;
+      const userId = request.userId;
+      if (!tenantId || !userId) {
+        return reply.code(401).send({ error: 'Missing or invalid auth context.' });
+      }
+      const params = patientIdParamSchema.parse(request.params);
+      const payload = createTreatmentPlanBodySchema.parse(request.body);
+      try {
+        const plan = await createTreatmentPlan(tenantId, params.patientId, userId, payload);
+        const rid = requestIdFrom(request);
+        try {
+          await recordClinicalAudit({
+            tenantId,
+            userId,
+            eventType: 'TREATMENT_PLAN_CREATED',
+            resourceType: 'treatment_plan',
+            resourceId: String(plan.id),
+            requestId: rid,
+          });
+        } catch {
+          /* non-blocking */
+        }
+        return reply.code(201).send({ plan });
+      } catch (e) {
+        if (e instanceof TreatmentPlanPatientNotFoundError) {
+          return reply.code(404).send({ error: e.message });
+        }
+        throw e;
+      }
+    }
+  );
 
   app.get(
     '/:patientId/history',

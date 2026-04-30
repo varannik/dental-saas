@@ -10,6 +10,11 @@ const mocks = vi.hoisted(() => ({
   getPatientHistory: vi.fn(),
   searchPatients: vi.fn(),
   listEncountersForPatient: vi.fn(),
+  getDentalChartForPatient: vi.fn(),
+  createDentalChartEntry: vi.fn(),
+  listDentalChartHistory: vi.fn(),
+  createTreatmentPlan: vi.fn(),
+  listTreatmentPlansForPatient: vi.fn(),
   recordClinicalAudit: vi.fn(),
 }));
 
@@ -25,6 +30,17 @@ vi.mock('../services/patient.service.js', () => ({
 
 vi.mock('../services/encounter.service.js', () => ({
   listEncountersForPatient: mocks.listEncountersForPatient,
+}));
+
+vi.mock('../services/dental-chart.service.js', () => ({
+  getDentalChartForPatient: mocks.getDentalChartForPatient,
+  createDentalChartEntry: mocks.createDentalChartEntry,
+  listDentalChartHistory: mocks.listDentalChartHistory,
+}));
+
+vi.mock('../services/treatment-plan.service.js', () => ({
+  createTreatmentPlan: mocks.createTreatmentPlan,
+  listTreatmentPlansForPatient: mocks.listTreatmentPlansForPatient,
 }));
 
 vi.mock('../lib/audit.js', () => ({
@@ -270,5 +286,66 @@ describe('routes/patients', () => {
       headers: auth,
     });
     expect(response.statusCode).toBe(404);
+  });
+
+  it('gets dental chart, creates entry, and lists chart history', async () => {
+    mocks.getDentalChartForPatient.mockResolvedValue({
+      chart: { entries: [{ id: 'e1', toothNumber: '14' }], byTooth: { '14': [] } },
+    });
+    let response = await app.inject({
+      method: 'GET',
+      url: `/patients/${patientId}/chart`,
+      headers: auth,
+    });
+    expect(response.statusCode).toBe(200);
+    expect(mocks.getDentalChartForPatient).toHaveBeenCalledWith(patientId, tenantId);
+
+    mocks.createDentalChartEntry.mockResolvedValue({ id: 'e-new', toothNumber: '3' });
+    response = await app.inject({
+      method: 'POST',
+      url: `/patients/${patientId}/chart/entries`,
+      headers: auth,
+      payload: {
+        toothNumber: '3',
+        condition: 'CARIES',
+        surface: 'O',
+      },
+    });
+    expect(response.statusCode).toBe(201);
+    expect(mocks.createDentalChartEntry).toHaveBeenCalled();
+
+    mocks.listDentalChartHistory.mockResolvedValue([
+      { id: 'h1', chartEntryId: 'e-new', eventType: 'CREATED' },
+    ]);
+    response = await app.inject({
+      method: 'GET',
+      url: `/patients/${patientId}/chart/history?limit=10`,
+      headers: auth,
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      history: [{ id: 'h1', chartEntryId: 'e-new', eventType: 'CREATED' }],
+    });
+  });
+
+  it('lists and creates treatment plans for patient', async () => {
+    mocks.listTreatmentPlansForPatient.mockResolvedValue({ treatmentPlans: [{ id: 'tp1' }] });
+    let response = await app.inject({
+      method: 'GET',
+      url: `/patients/${patientId}/treatment-plans`,
+      headers: auth,
+    });
+    expect(response.statusCode).toBe(200);
+    expect(mocks.listTreatmentPlansForPatient).toHaveBeenCalledWith(patientId, tenantId);
+
+    mocks.createTreatmentPlan.mockResolvedValue({ id: 'tp-new', status: 'DRAFT' });
+    response = await app.inject({
+      method: 'POST',
+      url: `/patients/${patientId}/treatment-plans`,
+      headers: auth,
+      payload: { title: 'Phase 1' },
+    });
+    expect(response.statusCode).toBe(201);
+    expect(mocks.createTreatmentPlan).toHaveBeenCalled();
   });
 });

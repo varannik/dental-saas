@@ -134,6 +134,55 @@ describe('api-gateway', () => {
     expect(options.method).toBe('GET');
   });
 
+  it('proxies chart-entries route to clinical service when token is valid', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ entry: { id: 'c1' } }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/chart-entries/cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      headers: {
+        authorization: `Bearer ${issueToken(['ADMIN'])}`,
+        'content-type': 'application/json',
+      },
+      payload: { condition: 'FILLING' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://127.0.0.1:4003/chart-entries/cccccccc-cccc-4ccc-8ccc-cccccccccccc');
+    expect(options.method).toBe('PATCH');
+  });
+
+  it('proxies treatment-plans route to clinical service when token is valid', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ plan: { id: 'tp1' }, items: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/treatment-plans/dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+      headers: {
+        authorization: `Bearer ${issueToken(['ADMIN'])}`,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://127.0.0.1:4003/treatment-plans/dddddddd-dddd-4ddd-8ddd-dddddddddddd');
+  });
+
   it('proxies auth route to auth service', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ ok: true }), {

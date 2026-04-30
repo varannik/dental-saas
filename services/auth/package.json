@@ -8,13 +8,13 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest",
     "test:unit": "vitest run",
-    "test:integration": "RUN_INTEGRATION_TESTS=true vitest run src/__tests__/integration/auth.integration.test.ts",
+    "test:integration": "RUN_INTEGRATION_TESTS=true vitest run src/__tests__/integration",
     "test:contract": "RUN_INTEGRATION_TESTS=true vitest run src/__tests__/integration/auth.contract.test.ts",
     "test:all": "pnpm test:unit && pnpm test:integration && pnpm test:contract"
   },

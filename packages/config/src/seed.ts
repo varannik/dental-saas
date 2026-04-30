@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { pathToFileURL } from 'node:url';
 
 import { closeDatabase, createDatabaseConnection } from './database.js';
+import { ensureCdtReferenceForAllActiveTenants } from './seed/cdt-reference.js';
 import {
   locations,
   patients,
@@ -249,6 +250,8 @@ export async function seedDatabase(): Promise<SeedContext> {
 
   await ensureSamplePatient(tenantId, locationId, 'Jane', 'Doe', '1992-04-12');
   await ensureSamplePatient(tenantId, locationId, 'John', 'Smith', '1986-10-03');
+
+  await ensureCdtReferenceForAllActiveTenants();
 
   return {
     tenantId,

@@ -1,31 +1,48 @@
-feat(dev): graceful start-services teardown; chore(auth): error handler + integration diagnostics
+feat(phase2): dental chart, treatment plans, CDT seed, gateway routes; fix auth integration build
 
-Improve `make start-services` by detecting **TCP LISTEN** sockets per dedicated port before
-bringing up auth (4001), users (4002), clinical (4003), and the API gateway (4000). Busy ports are
-stopped with **SIGTERM** first, polled for up to roughly twenty seconds on a half-second cadence,
-then **SIGKILL** only if listeners remain. Clear stale launcher **`.run/*.pid`** files when
-reconciling ports so restarted runs line up with the actual processes.
+Add Phase 2 dental-core APIs and reference seed data, wire the API gateway, and harden auth
+integration tests plus Docker-friendly TypeScript builds.
 
-Register a Fastify **`registerAuthErrorHandler`** on the auth service (`services/auth/src/lib/error-response.ts`):
-**Zod** validation failures respond with **400** and flattened details; other errors reuse
-**`statusCode`** when present; non‑production payloads include **`error.cause`** chain detail for faster
-debugging while production masks the message behind a generic internal error shape.
+Clinical service
 
-Improve auth **integration test helpers**: **`assertHttpStatus`** attaches the parsed response body when
-expectations fail (so Drizzle‑style failures and validation bodies surface in Vitest output), and
-**`assertIntegrationDatabaseReady`** verifies **`public.users`** exists before fixtures run with a clear
-migrate hint and **`TEST_DATABASE_URL`** note. Contract and integration specs call the DB guard in **`beforeAll`**
-and use **`assertHttpStatus`** for endpoint checks.
+- Dental chart: `dental_chart_entries` and history events, schemas, service, and routes under
+  `/patients/:id/chart`, `/patients/:id/chart/entries`, `/chart-entries/:id`.
+- Treatment plans: workflow-oriented `treatment_plans` / `treatment_plan_items` (billing schema),
+  nested routes on patients, top-level `/treatment-plans/:id` for items and present/accept.
+- Integration: end-to-end workflow test (patient → encounter → chart → note → plan + item) using
+  Fastify inject, shared helpers, and `test:integration`; devDependency `pg` for DB setup.
+- Unit coverage: chart-entries, treatment-plans, dental-chart/treatment-plan schemas, extended
+  patients routes tests.
 
-## What changed
+Config / database
 
-- **`scripts/dev/start-services.sh`**: **`port_is_listening`**, **`listeners_on_port`**, **`stop_existing_listener_if_any`**, reconcile step messaging, PID cleanup.
-- **`services/auth/src/lib/error-response.ts`**: new shared error handler helpers.
-- **`services/auth/src/index.ts`**: register error handler during server build.
-- **`services/auth/src/__tests__/integration/helpers.ts`**: **`assertHttpStatus`**, **`assertIntegrationDatabaseReady`**.
-- **`services/auth/src/__tests__/integration/auth.contract.test.ts`** and **`auth.integration.test.ts`**: **`beforeAll`** DB check and **`assertHttpStatus`** assertions.
+- CDT seed: illustrative ADA_CDT rows in `code_systems`, `code_values`, and `procedure_catalog` per
+  active tenant (`seed-data/cdt-procedures.ts`, `seed/cdt-reference.ts`), invoked from `seed.ts`;
+  exported helpers and constants from `@saas/config`.
+- Migrations: Drizzle journal and snapshots for chart and treatment-plan workflow (0002, 0003).
+
+API gateway
+
+- Register chart-entries and treatment-plans proxies; extend gateway tests accordingly.
+
+Auth service
+
+- Integration and contract suites use in-process `buildServer()` and `AuthInjectClient` (`app.inject`)
+  so Postgres and Redis match the Vitest worker (avoids `Failed query` from a different DB than
+  localhost:4001).
+- `vitest.config.ts` sets default `DATABASE_URL`, `JWT_SECRET`, and `REDIS_URL` for tests.
+- `tsconfig.build.json` excludes `src/__tests__` from `tsc`; `package.json` `build` uses it so Docker
+  images do not compile tests or require test-only module resolution.
+- Helpers JSON-stringify inject payloads for Fastify `InjectOptions`; optional `AuthTestClient` remains
+  for HTTP debugging; `afterAll` dynamically imports `@saas/config` for `closeDatabase()`.
+- Integration README updated for the new flow.
 
 ## Validation
 
-- **`bash -n scripts/dev/start-services.sh`**
-- **`pnpm --filter @saas/auth test`** (with Postgres migrated and **`DATABASE_URL` / `TEST_DATABASE_URL`** pointing at that database if your tests use **`TEST_DATABASE_URL`**).
+- `pnpm --filter @saas/config build && pnpm exec drizzle-kit migrate` (or your usual migrate path)
+  against the target database.
+- `pnpm --filter @saas/clinical test` and `RUN_INTEGRATION_TESTS=true pnpm --filter @saas/clinical test:integration`
+  with Postgres (and migrations including chart + treatment plan tables).
+- `pnpm --filter @saas/auth build` and `pnpm --filter @saas/auth typecheck`.
+- `RUN_INTEGRATION_TESTS=true pnpm --filter @saas/auth test:integration` with Postgres + Redis.
+- `pnpm --filter @saas/api-gateway test` (or full `pnpm test` as appropriate).

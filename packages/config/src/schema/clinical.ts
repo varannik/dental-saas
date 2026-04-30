@@ -128,6 +128,70 @@ export const toothChartSnapshots = pgTable(
   ]
 );
 
+/** Per-tooth clinical findings (current chart). Soft-deleted rows keep history in `dental_chart_entry_events`. */
+export const dentalChartEntries = pgTable(
+  'dental_chart_entries',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    patientId: uuid('patient_id')
+      .notNull()
+      .references(() => patients.id),
+    toothNumber: text('tooth_number').notNull(),
+    surface: text('surface'),
+    condition: text('condition').notNull(),
+    cdtCode: text('cdt_code'),
+    notes: text('notes'),
+    diagnosedAt: timestamp('diagnosed_at', { withTimezone: true }).notNull().defaultNow(),
+    diagnosedById: uuid('diagnosed_by_id')
+      .notNull()
+      .references(() => users.id),
+    encounterId: uuid('encounter_id').references(() => encounters.id),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_dental_chart_tenant_patient').on(table.tenantId, table.patientId, table.diagnosedAt),
+    index('idx_dental_chart_patient_active').on(
+      table.patientId,
+      table.deletedAt,
+      table.toothNumber
+    ),
+  ]
+);
+
+/** Append-only audit of chart entry lifecycle for `/patients/:id/chart/history`. */
+export const dentalChartEntryEvents = pgTable(
+  'dental_chart_entry_events',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    patientId: uuid('patient_id')
+      .notNull()
+      .references(() => patients.id),
+    chartEntryId: uuid('chart_entry_id').notNull(),
+    eventType: text('event_type').notNull(),
+    actorId: uuid('actor_id')
+      .notNull()
+      .references(() => users.id),
+    snapshot: jsonb('snapshot').$type<Record<string, unknown>>().notNull(),
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_dental_chart_events_patient_time').on(
+      table.tenantId,
+      table.patientId,
+      table.occurredAt
+    ),
+    index('idx_dental_chart_events_entry').on(table.chartEntryId, table.occurredAt),
+  ]
+);
+
 export const perioMeasurements = pgTable(
   'perio_measurements',
   {

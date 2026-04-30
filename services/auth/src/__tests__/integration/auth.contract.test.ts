@@ -1,9 +1,11 @@
+import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { buildServer } from '../../index.js';
 import {
   assertHttpStatus,
   assertIntegrationDatabaseReady,
-  AuthTestClient,
+  AuthInjectClient,
   clearIntegrationData,
   createTestEmail,
   DEFAULT_PASSWORD,
@@ -19,16 +21,21 @@ function expectString(value: unknown, field: string): void {
 }
 
 maybeDescribe('auth contract', () => {
-  let client: AuthTestClient;
+  let app: FastifyInstance;
+  let client: AuthInjectClient;
 
   beforeAll(async () => {
     await assertIntegrationDatabaseReady();
     await setupIntegrationData();
-    client = new AuthTestClient();
+    app = await buildServer();
+    client = new AuthInjectClient(app);
   });
 
   afterAll(async () => {
     await clearIntegrationData();
+    await app.close();
+    const { closeDatabase } = await import('@saas/config');
+    await closeDatabase();
   });
 
   it('respects response contracts across main auth endpoints', async () => {

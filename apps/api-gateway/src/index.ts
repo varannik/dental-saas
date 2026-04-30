@@ -9,9 +9,11 @@ import { corsPlugin } from './plugins/cors.js';
 import { rateLimitPlugin } from './plugins/rate-limit.js';
 import { websocketPlugin } from './plugins/websocket.js';
 import { authProxyRoute } from './routes/auth.proxy.js';
+import { chartEntriesProxyRoute } from './routes/chart-entries.proxy.js';
 import { encountersProxyRoute } from './routes/encounters.proxy.js';
 import { clinicalNotesProxyRoute } from './routes/notes.proxy.js';
 import { patientsProxyRoute } from './routes/patients.proxy.js';
+import { treatmentPlansProxyRoute } from './routes/treatment-plans.proxy.js';
 import { usersProxyRoute } from './routes/users.proxy.js';
 import { voiceProxyRoute } from './routes/voice.proxy.js';
 
@@ -69,6 +71,8 @@ export async function buildServer(
       await api.register(authProxyRoute);
       await api.register(usersProxyRoute);
       await api.register(patientsProxyRoute);
+      await api.register(chartEntriesProxyRoute);
+      await api.register(treatmentPlansProxyRoute);
       await api.register(encountersProxyRoute);
       await api.register(clinicalNotesProxyRoute);
       await api.register(voiceProxyRoute);

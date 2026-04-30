@@ -16,6 +16,7 @@ export const treatmentPlans = pgTable(
     createdById: uuid('created_by_id')
       .notNull()
       .references(() => users.id),
+    title: text('title'),
     status: text('status').notNull().default('DRAFT'),
     totalEstimatedCost: numeric('total_estimated_cost', { precision: 12, scale: 2 }),
     estimatedInsuranceCoverage: numeric('estimated_insurance_coverage', {
@@ -23,6 +24,9 @@ export const treatmentPlans = pgTable(
       scale: 2,
     }),
     notes: text('notes'),
+    presentedAt: timestamp('presented_at', { withTimezone: true }),
+    presentedById: uuid('presented_by_id').references(() => users.id),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -32,22 +36,30 @@ export const treatmentPlans = pgTable(
       table.patientId,
       table.createdAt
     ),
+    index('idx_treatment_plans_status').on(table.tenantId, table.patientId, table.status),
   ]
 );
 
-export const treatmentPlanItems = pgTable('treatment_plan_items', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  planId: uuid('plan_id')
-    .notNull()
-    .references(() => treatmentPlans.id),
-  cdtCode: text('cdt_code').notNull(),
-  toothNumber: text('tooth_number'),
-  surface: text('surface'),
-  phase: integer('phase'),
-  sequenceOrder: integer('sequence_order'),
-  estimatedFee: numeric('estimated_fee', { precision: 12, scale: 2 }),
-  estimatedPatientPortion: numeric('estimated_patient_portion', { precision: 12, scale: 2 }),
-});
+export const treatmentPlanItems = pgTable(
+  'treatment_plan_items',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    planId: uuid('plan_id')
+      .notNull()
+      .references(() => treatmentPlans.id),
+    cdtCode: text('cdt_code').notNull(),
+    toothNumber: text('tooth_number'),
+    surface: text('surface'),
+    phase: integer('phase'),
+    sequenceOrder: integer('sequence_order'),
+    estimatedFee: numeric('estimated_fee', { precision: 12, scale: 2 }),
+    estimatedPatientPortion: numeric('estimated_patient_portion', { precision: 12, scale: 2 }),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('idx_treatment_plan_items_plan').on(table.planId, table.sequenceOrder)]
+);
 
 export const claims = pgTable(
   'claims',

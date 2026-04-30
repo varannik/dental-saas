@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { FastifyInstance, InjectOptions } from 'fastify';
 import { Redis } from 'ioredis';
 import { Client } from 'pg';
 
@@ -31,6 +32,7 @@ export function assertHttpStatus(
   );
 }
 
+/** HTTP client — use when targeting a real listening server (e.g. manual debugging on TEST_API_URL). */
 export class AuthTestClient {
   private authToken: string | null = null;
   private readonly baseUrl: string;
@@ -68,6 +70,67 @@ export class AuthTestClient {
     const data = await response.json().catch(() => ({}));
     return { status: response.status, data };
   }
+}
+
+/**
+ * In-process auth app — same DATABASE_URL / REDIS_URL as the vitest worker (avoids mismatch with a separate server on :4001).
+ */
+export class AuthInjectClient {
+  private authToken: string | null = null;
+
+  constructor(private readonly app: FastifyInstance) {}
+
+  setAuthToken(token: string | null): void {
+    this.authToken = token;
+  }
+
+  async get(path: string): Promise<TestResponse> {
+    return injectAuthRequest(this.app, 'GET', path, { authToken: this.authToken });
+  }
+
+  async post(path: string, body?: unknown): Promise<TestResponse> {
+    return injectAuthRequest(this.app, 'POST', path, {
+      body,
+      authToken: this.authToken,
+    });
+  }
+}
+
+async function injectAuthRequest(
+  app: FastifyInstance,
+  method: 'GET' | 'POST',
+  path: string,
+  options: { body?: unknown; authToken?: string | null }
+): Promise<TestResponse> {
+  const headers: Record<string, string> = {};
+  if (options.authToken) {
+    headers.authorization = `Bearer ${options.authToken}`;
+  }
+  if (options.body !== undefined) {
+    headers['content-type'] = 'application/json';
+  }
+
+  const injectOpts: InjectOptions = {
+    method,
+    url: path,
+    headers,
+  };
+  if (options.body !== undefined) {
+    injectOpts.payload =
+      typeof options.body === 'string' ? options.body : JSON.stringify(options.body);
+  }
+
+  const res = await app.inject(injectOpts);
+
+  let data: unknown = {};
+  if (res.body && res.body.length > 0) {
+    try {
+      data = JSON.parse(res.body) as unknown;
+    } catch {
+      data = { _raw: res.body };
+    }
+  }
+  return { status: res.statusCode, data };
 }
 
 function getDatabaseUrl(): string {
