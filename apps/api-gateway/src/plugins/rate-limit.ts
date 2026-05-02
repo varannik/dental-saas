@@ -36,6 +36,9 @@ function getRateLimitKey(args: { tenantId?: string; userId?: string; endpoint: s
 
 const rateLimitPluginImpl: FastifyPluginAsync = async (app): Promise<void> => {
   const redis = getRedisClient();
+  redis.on?.('error', (error) => {
+    app.log.warn({ error }, 'Redis client error (rate limiting may be degraded until Redis is up)');
+  });
 
   app.decorate('rateLimitGuard', async (args) => {
     const key = getRateLimitKey(args);

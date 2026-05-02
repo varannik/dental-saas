@@ -11,8 +11,12 @@ export const authProxyRoute: FastifyPluginAsync = async (app): Promise<void> => 
       role: request.userId ? 'authenticated' : 'public',
     });
 
-    const path = request.url.replace(/^\/api\/v1\/auth/, '');
-    const targetUrl = `${AUTH_SERVICE_BASE_URL}/auth${path}`;
+    // Match users/patients proxies: strip `/api/v1` when present; under the `/api/v1` prefix,
+    // `request.url` is often `/auth/register` (no `/api/v1` prefix), so stripping only
+    // `/api/v1/auth` produced `/auth/register` and doubled `/auth` upstream → 404.
+    const pathOnly = request.url.split('?')[0] ?? request.url;
+    const path = pathOnly.replace(/^\/api\/v1/, '') || '/';
+    const targetUrl = `${AUTH_SERVICE_BASE_URL}${path}`;
     const requestIdHeader =
       typeof request.headers['x-request-id'] === 'string'
         ? request.headers['x-request-id']
