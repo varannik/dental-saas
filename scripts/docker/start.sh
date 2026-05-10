@@ -32,7 +32,7 @@ log_success "Docker stack is ready"
 print_separator
 echo ""
 log_info "Services:"
-echo "  • PostgreSQL: localhost:5432"
+echo "  • PostgreSQL: localhost:5433  (host → container 5432; avoids local Postgres clash)"
 echo "  • Redis:      localhost:6379"
 echo "  • MinIO API:  http://localhost:9000"
 echo "  • MinIO UI:   http://localhost:9001"

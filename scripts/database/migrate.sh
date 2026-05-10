@@ -42,7 +42,7 @@ case "$ENVIRONMENT" in
 
     # Local default keeps make/db flow deterministic for developers.
     if [ -z "${DATABASE_URL:-}" ]; then
-      export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/dental_saas"
+      export DATABASE_URL="postgresql://postgres:postgres@localhost:5433/dental_saas"
       log_info "DATABASE_URL not set. Using local default: $DATABASE_URL"
     fi
 

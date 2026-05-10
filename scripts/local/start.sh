@@ -37,7 +37,7 @@ log_info "Using Docker services directly"
 
 # Step 5: Get connection info (hardcoded for local Docker services)
 log_step "Setting up connection information..."
-DB_ENDPOINT="localhost:5432"
+DB_ENDPOINT="localhost:5433"
 DB_NAME="dental_saas"
 DB_USER="postgres"
 DB_PASSWORD="postgres"

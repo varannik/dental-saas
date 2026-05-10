@@ -213,6 +213,24 @@ describe('api-gateway', () => {
     expect(response.json()).toEqual({ ok: true });
   });
 
+  it('answers CORS preflight for auth routes without proxying OPTIONS upstream', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await app.inject({
+      method: 'OPTIONS',
+      url: '/api/v1/auth/register',
+      headers: {
+        origin: 'http://localhost:3000',
+        'access-control-request-method': 'POST',
+      },
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(response.headers['access-control-allow-origin']).toBe('http://localhost:3000');
+  });
+
   it('returns 500 with error contract when upstream proxy fails', async () => {
     const fetchMock = vi.fn().mockRejectedValue(new Error('Upstream service unavailable'));
     vi.stubGlobal('fetch', fetchMock);

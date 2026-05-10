@@ -18,6 +18,8 @@ services:
     environment:
       AUTH_HOST: 0.0.0.0
       AUTH_PORT: 4001
+      # Inside the Compose network the DB listens on 5432; host machines use localhost:5433.
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/dental_saas
     ports:
       - "4001:4001"
     depends_on:
@@ -42,6 +44,7 @@ services:
     environment:
       USERS_HOST: 0.0.0.0
       USERS_PORT: 4002
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/dental_saas
     ports:
       - "4002:4002"
     depends_on:
@@ -66,6 +69,7 @@ services:
     environment:
       CLINICAL_HOST: 0.0.0.0
       CLINICAL_PORT: 4003
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/dental_saas
     ports:
       - "4003:4003"
     depends_on:
@@ -75,12 +79,15 @@ services:
       - dental-saas-network
 
   # PostgreSQL Database
+  # Host port 5433 avoids clashing with a local Postgres install on 5432.
+  # From the host: postgresql://...@127.0.0.1:5433/dental_saas
+  # From other Compose services: POSTGRES host is the service name `postgres` on port 5432.
   postgres:
     image: pgvector/pgvector:pg16
     container_name: dental-saas-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_DB: dental_saas
       POSTGRES_USER: postgres

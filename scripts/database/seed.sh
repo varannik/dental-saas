@@ -41,7 +41,7 @@ case "$ENVIRONMENT" in
     wait_for_postgres "dental-saas-postgres"
 
     if [ -z "${DATABASE_URL:-}" ]; then
-      export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/dental_saas"
+      export DATABASE_URL="postgresql://postgres:postgres@localhost:5433/dental_saas"
       log_info "DATABASE_URL not set. Using local default: $DATABASE_URL"
     fi
     ;;

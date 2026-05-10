@@ -3,7 +3,7 @@ import { Client } from 'pg';
 import { getEnv } from '@saas/config';
 import jwt from 'jsonwebtoken';
 
-const DEFAULT_DB_URL = 'postgresql://postgres:postgres@127.0.0.1:5432/dental_saas';
+const DEFAULT_DB_URL = 'postgresql://postgres:postgres@127.0.0.1:5433/dental_saas';
 
 /** Matches deterministic demo tenant used in seed + auth integration tests. */
 export const DEMO_TENANT_ID = process.env.TEST_TENANT_ID ?? '11111111-1111-4111-8111-111111111111';

@@ -60,7 +60,7 @@ mkdir -p "$RUN_DIR" "$LOG_DIR"
 # PID files reference the previous launcher; clear them whenever we reconcile ports.
 rm -f "$RUN_DIR/auth.pid" "$RUN_DIR/users.pid" "$RUN_DIR/clinical.pid" "$RUN_DIR/gateway.pid"
 
-DATABASE_URL=${DATABASE_URL:-"postgresql://postgres:postgres@localhost:5432/dental_saas"}
+DATABASE_URL=${DATABASE_URL:-"postgresql://postgres:postgres@localhost:5433/dental_saas"}
 REDIS_URL=${REDIS_URL:-"redis://127.0.0.1:6379"}
 JWT_SECRET=${JWT_SECRET:-"dev-only-jwt-secret-change-me-immediately"}
 AUTH_SERVICE_URL=${AUTH_SERVICE_URL:-"http://127.0.0.1:4001"}

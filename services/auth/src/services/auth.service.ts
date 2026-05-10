@@ -30,7 +30,9 @@ export async function registerUser(payload: RegisterRequest): Promise<AuthUser> 
     .where(eq(users.email, payload.email))
     .limit(1);
   if (existing[0]) {
-    throw new Error('User with this email already exists.');
+    const err = new Error('User with this email already exists.') as Error & { statusCode: number };
+    err.statusCode = 409;
+    throw err;
   }
 
   const passwordHash = await hash(payload.password, 12);

@@ -1,5 +1,7 @@
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 
+import { registerUpstreamProxyRoutes } from '../lib/register-upstream-proxy-routes.js';
+
 const USERS_SERVICE_BASE_URL = process.env.USERS_SERVICE_URL ?? 'http://127.0.0.1:4002';
 
 export const usersProxyRoute: FastifyPluginAsync = async (app): Promise<void> => {
@@ -42,8 +44,5 @@ export const usersProxyRoute: FastifyPluginAsync = async (app): Promise<void> =>
     return reply.send(await response.text());
   };
 
-  app.all('/users', proxyRequest);
-  app.all('/users/*', proxyRequest);
-  app.all('/tenants', proxyRequest);
-  app.all('/tenants/*', proxyRequest);
+  registerUpstreamProxyRoutes(app, ['/users', '/users/*', '/tenants', '/tenants/*'], proxyRequest);
 };

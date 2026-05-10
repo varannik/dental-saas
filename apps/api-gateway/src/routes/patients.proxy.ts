@@ -1,5 +1,7 @@
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 
+import { registerUpstreamProxyRoutes } from '../lib/register-upstream-proxy-routes.js';
+
 const CLINICAL_SERVICE_BASE_URL = process.env.CLINICAL_SERVICE_URL ?? 'http://127.0.0.1:4003';
 
 export const patientsProxyRoute: FastifyPluginAsync = async (app): Promise<void> => {
@@ -42,6 +44,5 @@ export const patientsProxyRoute: FastifyPluginAsync = async (app): Promise<void>
     return reply.send(await response.text());
   };
 
-  app.all('/patients', proxyRequest);
-  app.all('/patients/*', proxyRequest);
+  registerUpstreamProxyRoutes(app, ['/patients', '/patients/*'], proxyRequest);
 };

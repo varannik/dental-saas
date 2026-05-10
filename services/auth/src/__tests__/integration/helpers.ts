@@ -4,7 +4,7 @@ import { Redis } from 'ioredis';
 import { Client } from 'pg';
 
 const DEFAULT_API_URL = 'http://localhost:4001';
-const DEFAULT_DB_URL = 'postgresql://postgres:postgres@localhost:5432/dental_saas';
+const DEFAULT_DB_URL = 'postgresql://postgres:postgres@localhost:5433/dental_saas';
 const DEFAULT_REDIS_URL = 'redis://localhost:6379';
 const TEST_EMAIL_PREFIX = 'itest-';
 

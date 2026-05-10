@@ -1,5 +1,13 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { config as loadDotenv } from 'dotenv';
 import { z } from 'zod';
+
+/** Monorepo root (…/dental-saas) so `.env` loads even when `cwd` is `services/auth`, Vitest, etc. */
+function getMonorepoRoot(): string {
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+}
 
 const NODE_ENV_VALUES = ['development', 'test', 'staging', 'production'] as const;
 
@@ -19,16 +27,17 @@ function loadEnvFiles(): void {
     typeof process.env.NODE_ENV === 'string' ? process.env.NODE_ENV.trim() : undefined;
   const scopedNodeEnv = runtimeNodeEnv && runtimeNodeEnv.length > 0 ? runtimeNodeEnv : undefined;
 
+  const root = getMonorepoRoot();
   const dotenvPaths = [
-    scopedNodeEnv ? `.env.${scopedNodeEnv}.local` : undefined,
-    '.env.local',
-    scopedNodeEnv ? `.env.${scopedNodeEnv}` : undefined,
-    '.env',
-  ].filter((path): path is string => Boolean(path));
+    scopedNodeEnv ? path.join(root, `.env.${scopedNodeEnv}.local`) : undefined,
+    path.join(root, '.env.local'),
+    scopedNodeEnv ? path.join(root, `.env.${scopedNodeEnv}`) : undefined,
+    path.join(root, '.env'),
+  ].filter((filePath): filePath is string => Boolean(filePath));
 
   // Keep injected runtime variables untouched.
-  for (const path of dotenvPaths) {
-    loadDotenv({ path, override: false });
+  for (const filePath of dotenvPaths) {
+    loadDotenv({ path: filePath, override: false });
   }
 
   dotenvLoaded = true;
