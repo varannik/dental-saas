@@ -60,7 +60,16 @@ mkdir -p "$RUN_DIR" "$LOG_DIR"
 # PID files reference the previous launcher; clear them whenever we reconcile ports.
 rm -f "$RUN_DIR/auth.pid" "$RUN_DIR/users.pid" "$RUN_DIR/clinical.pid" "$RUN_DIR/gateway.pid"
 
-DATABASE_URL=${DATABASE_URL:-"postgresql://postgres:postgres@localhost:5433/dental_saas"}
+# Host processes inherit DATABASE_URL here. If your shell exports @localhost:5432, Node's dotenv
+# (override: false) will never replace it with .env's :5433 — auth then hits native Postgres or nothing.
+if [ -z "${DATABASE_URL:-}" ]; then
+  DATABASE_URL="postgresql://postgres:postgres@localhost:5433/dental_saas"
+elif [ "${SKIP_DOCKER_DATABASE_URL_NORMALIZE:-0}" != "1" ] && {
+  [[ "$DATABASE_URL" == *"@localhost:5432"* ]] || [[ "$DATABASE_URL" == *"@127.0.0.1:5432"* ]];
+}; then
+  log_warning "DATABASE_URL uses host port 5432; for this script Docker Postgres is on 5433. Overriding (set SKIP_DOCKER_DATABASE_URL_NORMALIZE=1 to keep :5432)."
+  DATABASE_URL="postgresql://postgres:postgres@localhost:5433/dental_saas"
+fi
 REDIS_URL=${REDIS_URL:-"redis://127.0.0.1:6379"}
 JWT_SECRET=${JWT_SECRET:-"dev-only-jwt-secret-change-me-immediately"}
 AUTH_SERVICE_URL=${AUTH_SERVICE_URL:-"http://127.0.0.1:4001"}

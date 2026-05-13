@@ -45,14 +45,22 @@ export function registerAuthErrorHandler(app: {
 
     const statusCode = resolveHttpStatus(error);
     const isProduction = process.env.NODE_ENV === 'production';
-    const message = isProduction ? 'Internal Server Error' : formatErrorChain(error);
+    const detail = formatErrorChain(error);
 
     request.log.error({ err: error }, 'Auth request failed');
 
+    if (statusCode >= 500) {
+      return reply.code(statusCode).send({
+        statusCode,
+        error: 'Internal Server Error',
+        message: isProduction ? 'Internal Server Error' : detail,
+      });
+    }
+
     return reply.code(statusCode).send({
       statusCode,
-      error: 'Internal Server Error',
-      message,
+      error: detail,
+      message: detail,
     });
   });
 }

@@ -43,9 +43,18 @@ export default function RegisterPage() {
         }),
       });
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          message?: string;
+        };
+        const fromApi =
+          (typeof body.message === 'string' && body.message.length > 0 && body.message) ||
+          (typeof body.error === 'string' && body.error.length > 0 && body.error);
         const msg =
-          typeof body?.error === 'string' ? body.error : `Registration failed (${res.status})`;
+          fromApi ||
+          (res.status === 409
+            ? 'This email is already registered. Sign in or use a different email.'
+            : `Registration failed (${res.status})`);
         setError(msg);
         return;
       }

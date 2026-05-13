@@ -1,40 +1,48 @@
-feat(gateway,infra,env): harden auth proxy headers, fix compose DB URL, document local env
+fix(local-dev,auth,web): Docker DB URL hygiene, auth 4xx payloads, register errors, smoke + docs
 
-Improve API-gateway behavior for browser-backed requests (where duplicate headers appear as
-arrays), align Docker Postgres wiring for auth, and tighten root `.env` / `.env.example` guidance
-for host-vs-container databases and gateway discovery.
+Align host-run services and smoke checks with Docker Postgres on **host :5433**, fix misleading
+auth JSON for client errors (e.g. duplicate email), improve register UI messaging, and add
+operator helpers (smoke preflight, DB list script, tenant-management plan).
 
-API gateway
+Auth service
 
-- **`http-header:firstHeader()`** Normalizes duplicate incoming headers (`content-type`,
-  `authorization`, `x-request-id`) to plain strings before `fetch()`. Duplicate header values expose
-  as `string[]` in Fastify; passing them straight into Undici rejects and surfaced as opaque **500s**
-  while `curl` (single-valued headers) still worked.
-- **Auth proxy (`auth.proxy.ts`)** Uses `firstHeader`, derives upstream path via `upstreamAuthPath`
-  (pathname only, tolerant of uncommon full-URL shapes), and serializes outbound bodies via
-  `serializeProxyBody` (`string` bodies forwarded as-is instead of double-`JSON.stringify`).
-- **`src/lib/__tests__/http-header.test.ts`** Covers `firstHeader` array/single/unset inputs.
+- **`error-response.ts`** For **4xx**, `error` and `message` now echo the real client-safe detail
+  (e.g. *User with this email already exists.*); **5xx** keep generic `Internal Server Error` in
+  production with detail only in dev. Fixes browsers showing **Internal Server Error** on **409**.
 
-Infrastructure
+Web app
 
-- **`docker-compose.yml` (`auth` service)** Set `DATABASE_URL` to `@postgres:5432` inside the Compose
-  network (`5433` is only the host port mapping; inter-container Postgres is **5432**). Matches
-  `users` and `clinical` services.
+- **`register/page.tsx`** Prefer `message` then `error` from API JSON; explicit fallback for **409**
+  when the body is still generic.
 
-Environment templates (repo root)
+Local dev scripts
 
-- **`.env` / `.env.example`** Document dotenv load order (`*.local` overrides), host
-  **`localhost:5433`** targeting Docker-published Postgres versus compose-time `postgres:5432`, and
-  add **`DB_*`** helpers for scripts.
-- Declare **`GATEWAY_HOST` / `GATEWAY_PORT`**, **`AUTH_SERVICE_URL`**, optional **`CORS_ORIGINS`**
-  comment block, **`AUTH_HOST` / `AUTH_PORT`** for host-run auth, and **`NEXT_PUBLIC_API_GATEWAY_URL`**
-  as a documented default with a reminder that Next.js reads **`apps/web/.env*`** (copy line there
-  when needed).
+- **`scripts/dev/start-services.sh`** If `DATABASE_URL` targets `@localhost:5432` or
+  `@127.0.0.1:5432`, rewrite to the Docker host URL on **:5433** (with warning). Opt out with
+  `SKIP_DOCKER_DATABASE_URL_NORMALIZE=1`. Explains conflict with dotenv **override: false** when the
+  shell exports legacy native Postgres.
+
+Gateway smoke checks
+
+- **`gateway-smoke-checks.sh`** Header note on :5433 vs :5432; preflight: reject first `DATABASE_URL`
+  in `.env*` using :5432; reject shell `DATABASE_URL` using :5432; verify **`public.users`** exists
+  in `dental-saas-postgres` before HTTP steps (prompts `make db-migrate`).
+
+Environment template
+
+- **`.env.example`** Note that a shell-set `DATABASE_URL` overrides repo `.env*` (dotenv does not
+  override existing env).
+
+Docs & tooling
+
+- **`docs/ux/web-tenant-management.md`** Phased best-practice plan for tenant/session UI + backend
+  gaps (create-tenant membership, `/me`, switch-tenant).
+- **`scripts/database/tests/list-users-tenants.sh`** Read-only listing of `tenants`, `users`, and
+  `user_tenants` via Docker `psql` (sources `../../lib/{common,docker}.sh`).
 
 Validation
 
-- `pnpm --filter @saas/api-gateway test`
-- Compose: `docker compose -f infrastructure/docker/docker-compose.yml up -d postgres` (and stack),
-  recreate **`auth`** if it cached the old **`DATABASE_URL`**.
-- Restart host-run **gateway** / **auth** after `.env` edits; confirm **`DATABASE_URL`** and
-  **`.env.local`** are not pinning native Postgres (**`:5432`**) unintentionally.
+- `bash -n scripts/dev/start-services.sh scripts/test/gateway-smoke-checks.sh scripts/database/tests/list-users-tenants.sh`
+- Local: `unset DATABASE_URL` or `:5433`, `make docker-up`, `make db-migrate`, `make start-services`,
+  `make gateway-smoke-checks`
+- Register duplicate email: expect **409** with clear API `error` / UI copy

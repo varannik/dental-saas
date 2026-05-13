@@ -27,12 +27,52 @@
 #   It stops Docker dental-saas-auth and dental-saas-clinical to free ports; users is often left
 #   bound on :4002 by whichever process won the port (host tsx vs container). If the host owns
 #   4002, `docker logs dental-saas-users` stays quiet — that does not mean steps 05–08 skipped.
+#
+# Database (local): Docker Compose publishes Postgres on host port 5433 (.env.example DATABASE_URL).
+# Host auth/users/clinical load DATABASE_URL from repo .env* (see packages/config/src/env.ts order).
+# If DATABASE_URL still targets localhost:5432 (native Postgres) and you stop native Postgres, or
+# the schema only exists in Docker, POST /auth/register can return 500 with Drizzle "Failed query".
+# Fix: use localhost:5433 for Docker DB, run `make db-migrate`, restart `make start-services`.
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/common.sh"
 source "$SCRIPT_DIR/../lib/docker.sh"
+
+# First DATABASE_URL in these files wins for host services (matches packages/config/src/env.ts).
+gateway_smoke_assert_env_database_targets_docker_port() {
+  local f line val
+  for f in "$PROJECT_ROOT/.env.development.local" "$PROJECT_ROOT/.env.local" \
+           "$PROJECT_ROOT/.env.development" "$PROJECT_ROOT/.env"; do
+    [ -f "$f" ] || continue
+    line=$(grep -m1 -E '^[[:space:]]*(export[[:space:]]+)?DATABASE_URL=' "$f" 2>/dev/null || true)
+    [ -n "$line" ] || continue
+    val="${line#*=}"
+    val="${val#\"}"
+    val="${val%\"}"
+    val="${val#\'}"
+    val="${val%\'}"
+    if [[ "$val" == *"@localhost:5432"* ]] || [[ "$val" == *"@127.0.0.1:5432"* ]]; then
+      log_error "DATABASE_URL in $f uses host port 5432 (native Postgres). Local smoke uses Docker Postgres on 5433 (dental-saas-postgres)."
+      log_info "Set DATABASE_URL to postgresql://postgres:postgres@localhost:5433/dental_saas (see .env.example), then: make db-migrate && make start-services"
+      exit 1
+    fi
+    return 0
+  done
+  return 0
+}
+
+gateway_smoke_assert_docker_schema_ready() {
+  local ok
+  ok=$(docker exec dental-saas-postgres psql -U postgres -d dental_saas -tAc \
+    "select 1 from information_schema.tables where table_schema = 'public' and table_name = 'users' limit 1;" 2>/dev/null | tr -d '[:space:]' || echo "")
+  if [ "$ok" != "1" ]; then
+    log_error "Docker database dental_saas is missing public.users (migrations not applied)."
+    log_info "Run: make db-migrate"
+    exit 1
+  fi
+}
 
 ENVIRONMENT=${1:-local}
 print_header "Gateway smoke checks: $ENVIRONMENT"
@@ -87,6 +127,22 @@ if [ "$ENVIRONMENT" = "local" ]; then
 
   wait_for_postgres "dental-saas-postgres"
   wait_for_redis "dental-saas-redis"
+
+  log_step "Preflight: .env DATABASE_URL (avoid native :5432 when using Docker DB)"
+  gateway_smoke_assert_env_database_targets_docker_port
+
+  # Same URL as above can be set in the shell; dotenv does not override existing process.env.
+  if [[ -n "${DATABASE_URL:-}" ]]; then
+    if [[ "$DATABASE_URL" == *"@localhost:5432"* ]] || [[ "$DATABASE_URL" == *"@127.0.0.1:5432"* ]]; then
+      log_error "DATABASE_URL in your environment uses port 5432. Node services ignore .env for that key when it is already set."
+      log_info "Run: unset DATABASE_URL  then: make start-services  (start-services also normalizes :5432 → :5433 unless SKIP_DOCKER_DATABASE_URL_NORMALIZE=1)"
+      exit 1
+    fi
+  fi
+
+  log_step "Preflight: Docker DB schema (public.users)"
+  gateway_smoke_assert_docker_schema_ready
+  log_success "Docker Postgres has public.users"
 
   log_step "Preflight: clinical service (patients API upstream for gateway)"
   if ! curl -sSf "${SMOKE_CLINICAL_HEALTH_URL:-"http://127.0.0.1:4003/health"}" >/dev/null; then
