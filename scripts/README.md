@@ -65,7 +65,7 @@ scripts/
 │
 ├── dev/                      # Development server
 │   ├── start.sh
-│   └── start-services.sh
+│   └── verify-docker-web-stack.sh
 │
 ├── test/                     # Testing scripts
 │   ├── run-all.sh           # Run all tests

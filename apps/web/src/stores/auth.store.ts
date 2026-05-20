@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 
-import { getStoredAccessToken, setStoredAccessToken } from '@/lib/auth-storage';
+import {
+  getStoredAccessToken,
+  getStoredTenantId,
+  setStoredAccessToken,
+  setStoredTenantId,
+} from '@/lib/auth-storage';
+import { setStoredLastLoginEmail } from '@/lib/login-email-storage';
 
 type AuthState = {
   accessToken: string | null;
@@ -9,24 +15,46 @@ type AuthState = {
   clearSession: () => void;
 };
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: null,
-  /** Injected on login; storage currently only persists access token. */
   tenantId: null,
-  setSession: (token, tenantId = null) => {
+  setSession: (token, tenantId) => {
+    if (token === null) {
+      setStoredAccessToken(null);
+      setStoredTenantId(null);
+      set({ accessToken: null, tenantId: null });
+      return;
+    }
+
+    let nextTenantId = tenantId;
+    if (nextTenantId === undefined) {
+      nextTenantId = get().tenantId ?? getStoredTenantId();
+    }
+
     setStoredAccessToken(token);
-    set({ accessToken: token, tenantId: tenantId ?? null });
+
+    if (nextTenantId === null || nextTenantId === '') {
+      setStoredTenantId(null);
+      set({ accessToken: token, tenantId: null });
+      return;
+    }
+
+    setStoredTenantId(nextTenantId);
+    set({ accessToken: token, tenantId: nextTenantId });
   },
   clearSession: () => {
     setStoredAccessToken(null);
+    setStoredTenantId(null);
+    setStoredLastLoginEmail(null);
     set({ accessToken: null, tenantId: null });
   },
 }));
 
-/** Hydrate token from storage after mount (client only). */
+/** Hydrate token + active tenant from storage (client-only). */
 export function initAuthFromStorage(): void {
   const token = getStoredAccessToken();
+  const tenantId = getStoredTenantId();
   if (token) {
-    useAuthStore.setState({ accessToken: token });
+    useAuthStore.setState({ accessToken: token, tenantId });
   }
 }

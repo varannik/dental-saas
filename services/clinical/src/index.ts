@@ -1,5 +1,7 @@
 export { buildClinicalServiceServer } from './app.js';
 
+import { pathToFileURL } from 'node:url';
+
 import { buildClinicalServiceServer } from './app.js';
 
 export interface ClinicalServiceConfig {
@@ -20,7 +22,11 @@ async function start(): Promise<void> {
   await app.listen({ host: config.host, port: config.port });
 }
 
-if (process.env.NODE_ENV !== 'test') {
+const isDirectRun = process.argv[1]
+  ? pathToFileURL(process.argv[1]).href === import.meta.url
+  : false;
+
+if (isDirectRun) {
   start().catch((error: unknown) => {
     console.error('Failed to start clinical service.', error);
     process.exit(1);

@@ -4,8 +4,10 @@ version: '3.8'
 # This Docker Compose file provides PostgreSQL, Redis, and MinIO for local development
 
 services:
-  # Auth Service
+  # API stack (Compose profile `apps`) — not started by default. Run: make docker-up-apps
   auth:
+    profiles:
+      - apps
     build:
       context: ../../
       dockerfile: services/auth/Dockerfile
@@ -18,8 +20,10 @@ services:
     environment:
       AUTH_HOST: 0.0.0.0
       AUTH_PORT: 4001
+      NODE_ENV: development
       # Inside the Compose network the DB listens on 5432; host machines use localhost:5433.
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/dental_saas
+      REDIS_URL: redis://redis:6379
     ports:
       - "4001:4001"
     depends_on:
@@ -30,8 +34,10 @@ services:
     networks:
       - dental-saas-network
 
-  # Users Service
+  # Users Service (profile `apps`; see auth comment above).
   users:
+    profiles:
+      - apps
     build:
       context: ../../
       dockerfile: services/users/Dockerfile
@@ -55,8 +61,10 @@ services:
     networks:
       - dental-saas-network
 
-  # Clinical Service (patients, encounters, notes)
+  # Clinical Service (profile `apps`; see auth comment above).
   clinical:
+    profiles:
+      - apps
     build:
       context: ../../
       dockerfile: services/clinical/Dockerfile
@@ -74,6 +82,43 @@ services:
       - "4003:4003"
     depends_on:
       postgres:
+        condition: service_healthy
+    networks:
+      - dental-saas-network
+
+  # API Gateway (profile `apps`) — browser entrypoint :4000; proxies to auth/users/clinical on the Compose network.
+  api-gateway:
+    profiles:
+      - apps
+    build:
+      context: ../../
+      dockerfile: apps/api-gateway/Dockerfile
+    image: dental-saas-api-gateway:local
+    pull_policy: never
+    container_name: dental-saas-api-gateway
+    restart: unless-stopped
+    env_file:
+      - ../../.env
+    environment:
+      GATEWAY_HOST: 0.0.0.0
+      GATEWAY_PORT: 4000
+      NODE_ENV: development
+      AUTH_SERVICE_URL: http://auth:4001
+      USERS_SERVICE_URL: http://users:4002
+      CLINICAL_SERVICE_URL: http://clinical:4003
+      REDIS_URL: redis://redis:6379
+      # Unset CORS_ORIGINS → reflect localhost/LAN browser origins (see apps/api-gateway/src/plugins/cors.ts).
+      CORS_ORIGINS: ""
+    ports:
+      - "4000:4000"
+    depends_on:
+      auth:
+        condition: service_started
+      users:
+        condition: service_started
+      clinical:
+        condition: service_started
+      redis:
         condition: service_healthy
     networks:
       - dental-saas-network

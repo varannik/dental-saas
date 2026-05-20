@@ -7,20 +7,23 @@ import { useLayoutEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { DEMO_TENANT_ID } from '@/lib/constants';
+import { establishSessionFromAccessToken } from '@/lib/auth-session';
 import { apiFetch } from '@/lib/api-client';
+import { getDefaultTenantId } from '@/lib/constants';
 import { useAuth } from '@/hooks/use-auth';
+import { setStoredLastLoginEmail } from '@/lib/login-email-storage';
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { accessToken, setSession } = useAuth();
+  const { accessToken } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   const nextPath = searchParams.get('next') || '/dashboard';
+  const defaultTenantId = getDefaultTenantId();
 
   useLayoutEffect(() => {
     if (accessToken) {
@@ -38,7 +41,7 @@ export function LoginForm() {
         body: JSON.stringify({
           email: email.trim(),
           password,
-          tenantId: DEMO_TENANT_ID,
+          tenantId: defaultTenantId,
         }),
       });
       if (!res.ok) {
@@ -59,7 +62,8 @@ export function LoginForm() {
         setError('Invalid response from server.');
         return;
       }
-      setSession(body.accessToken, DEMO_TENANT_ID);
+      setStoredLastLoginEmail(email.trim());
+      await establishSessionFromAccessToken(body.accessToken, defaultTenantId);
       router.replace(nextPath.startsWith('/') ? nextPath : '/dashboard');
     } catch {
       setError('Network error. Is the API gateway running?');

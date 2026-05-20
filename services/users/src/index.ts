@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
+import { pathToFileURL } from 'node:url';
 import { ZodError } from 'zod';
 
 import { registerUserServiceRoutes } from './routes/index.js';
@@ -15,8 +16,14 @@ export function getDefaultUsersServiceConfig(): UsersServiceConfig {
   };
 }
 
+function shouldEnableFastifyLogging(): boolean {
+  return process.env.NODE_ENV !== 'test' && process.env.VITEST !== 'true';
+}
+
 export async function buildUsersServiceServer(): Promise<FastifyInstance> {
-  const app = Fastify({ logger: true });
+  const app = Fastify({
+    logger: shouldEnableFastifyLogging(),
+  });
 
   app.get('/health', async () => ({ status: 'ok', service: 'users' }));
   await app.register(registerUserServiceRoutes);
@@ -52,7 +59,11 @@ async function start(): Promise<void> {
   await app.listen({ host: config.host, port: config.port });
 }
 
-if (process.env.NODE_ENV !== 'test') {
+const isDirectRun = process.argv[1]
+  ? pathToFileURL(process.argv[1]).href === import.meta.url
+  : false;
+
+if (isDirectRun) {
   start().catch((error: unknown) => {
     console.error('Failed to start users service.', error);
     process.exit(1);

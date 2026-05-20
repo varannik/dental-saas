@@ -2,7 +2,7 @@ import { eq, sql } from 'drizzle-orm';
 import type { z } from 'zod';
 
 import { createDatabaseConnection } from '../../../../packages/config/src/database.js';
-import { tenants } from '../../../../packages/config/src/schema/tenancy.js';
+import { tenants, userTenants } from '../../../../packages/config/src/schema/tenancy.js';
 import type { createTenantSchema } from '../schemas/tenant.schema.js';
 
 type CreateTenantInput = z.infer<typeof createTenantSchema>;
@@ -37,4 +37,42 @@ export async function getTenantById(tenantId: string): Promise<unknown | null> {
   const db = createDatabaseConnection();
   const result = await db.select().from(tenants).where(eq(tenants.id, tenantId)).limit(1);
   return result[0] ?? null;
+}
+
+/** Create tenant and link creator as ADMIN in `user_tenants` (atomic). */
+export async function createTenantWithCreatorAsAdmin(
+  creatorUserId: string,
+  input: CreateTenantInput
+): Promise<unknown> {
+  const db = createDatabaseConnection();
+  const supportedLocales = input.supportedLocales ?? ['en-US'];
+  const supportedLanguages = input.supportedLanguages ?? ['en'];
+
+  return db.transaction(async (tx) => {
+    const inserted = await tx
+      .insert(tenants)
+      .values({
+        name: input.name,
+        type: input.type,
+        primaryRegion: input.primaryRegion ?? 'eu-central-1',
+        defaultLocale: input.defaultLocale ?? 'en-US',
+        supportedLocales: sql`${JSON.stringify(supportedLocales)}::jsonb`,
+        supportedLanguages: sql`${JSON.stringify(supportedLanguages)}::jsonb`,
+        partitionStrategy: input.partitionStrategy ?? 'ROW_LEVEL',
+        status: input.status ?? 'ACTIVE',
+      })
+      .returning();
+    const tenant = inserted[0];
+    if (!tenant) {
+      throw new Error('Failed to create tenant.');
+    }
+
+    await tx.insert(userTenants).values({
+      userId: creatorUserId,
+      tenantId: tenant.id,
+      userType: 'ADMIN',
+    });
+
+    return tenant;
+  });
 }

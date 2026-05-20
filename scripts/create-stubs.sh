@@ -32,7 +32,7 @@ declare -a STUBS=(
   "redis/flush.sh:Flush Redis database"
   "redis/info.sh:Show Redis info"
   "dev/start.sh:Start development server"
-  "dev/start-services.sh:Start all microservices"
+  "dev/verify-docker-web-stack.sh:Verify Docker API stack and local web"
   "quality/lint.sh:Run linter"
   "quality/lint-fix.sh:Fix linting issues"
   "quality/format.sh:Format code"

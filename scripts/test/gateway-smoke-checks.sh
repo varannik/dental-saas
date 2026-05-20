@@ -22,17 +22,14 @@
 #     AUTH_SERVICE_URL         → http://127.0.0.1:4001
 #     USERS_SERVICE_URL        → http://127.0.0.1:4002
 #     CLINICAL_SERVICE_URL     → http://127.0.0.1:4003
-# - `make start-services` runs auth, users, clinical, gateway as host processes (pnpm tsx); logs go to:
-#     .run/logs/auth.log · users.log · clinical.log · gateway.log
-#   It stops Docker dental-saas-auth and dental-saas-clinical to free ports; users is often left
-#   bound on :4002 by whichever process won the port (host tsx vs container). If the host owns
-#   4002, `docker logs dental-saas-users` stays quiet — that does not mean steps 05–08 skipped.
+# - Local API stack: `make docker-up-apps` (gateway + auth + users + clinical in Docker).
+#   Logs: docker logs dental-saas-api-gateway · dental-saas-auth · dental-saas-users · dental-saas-clinical
 #
 # Database (local): Docker Compose publishes Postgres on host port 5433 (.env.example DATABASE_URL).
 # Host auth/users/clinical load DATABASE_URL from repo .env* (see packages/config/src/env.ts order).
 # If DATABASE_URL still targets localhost:5432 (native Postgres) and you stop native Postgres, or
 # the schema only exists in Docker, POST /auth/register can return 500 with Drizzle "Failed query".
-# Fix: use localhost:5433 for Docker DB, run `make db-migrate`, restart `make start-services`.
+# Fix: use localhost:5433 for Docker DB, run `make db-migrate`, then `make docker-up-apps`.
 
 set -e
 
@@ -55,7 +52,7 @@ gateway_smoke_assert_env_database_targets_docker_port() {
     val="${val%\'}"
     if [[ "$val" == *"@localhost:5432"* ]] || [[ "$val" == *"@127.0.0.1:5432"* ]]; then
       log_error "DATABASE_URL in $f uses host port 5432 (native Postgres). Local smoke uses Docker Postgres on 5433 (dental-saas-postgres)."
-      log_info "Set DATABASE_URL to postgresql://postgres:postgres@localhost:5433/dental_saas (see .env.example), then: make db-migrate && make start-services"
+      log_info "Set DATABASE_URL to postgresql://postgres:postgres@localhost:5433/dental_saas (see .env.example), then: make db-migrate && make docker-up-apps"
       exit 1
     fi
     return 0
@@ -109,7 +106,7 @@ log_info "Smoke email (users CRUD): $CRUD_USER_EMAIL"
 
 if [ "$ENVIRONMENT" = "local" ]; then
   log_info "Gateway upstream defaults (override via env when gateway starts): AUTH ${AUTH_SERVICE_URL:-http://127.0.0.1:4001} · USERS ${USERS_SERVICE_URL:-http://127.0.0.1:4002} · CLINICAL ${CLINICAL_SERVICE_URL:-http://127.0.0.1:4003}"
-  log_info "If you use make start-services: tail logs under ${PROJECT_ROOT}/.run/logs/ (users→users.log). Docker dental-saas-users logs only when that container owns host :4002."
+  log_info "API logs: docker logs -f dental-saas-api-gateway (and auth/users/clinical containers)."
   check_docker || die "Docker is required for local smoke checks"
   check_docker_running || die "Docker daemon is not running"
 
@@ -135,7 +132,7 @@ if [ "$ENVIRONMENT" = "local" ]; then
   if [[ -n "${DATABASE_URL:-}" ]]; then
     if [[ "$DATABASE_URL" == *"@localhost:5432"* ]] || [[ "$DATABASE_URL" == *"@127.0.0.1:5432"* ]]; then
       log_error "DATABASE_URL in your environment uses port 5432. Node services ignore .env for that key when it is already set."
-      log_info "Run: unset DATABASE_URL  then: make start-services  (start-services also normalizes :5432 → :5433 unless SKIP_DOCKER_DATABASE_URL_NORMALIZE=1)"
+      log_info "Run: unset DATABASE_URL  then: make docker-up-apps"
       exit 1
     fi
   fi
@@ -147,7 +144,7 @@ if [ "$ENVIRONMENT" = "local" ]; then
   log_step "Preflight: clinical service (patients API upstream for gateway)"
   if ! curl -sSf "${SMOKE_CLINICAL_HEALTH_URL:-"http://127.0.0.1:4003/health"}" >/dev/null; then
     log_error "Clinical service is not reachable (gateway proxies /api/v1/patients to the clinical service)."
-    log_info "Start it with: make start-services  or: pnpm --filter @saas/clinical dev"
+    log_info "Start it with: make docker-up-apps"
     log_info "Override check URL: SMOKE_CLINICAL_HEALTH_URL=https://host:4003/health"
     exit 1
   fi
@@ -393,7 +390,7 @@ EOF
   if [ "$ENVIRONMENT" = "local" ]; then
     print_separator
     log_info "Proof the users/clinical steps ran: HTTP statuses above + JSON assertions would have aborted on mismatch."
-    log_info "Where to tail logs locally: ${PROJECT_ROOT}/.run/logs/users.log · clinical.log · gateway.log (after make start-services). Docker logs for dental-saas-users only if that container serves :4002."
+    log_info "Where to tail logs: docker logs dental-saas-api-gateway · dental-saas-users · dental-saas-clinical"
   fi
 }
 

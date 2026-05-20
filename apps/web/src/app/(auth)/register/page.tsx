@@ -7,10 +7,12 @@ import { useLayoutEffect, useState } from 'react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { DEMO_TENANT_ID } from '@/lib/constants';
-import { cn } from '@/lib/utils';
+import { establishSessionFromAccessToken, loginWithPasswordForTenant } from '@/lib/auth-session';
 import { apiFetch } from '@/lib/api-client';
+import { getDefaultTenantId } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
+import { setStoredLastLoginEmail } from '@/lib/login-email-storage';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -21,6 +23,7 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [pending, setPending] = useState(false);
+  const defaultTenantId = getDefaultTenantId();
 
   useLayoutEffect(() => {
     if (accessToken) {
@@ -39,7 +42,7 @@ export default function RegisterPage() {
           fullName: fullName.trim(),
           email: email.trim(),
           password,
-          tenantId: DEMO_TENANT_ID,
+          tenantId: defaultTenantId,
         }),
       });
       if (!res.ok) {
@@ -58,7 +61,15 @@ export default function RegisterPage() {
         setError(msg);
         return;
       }
-      setDone(true);
+
+      setStoredLastLoginEmail(email.trim());
+      const login = await loginWithPasswordForTenant(email.trim(), password, defaultTenantId);
+      if (!login) {
+        setDone(true);
+        return;
+      }
+      await establishSessionFromAccessToken(login.accessToken, defaultTenantId);
+      router.replace('/dashboard');
     } catch {
       setError('Network error. Is the API gateway running?');
     } finally {

@@ -61,7 +61,7 @@ scripts/
 │
 ├── dev/                              # Development Server (2)
 │   ├── start.sh                      🔄 Start dev server
-│   └── start-services.sh             🔄 Start microservices
+│   └── verify-docker-web-stack.sh    ✅ Docker API + local web checks
 │
 ├── test/                             # Testing (6)
 │   ├── run-all.sh                    🔄 Run all tests

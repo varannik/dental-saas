@@ -10,13 +10,16 @@ export function getApiBaseUrl(): string {
 
 export type ApiFetchInit = RequestInit & {
   accessToken?: string | null;
+  /** When true, 401 does not clear the client session (e.g. probing /auth/me). */
+  skipSessionClearOn401?: boolean;
 };
 
 /**
  * Fetch against the API gateway. Pass path like `/api/v1/patients` (leading slash optional).
+ * Authenticated requests that return 401 clear the session unless `skipSessionClearOn401` is set.
  */
 export async function apiFetch(path: string, init: ApiFetchInit = {}): Promise<Response> {
-  const { accessToken, headers: initHeaders, ...rest } = init;
+  const { accessToken, skipSessionClearOn401, headers: initHeaders, ...rest } = init;
   const headers = new Headers(initHeaders);
   if (accessToken) {
     headers.set('Authorization', `Bearer ${accessToken}`);
@@ -25,8 +28,15 @@ export async function apiFetch(path: string, init: ApiFetchInit = {}): Promise<R
     headers.set('Content-Type', 'application/json');
   }
   const normalized = path.startsWith('/') ? path : `/${path}`;
-  return fetch(`${getApiBaseUrl()}${normalized}`, {
+  const res = await fetch(`${getApiBaseUrl()}${normalized}`, {
     ...rest,
     headers,
   });
+
+  if (res.status === 401 && accessToken && !skipSessionClearOn401) {
+    const { useAuthStore } = await import('@/stores/auth.store');
+    useAuthStore.getState().clearSession();
+  }
+
+  return res;
 }

@@ -1,48 +1,76 @@
-fix(local-dev,auth,web): Docker DB URL hygiene, auth 4xx payloads, register errors, smoke + docs
+feat(docker,auth,gateway,web): Docker API stack, login/session fixes, tenant UI MVP
 
-Align host-run services and smoke checks with Docker Postgres on **host :5433**, fix misleading
-auth JSON for client errors (e.g. duplicate email), improve register UI messaging, and add
-operator helpers (smoke preflight, DB list script, tenant-management plan).
+Run the full API surface in Docker (`make docker-up-apps`), fix login failures after
+successful register (Redis + `sessions` + clearer errors), harden gateway CORS for local
+Next.js, and ship web tenant-management phases 1–3 with atomic tenant creation on users.
+
+Docker & local dev
+
+- **`docker-compose.yml`** Profile `apps`: api-gateway (:4000), auth, users, clinical; auth
+  overrides `DATABASE_URL` → `postgres:5432`, `REDIS_URL` → `redis://redis:6379`,
+  `NODE_ENV: development` (actionable login error bodies).
+- **Service Dockerfiles** (auth, users, clinical, api-gateway): reproducible `pnpm install`,
+  workspace package stubs, Vitest excluded from gateway build; auth runtime no longer forces
+  `NODE_ENV=production`.
+- **Makefile** `docker-up-apps`, `verify-docker-web`, `diagnose-auth-login`; removed host
+  `start-services` flow in favor of Compose.
+- **`start-apps.sh`** Warns when `public.sessions` is missing (prompts `make db-migrate`).
+- **`scripts/dev/diagnose-auth-login.sh`** Checks sessions table, auth env, Redis from auth
+  container, optional direct/gateway login curl.
+- **`scripts/dev/verify-docker-web-stack.sh`** Docker API + CORS + web gateway target checks.
+- **`.env.example`** Notes on `DATABASE_URL` override and Docker vs host ports.
+
+API gateway
+
+- **`apps/api-gateway/Dockerfile`** + compose service; upstream URLs `http://auth:4001`, etc.
+- **`plugins/cors.ts`** Reflect localhost/LAN origins when `CORS_ORIGINS` is empty; `onSend`
+  hook; tests in `plugins/__tests__/cors.test.ts`.
+- **`routes/auth.proxy.ts`** Correct upstream path when `request.url` is `/auth/*` under
+  `/api/v1` prefix.
 
 Auth service
 
-- **`error-response.ts`** For **4xx**, `error` and `message` now echo the real client-safe detail
-  (e.g. *User with this email already exists.*); **5xx** keep generic `Internal Server Error` in
-  production with detail only in dev. Fixes browsers showing **Internal Server Error** on **409**.
+- **`auth.service.ts`** Invalid credentials → **401** (`statusCode`), not opaque **500**.
+- **`session.service.ts`** Explicit Redis connect/ping; rollback DB session row if Redis `SET`
+  fails; hint when `sessions` table is missing.
+- **`error-response.ts`** **4xx** expose real `error`/`message`; **503** for Redis/DB session
+  infra in dev; **5xx** stay generic in production.
+- **`services/auth/Dockerfile`** Align with other service images.
 
-Web app
+Users service
 
-- **`register/page.tsx`** Prefer `message` then `error` from API JSON; explicit fallback for **409**
-  when the body is still generic.
+- **`verify-access-token.ts`** JWT verification for protected routes.
+- **`POST /tenants/with-membership`** Atomic tenant + creator `ADMIN` in `user_tenants`.
+- **`index.ts`** `isDirectRun` guard (no auto-listen under Vitest).
+- **`vitest.config.ts`** + tests for membership route and token verify.
 
-Local dev scripts
+Web app (tenant phases 1–3)
 
-- **`scripts/dev/start-services.sh`** If `DATABASE_URL` targets `@localhost:5432` or
-  `@127.0.0.1:5432`, rewrite to the Docker host URL on **:5433** (with warning). Opt out with
-  `SKIP_DOCKER_DATABASE_URL_NORMALIZE=1`. Explains conflict with dotenv **override: false** when the
-  shell exports legacy native Postgres.
+- **`auth-storage.ts`**, **`auth-session.ts`**, **`auth.store.ts`**: persist access token +
+  active `tenantId`; reconcile via **`GET /auth/me`** in dashboard shell.
+- **`use-active-tenant.ts`**, header/shell: show active tenant; **`getDefaultTenantId()`**
+  (`NEXT_PUBLIC_DEFAULT_TENANT_ID` or demo UUID).
+- **Login/register** use default tenant; register/login error bodies read `message` then
+  `error`; **`login-email-storage.ts`** for last email.
+- **Settings** “Create organization” → `POST /api/v1/tenants/with-membership` + re-login.
+- **`api-client.ts`** 401 handling; **`vitest.config.mts`** + storage/constants tests;
+  **`apps/web/.env.example`**.
 
-Gateway smoke checks
+Gateway smoke & DB tooling
 
-- **`gateway-smoke-checks.sh`** Header note on :5433 vs :5432; preflight: reject first `DATABASE_URL`
-  in `.env*` using :5432; reject shell `DATABASE_URL` using :5432; verify **`public.users`** exists
-  in `dental-saas-postgres` before HTTP steps (prompts `make db-migrate`).
+- **`gateway-smoke-checks.sh`** Reject `.env*` / shell `DATABASE_URL` on :5432; verify
+  `public.users` before HTTP; document Docker :5433 vs native :5432.
+- **`scripts/database/tests/list-users-tenants.sh`** List tenants, users, `user_tenants`.
 
-Environment template
+Docs
 
-- **`.env.example`** Note that a shell-set `DATABASE_URL` overrides repo `.env*` (dotenv does not
-  override existing env).
-
-Docs & tooling
-
-- **`docs/ux/web-tenant-management.md`** Phased best-practice plan for tenant/session UI + backend
-  gaps (create-tenant membership, `/me`, switch-tenant).
-- **`scripts/database/tests/list-users-tenants.sh`** Read-only listing of `tenants`, `users`, and
-  `user_tenants` via Docker `psql` (sources `../../lib/{common,docker}.sh`).
+- **`docs/ux/web-tenant-management.md`** Phased plan; status notes for phases 1–3 in repo
+  and remaining switcher/invite work.
 
 Validation
 
-- `bash -n scripts/dev/start-services.sh scripts/test/gateway-smoke-checks.sh scripts/database/tests/list-users-tenants.sh`
-- Local: `unset DATABASE_URL` or `:5433`, `make docker-up`, `make db-migrate`, `make start-services`,
-  `make gateway-smoke-checks`
-- Register duplicate email: expect **409** with clear API `error` / UI copy
+- `make docker-up && make db-migrate && make docker-up-apps`
+- `make verify-docker-web` (with `cd apps/web && pnpm dev`)
+- `make diagnose-auth-login EMAIL=... PASSWORD=...` after login issues
+- Register duplicate email → **409** with clear copy; valid login → **200** with tokens
+- `pnpm --filter @saas/auth test` · `pnpm --filter @saas/users test` · gateway CORS tests

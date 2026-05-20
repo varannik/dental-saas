@@ -64,8 +64,11 @@ local-status: ## Show status of local services
 
 ##@ Docker Operations
 
-docker-up: ## Start Docker containers (PostgreSQL, Redis, MinIO)
+docker-up: ## Start Docker infra only (PostgreSQL, Redis, MinIO — not auth/users/clinical)
 	@$(SCRIPTS_DIR)/docker/start.sh
+
+docker-up-apps: ## Start API stack in Docker (gateway :4000 + auth/users/clinical)
+	@bash $(SCRIPTS_DIR)/docker/start-apps.sh
 
 docker-down: ## Stop Docker containers
 	@$(SCRIPTS_DIR)/docker/stop.sh
@@ -171,11 +174,14 @@ dev-admin: ## Start admin app only
 dev-mobile: ## Start mobile app (Expo)
 	@cd apps/mobile && npm start
 
-dev-services: ## Start all microservices
-	@$(SCRIPTS_DIR)/dev/start-services.sh
+check-services: ## Verify expected ports (gateway :4000, auth :4001, Docker DB :5433, CORS)
+	@bash $(SCRIPTS_DIR)/dev/check-services.sh
 
-start-services: ## Start auth, users, clinical, and gateway services
-	@bash $(SCRIPTS_DIR)/dev/start-services.sh
+verify-docker-web: ## Verify Docker API stack + local web targets gateway :4000
+	@bash $(SCRIPTS_DIR)/dev/verify-docker-web-stack.sh
+
+diagnose-auth-login: ## Diagnose login 500 (sessions table, Redis, optional email/password args)
+	@bash $(SCRIPTS_DIR)/dev/diagnose-auth-login.sh $(EMAIL) $(PASSWORD)
 
 ##@ Code Quality
 

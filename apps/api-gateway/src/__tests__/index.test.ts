@@ -231,6 +231,31 @@ describe('api-gateway', () => {
     expect(response.headers['access-control-allow-origin']).toBe('http://localhost:3000');
   });
 
+  it('includes Access-Control-Allow-Origin on proxied auth POST when Origin is sent', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: 'user-1' }), {
+        status: 201,
+        headers: { 'content-type': 'application/json' },
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      headers: {
+        origin: 'http://localhost:3000',
+        'content-type': 'application/json',
+      },
+      payload: {
+        email: 'test@local',
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.headers['access-control-allow-origin']).toBe('http://localhost:3000');
+  });
+
   it('returns 500 with error contract when upstream proxy fails', async () => {
     const fetchMock = vi.fn().mockRejectedValue(new Error('Upstream service unavailable'));
     vi.stubGlobal('fetch', fetchMock);

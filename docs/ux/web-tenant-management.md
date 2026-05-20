@@ -2,15 +2,17 @@
 
 This document describes a **best-practice, phased** way to handle tenants in `apps/web`, aligned with how auth and the gateway work today. Use it as an implementation checklist; adjust order if product priorities change.
 
+**Implementation status (repo):** Phase 1–3 MVP is in place: persisted `tenantId`, `/auth/me` reconciliation in the dashboard shell, `useActiveTenant` + header label, `POST /api/v1/tenants/with-membership` on the users service, Settings “Create organization” with password re-login, and `NEXT_PUBLIC_DEFAULT_TENANT_ID` / `apps/web/.env.example`. Phases 4–5 (membership list, switcher, invites) are still future work.
+
 ## How the platform behaves today (baseline)
 
 Before changing the web app, these constraints matter:
 
 - **JWT carries one `tenantId` per access token.** The API gateway reads `tenantId`, `userId`, and `roles` from the token (`apps/api-gateway/src/middleware/tenant-resolver.ts`). Many routes assume a **single active tenant** per session.
 - **Login and register** require a `tenantId` in the body (`services/auth`). Login only succeeds if the user is linked to that tenant in `user_tenants`.
-- **`POST /api/v1/tenants`** creates a row in `tenants` but does **not** add the current user to `user_tenants`. A follow-up step (or API) must link the user, or they cannot log in to that tenant.
+- **`POST /api/v1/tenants`** creates a row in `tenants` but does **not** add the current user to `user_tenants`. Use **`POST /api/v1/tenants/with-membership`** (authenticated) for atomic tenant + creator `ADMIN` membership, or attach the user separately.
 - **`GET /auth/me`** returns `{ user: { userId, tenantId } }` derived from the token/session (`services/auth`). It does **not** today return the full list of tenants the user belongs to.
-- The web app currently hard-codes **`DEMO_TENANT_ID`** and only persists the **access token** in storage, not the active tenant.
+- The web app uses **`getDefaultTenantId()`** (`NEXT_PUBLIC_DEFAULT_TENANT_ID` or demo UUID) for bootstrap register/login, persists **access token + `tenantId`**, and reconciles with **`GET /auth/me`** after load.
 
 Any “manage tenants” design should either stay within **one tenant per session** (simplest) or plan for **tenant switching** (new token or new endpoint).
 

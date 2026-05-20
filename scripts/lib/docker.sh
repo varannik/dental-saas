@@ -66,16 +66,31 @@ container_exists() {
   docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"
 }
 
-# Start Docker containers
+# Start Docker containers.
+# Optional first arg: comma-separated Compose profiles (e.g. "apps"). Default = infra only.
 start_containers() {
-  local compose_cmd=$(get_compose_cmd)
+  local profiles="${1:-}"
+  local compose_cmd
+  compose_cmd=$(get_compose_cmd)
+  local profile_args=()
+  if [ -n "$profiles" ]; then
+    IFS=',' read -r -a profile_list <<<"$profiles"
+    for profile in "${profile_list[@]}"; do
+      profile=$(echo "$profile" | xargs)
+      [ -n "$profile" ] && profile_args+=(--profile "$profile")
+    done
+  fi
   local max_attempts=3
   local attempt=1
   local retry_delay=5
-  log_info "Starting Docker containers..."
+  if [ ${#profile_args[@]} -gt 0 ]; then
+    log_info "Starting Docker containers (profiles: $profiles)..."
+  else
+    log_info "Starting Docker infrastructure (Postgres, Redis, MinIO, …) — API containers use profile 'apps' and are skipped."
+  fi
 
   while [ $attempt -le $max_attempts ]; do
-    if $compose_cmd -f "$COMPOSE_FILE" up -d --build; then
+    if $compose_cmd -f "$COMPOSE_FILE" "${profile_args[@]}" up -d --build; then
       log_success "Docker containers started"
       return 0
     fi

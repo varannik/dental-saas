@@ -99,12 +99,16 @@ export async function loginUser(payload: LoginRequest): Promise<LoginResult> {
 
   const record = records[0];
   if (!record?.passwordHash) {
-    throw new Error('Invalid credentials.');
+    const err = new Error('Invalid credentials.') as Error & { statusCode: number };
+    err.statusCode = 401;
+    throw err;
   }
 
   const passwordMatches = await compare(payload.password, record.passwordHash);
   if (!passwordMatches) {
-    throw new Error('Invalid credentials.');
+    const err = new Error('Invalid credentials.') as Error & { statusCode: number };
+    err.statusCode = 401;
+    throw err;
   }
 
   const user: AuthUser = {

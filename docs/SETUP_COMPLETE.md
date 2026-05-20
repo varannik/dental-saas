@@ -9,6 +9,7 @@ You now have a **production-ready, modular development and deployment infrastruc
 ## 📁 Files Created
 
 ### 1. **Makefile** (Orchestration Layer)
+
 - **Location**: `/Makefile`
 - **Purpose**: Simple, memorable commands for all operations
 - **Commands**: 60+ commands organized by category
@@ -19,6 +20,7 @@ You now have a **production-ready, modular development and deployment infrastruc
   - ✅ Dependency management
 
 ### 2. **Modular Shell Scripts** (Logic Layer)
+
 - **Location**: `/scripts/`
 - **Structure**: Organized by functionality
 - **Libraries**: Reusable functions in `lib/`
@@ -29,6 +31,7 @@ You now have a **production-ready, modular development and deployment infrastruc
   - ✅ Confirmation prompts
 
 ### 3. **Docker Compose** (Local Infrastructure)
+
 - **Location**: `/infrastructure/docker/docker-compose.yml`
 - **Services**:
   - PostgreSQL 16
@@ -41,6 +44,7 @@ You now have a **production-ready, modular development and deployment infrastruc
   - ✅ Network isolation
 
 ### 4. **Documentation**
+
 - **QUICKSTART.md**: 5-minute setup guide
 - **scripts/README.md**: Complete scripts documentation
 - **.gitignore**: Comprehensive ignore rules
@@ -87,6 +91,7 @@ You now have a **production-ready, modular development and deployment infrastruc
 ## 🎯 Key Features
 
 ### 1. **Modularity**
+
 ```bash
 # Each script has ONE purpose
 scripts/local/start.sh       # Start local environment
@@ -95,6 +100,7 @@ scripts/database/migrate.sh  # Run migrations
 ```
 
 ### 2. **Reusability**
+
 ```bash
 # Shared functions in lib/
 source scripts/lib/common.sh
@@ -103,6 +109,7 @@ wait_for_service "PostgreSQL" "pg_isready"
 ```
 
 ### 3. **Conditional Logic**
+
 ```bash
 # Check if resources exist before creating
 if container_running "postgres"; then
@@ -114,6 +121,7 @@ fi
 ```
 
 ### 4. **Safety**
+
 ```bash
 # Confirmation for destructive operations
 if ! confirm "Deploy to PRODUCTION?" "n"; then
@@ -122,6 +130,7 @@ fi
 ```
 
 ### 5. **Terraform Integration**
+
 ```bash
 # Single source of truth
 # ✅ Local: Docker + Terraform
@@ -196,6 +205,7 @@ make deploy-production
 ## 📚 Available Commands
 
 ### Setup & Installation
+
 ```bash
 make check-deps          # Check dependencies
 make install-tools       # Install missing tools
@@ -204,6 +214,7 @@ make install            # Install npm dependencies
 ```
 
 ### Local Development
+
 ```bash
 make local              # Start local environment
 make local-stop         # Stop local environment
@@ -213,6 +224,7 @@ make local-status       # Show status
 ```
 
 ### Docker
+
 ```bash
 make docker-up          # Start containers
 make docker-down        # Stop containers
@@ -222,6 +234,7 @@ make docker-ps          # Show running containers
 ```
 
 ### Terraform
+
 ```bash
 make terraform-local        # Apply Terraform (local)
 make terraform-staging      # Apply Terraform (staging)
@@ -231,6 +244,7 @@ make terraform-destroy-staging # Destroy (staging)
 ```
 
 ### Database
+
 ```bash
 make db-migrate             # Run migrations (local)
 make db-migrate-staging     # Run migrations (staging)
@@ -241,6 +255,7 @@ make db-console            # Open PostgreSQL console
 ```
 
 ### Redis
+
 ```bash
 make redis-console      # Open Redis CLI
 make redis-flush        # Flush database
@@ -248,14 +263,16 @@ make redis-info         # Show info
 ```
 
 ### Development
+
 ```bash
 make dev                # Start dev server
 make dev-web            # Start web app only
 make dev-admin          # Start admin app only
-make dev-services       # Start microservices
+make docker-up-apps     # Start API stack in Docker (gateway + services)
 ```
 
 ### Testing
+
 ```bash
 make test               # Run all tests
 make test-unit          # Run unit tests
@@ -265,6 +282,7 @@ make test-coverage      # Run with coverage
 ```
 
 ### Code Quality
+
 ```bash
 make lint               # Run linter
 make lint-fix           # Fix linting issues
@@ -274,6 +292,7 @@ make check              # Run all checks
 ```
 
 ### Build
+
 ```bash
 make build              # Build all
 make build-web          # Build web app
@@ -282,6 +301,7 @@ make build-docker       # Build Docker images
 ```
 
 ### Deployment
+
 ```bash
 make deploy-staging         # Deploy to staging
 make deploy-production      # Deploy to production
@@ -290,6 +310,7 @@ make rollback-production    # Rollback production
 ```
 
 ### Monitoring
+
 ```bash
 make logs-staging       # View staging logs
 make logs-production    # View production logs
@@ -298,6 +319,7 @@ make metrics-staging    # Show staging metrics
 ```
 
 ### Secrets
+
 ```bash
 make secrets-generate           # Generate random secrets
 make secrets-setup-staging      # Setup secrets (staging)
@@ -305,6 +327,7 @@ make secrets-setup-production   # Setup secrets (production)
 ```
 
 ### Utilities
+
 ```bash
 make shell-postgres     # Shell into PostgreSQL
 make shell-redis        # Shell into Redis
@@ -313,6 +336,7 @@ make generate-types     # Generate TypeScript types
 ```
 
 ### Quick Commands
+
 ```bash
 make start              # Quick start (local + dev)
 make stop               # Quick stop
@@ -328,6 +352,7 @@ make help               # Show all commands
 ## 🔐 Security Best Practices
 
 ### ✅ What's in Git
+
 - Makefile
 - Shell scripts
 - Docker Compose
@@ -336,6 +361,7 @@ make help               # Show all commands
 - `.env.example` (template)
 
 ### ❌ What's NOT in Git (in .gitignore)
+
 - `.env` files
 - `*.secrets.tfvars` files
 - `*.tfstate` files
@@ -345,6 +371,7 @@ make help               # Show all commands
 - `node_modules/`
 
 ### Secrets Management
+
 ```bash
 # Local: .env files (not in Git)
 cp .env.example .env
@@ -417,11 +444,13 @@ dental-saas/
 ## 🎓 Learning Resources
 
 ### Documentation
+
 - [QUICKSTART.md](../QUICKSTART.md) - 5-minute setup
 - [scripts/README.md](../scripts/README.md) - Scripts documentation
 - [Architecture Docs](./architecture/README.md) - System architecture
 
 ### Key Concepts
+
 - **Makefile**: Orchestration layer (simple commands)
 - **Shell Scripts**: Implementation layer (complex logic)
 - **Libraries**: Reusable functions (DRY principle)
@@ -512,6 +541,7 @@ make local-reset
 ## 🎉 You're Ready!
 
 You now have:
+
 - ✅ **Makefile** with 60+ commands
 - ✅ **Modular shell scripts** organized by function
 - ✅ **Shared libraries** for reusable code
@@ -522,10 +552,10 @@ You now have:
 - ✅ **Quick start guide** (5 minutes)
 
 **Next steps:**
+
 1. Run `make setup` to initialize everything
 2. Run `make dev` to start developing
 3. Read [QUICKSTART.md](../QUICKSTART.md) for detailed instructions
 4. Check `make help` for all available commands
 
 **Happy coding!** 🚀
-

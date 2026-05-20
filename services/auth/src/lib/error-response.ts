@@ -24,6 +24,15 @@ function resolveHttpStatus(error: unknown): number {
     const n = Number((error as { statusCode?: unknown }).statusCode);
     if (Number.isFinite(n) && n >= 400 && n < 600) return n;
   }
+
+  const detail = formatErrorChain(error);
+  if (/ECONNREFUSED|Redis is not reachable|ENOTFOUND.*6379/i.test(detail)) {
+    return 503;
+  }
+  if (/relation ["']?sessions["']? does not exist|missing the sessions table/i.test(detail)) {
+    return 503;
+  }
+
   return 500;
 }
 
@@ -50,10 +59,11 @@ export function registerAuthErrorHandler(app: {
     request.log.error({ err: error }, 'Auth request failed');
 
     if (statusCode >= 500) {
+      const clientError = statusCode === 503 ? 'Service Unavailable' : 'Internal Server Error';
       return reply.code(statusCode).send({
         statusCode,
-        error: 'Internal Server Error',
-        message: isProduction ? 'Internal Server Error' : detail,
+        error: clientError,
+        message: isProduction ? clientError : detail,
       });
     }
 
