@@ -1,3 +1,0 @@
-# sdk
-
-Package to be created

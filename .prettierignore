@@ -1,25 +1,10 @@
-# Dependencies
 node_modules/
-pnpm-lock.yaml
-
-# Build outputs
+docs/
+AGENTS.md
 dist/
 .next/
 .turbo/
 coverage/
-
-# Generated files
-*.generated.ts
-*.generated.js
-
-# Lock files
-package-lock.json
-yarn.lock
-
-# IDE
-.idea/
-.vscode/
-
-# OS
-.DS_Store
-
+pnpm-lock.yaml
+apps/evidence/.venv/
+dental-saas/

@@ -1,5 +1,0 @@
-# Pre-push hook - Type checking enabled
-
-echo "🔍 Running type check before push..."
-pnpm turbo run build --filter='./apps/*' --filter='./packages/*' --filter='./services/*'
-

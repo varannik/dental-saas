@@ -1,40 +1,17 @@
-import { Inter, JetBrains_Mono } from 'next/font/google';
-
-import { Providers } from '@/app/providers';
-
 import type { Metadata } from 'next';
-
+import type { ReactNode } from 'react';
+import messages from '../messages/en.json';
 import './globals.css';
 
-const inter = Inter({
-  variable: '--font-sans',
-  subsets: ['latin'],
-  display: 'swap',
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-  display: 'swap',
-});
-
 export const metadata: Metadata = {
-  title: 'Dental SaaS',
-  description: 'Clinical operations workspace',
+  title: messages.app.name,
+  description: messages.app.tagline,
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body
-        className={`${inter.variable} ${jetbrainsMono.variable} bg-background text-foreground min-h-screen font-sans antialiased`}
-      >
-        <Providers>{children}</Providers>
-      </body>
+      <body className="min-h-screen bg-white text-neutral-900 antialiased">{children}</body>
     </html>
   );
 }

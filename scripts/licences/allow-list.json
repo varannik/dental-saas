@@ -1,0 +1,45 @@
+{
+  "approved": [
+    "MIT",
+    "MIT-0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "Apache-2.0",
+    "ISC",
+    "MPL-2.0",
+    "PostgreSQL",
+    "0BSD",
+    "BlueOak-1.0.0",
+    "CC0-1.0",
+    "CC-BY-4.0",
+    "Unlicense",
+    "Python-2.0",
+    "PSF-2.0",
+    "LGPL-3.0",
+    "LGPL-3.0-only",
+    "LGPL-3.0-or-later"
+  ],
+  "manifestExceptions": [
+    {
+      "name": "ssh2",
+      "licence": "MIT",
+      "reason": "package.json omits license. The LICENSE file is the MIT licence, copyright Brian White."
+    },
+    {
+      "name": "cpu-features",
+      "licence": "MIT",
+      "reason": "package.json omits license. The LICENSE file is the MIT licence, copyright Brian White."
+    },
+    {
+      "name": "buildcheck",
+      "licence": "MIT",
+      "reason": "package.json omits license. The LICENSE file is the MIT licence, copyright Brian White."
+    }
+  ],
+  "notes": [
+    "Approved set from the implementation plan dependency policy: MIT, BSD, Apache-2.0, ISC, MPL-2.0, PostgreSQL.",
+    "LGPL-3.0 is included because the plan's stack table names psycopg under LGPL-3.0. GPL and AGPL stay out of application dependencies; they are allowed only for unmodified standalone services and tools.",
+    "0BSD, BlueOak-1.0.0, CC0-1.0, Unlicense, MIT-0 and Python-2.0 are permissive licences that appear in the Node and Python ecosystems and meet the same bar as MIT.",
+    "A dependency passes when every AND-clause contains at least one approved licence."
+  ]
+}
