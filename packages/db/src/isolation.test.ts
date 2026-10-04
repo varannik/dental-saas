@@ -34,7 +34,6 @@ describe('clinic isolation', () => {
     const roleA = uuidv7();
     const roleB = uuidv7();
     const systemRole = uuidv7();
-    const permissionId = uuidv7();
 
     await admin.query(
       `INSERT INTO core.regulatory_profiles (id, key, name, record_retention_days, audit_retention_days)
@@ -59,9 +58,12 @@ describe('clinic isolation', () => {
          ($5, NULL, 'platform')`,
       [roleA, clinicA, roleB, clinicB, systemRole]
     );
-    await admin.query(`INSERT INTO core.permissions (id, key) VALUES ($1, 'patient.read')`, [
-      permissionId,
-    ]);
+    // Permissions are seeded by the identity migration.
+    const permissionId = (
+      await admin.query<{ id: string }>(
+        `SELECT id FROM core.permissions WHERE key = 'patient.read'`
+      )
+    ).rows[0]!.id;
     await admin.query(
       `INSERT INTO core.role_permissions (role_id, permission_id) VALUES ($1, $3), ($2, $3)`,
       [roleA, roleB, permissionId]

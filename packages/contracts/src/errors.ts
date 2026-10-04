@@ -1,6 +1,10 @@
 export const ERROR_CODES = [
   'validation_failed',
   'unauthenticated',
+  'invalid_credentials',
+  'account_locked',
+  'clinic_required',
+  'refresh_token_reused',
   'forbidden',
   'not_found',
   'version_conflict',

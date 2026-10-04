@@ -20,7 +20,14 @@ const configSchema = z
     PORT: z.coerce.number().int().positive().default(4000),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
     CORS_ORIGIN: z.string().url().default('http://localhost:3000'),
+    /** The application role (app). It must not bypass row-level security; start-up checks. */
     DATABASE_URL: z.string().url(),
+    /** The database owner, for migrations and seeding only. The API itself never uses it. */
+    DATABASE_MIGRATION_URL: z.string().url().optional(),
+    /** Ed25519 private key, PKCS#8 PEM. Required in production; generated per process otherwise. */
+    AUTH_PRIVATE_KEY: optionalSecret,
+    AUTH_ACCESS_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(600),
+    AUTH_REFRESH_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(7),
     VALKEY_URL: z.string().url(),
     S3_ENDPOINT: z.string().url(),
     S3_REGION: z.string().min(1).default('us-east-1'),
@@ -45,6 +52,13 @@ const configSchema = z
     VOICE_INTERPRETER: z.enum(INTERPRETER_IDS).default('anthropic'),
   })
   .superRefine((config, context) => {
+    if (config.NODE_ENV === 'production' && !config.AUTH_PRIVATE_KEY) {
+      context.addIssue({
+        code: 'custom',
+        path: ['AUTH_PRIVATE_KEY'],
+        message: 'required in production; generate one with pnpm --filter @dental/api auth:keygen',
+      });
+    }
     if (!config.VOICE_SPIKE_ENABLED) return;
     if (config.NODE_ENV === 'production') {
       context.addIssue({

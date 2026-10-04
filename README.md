@@ -22,6 +22,9 @@ pnpm build
 pnpm test
 pnpm licence:check
 pnpm stack:up
+pnpm db:migrate                          # as the owner, DATABASE_MIGRATION_URL
+pnpm --filter @dental/api db:seed        # Demo Dental clinic, one user per role
+pnpm --filter @dental/api auth:keygen    # prints an AUTH_PRIVATE_KEY line for .env
 ```
 
 `pnpm stack:up` starts PostgreSQL 16 (pgvector), Valkey 8, SeaweedFS and Neo4j, and waits until every health check is green. `pnpm stack:down` stops them.
@@ -35,6 +38,8 @@ pnpm stack:up
 | Neo4j            | `bolt://localhost:7687` user `neo4j`, password `devpassword`         |
 
 The API listens on port 4000. The web app listens on port 3000.
+
+The API connects as the `app` role, which cannot bypass row-level security, and refuses to start on a superuser connection. Sign-in runs through `SECURITY DEFINER` functions owned by the `dental_auth` role, because it happens before a clinic is chosen. The seeded users share the password `dental-dev-password`; for example `dentist@demo.test` signs in with `POST /v1/auth/login`.
 
 `pnpm test` includes the clinic-isolation test, which starts PostgreSQL through Docker. Pull requests run the same checks, plus the licence gate, in GitHub Actions. A dependency whose licence is not on the allow-list fails the build.
 
