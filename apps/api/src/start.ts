@@ -2,7 +2,8 @@ import { DeepgramStt } from './modules/voice/adapters/deepgram.js';
 import { interpretersFromConfig } from './modules/voice/interpreters.js';
 import { createDummyHash } from './modules/identity/passwords.js';
 import { IdentityService } from './modules/identity/service.js';
-import { loadSigningKeys, TokenService } from './modules/identity/tokens.js';
+import { ChallengeTokens, loadSigningKeys, TokenService } from './modules/identity/tokens.js';
+import { SecretBox } from './platform/secret-box.js';
 import { buildServer } from './server.js';
 import { loadConfig } from './platform/config.js';
 import { assertRowLevelSecurityEnforced, createPool } from './platform/db.js';
@@ -20,10 +21,16 @@ export async function start(env: Record<string, string | undefined> = process.en
   const keys = loadSigningKeys(config.AUTH_PRIVATE_KEY);
   const tokens = new TokenService(keys, config.AUTH_ACCESS_TTL_SECONDS);
   const production = config.NODE_ENV === 'production';
-  const service = new IdentityService(pool, tokens, await createDummyHash(), {
-    lockThreshold: 5,
-    lockBaseSeconds: 60,
-    refreshTtlDays: config.AUTH_REFRESH_TTL_DAYS,
+  const secrets = config.MFA_ENCRYPTION_KEY
+    ? SecretBox.fromBase64(config.MFA_ENCRYPTION_KEY)
+    : SecretBox.development();
+  const service = new IdentityService({
+    pool,
+    tokens,
+    challenges: new ChallengeTokens(keys),
+    secrets,
+    dummyHash: await createDummyHash(),
+    policy: { lockThreshold: 5, lockBaseSeconds: 60, refreshTtlDays: config.AUTH_REFRESH_TTL_DAYS },
   });
 
   const app = await buildServer({
@@ -48,6 +55,9 @@ export async function start(env: Record<string, string | undefined> = process.en
     app.log.warn(
       'AUTH_PRIVATE_KEY is not set; tokens are signed with a key that lasts until restart'
     );
+  }
+  if (!config.MFA_ENCRYPTION_KEY) {
+    app.log.warn('MFA_ENCRYPTION_KEY is not set; TOTP secrets use a public development key');
   }
   app.addHook('onClose', async () => pool.end());
   await app.listen({ port: config.PORT, host: config.HOST });

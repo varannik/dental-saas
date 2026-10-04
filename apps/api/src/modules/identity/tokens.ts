@@ -16,6 +16,9 @@ import { z } from 'zod';
 
 const ISSUER = 'dental-api';
 const AUDIENCE = 'dental-app';
+/** Challenge tokens carry their own audience, so they are never accepted as access tokens. */
+const CHALLENGE_AUDIENCE = 'dental-mfa';
+const CHALLENGE_TTL_SECONDS = 300;
 const ALGORITHM = 'EdDSA';
 
 export interface AccessClaims {
@@ -34,6 +37,14 @@ const claimsSchema = z.object({
   role: z.string(),
   perms: z.array(z.string()),
 });
+
+/** Proof that the password step passed; exchanged with a TOTP code for a session. */
+export interface ChallengeClaims {
+  userId: string;
+  clinicId: string;
+}
+
+const challengeSchema = z.object({ sub: z.string().uuid(), cid: z.string().uuid() });
 
 export interface SigningKeys {
   privateKey: KeyObject;
@@ -94,6 +105,37 @@ export class TokenService {
         role: claims.role,
         permissions: claims.perms,
       };
+    } catch {
+      return null;
+    }
+  }
+}
+
+export class ChallengeTokens {
+  readonly ttlSeconds = CHALLENGE_TTL_SECONDS;
+
+  constructor(private readonly keys: SigningKeys) {}
+
+  async sign(claims: ChallengeClaims): Promise<string> {
+    return new SignJWT({ cid: claims.clinicId })
+      .setProtectedHeader({ alg: ALGORITHM, typ: 'JWT' })
+      .setSubject(claims.userId)
+      .setIssuer(ISSUER)
+      .setAudience(CHALLENGE_AUDIENCE)
+      .setIssuedAt()
+      .setExpirationTime(`${CHALLENGE_TTL_SECONDS}s`)
+      .sign(this.keys.privateKey);
+  }
+
+  async verify(token: string): Promise<ChallengeClaims | null> {
+    try {
+      const { payload } = await jwtVerify(token, this.keys.publicKey, {
+        issuer: ISSUER,
+        audience: CHALLENGE_AUDIENCE,
+        algorithms: [ALGORITHM],
+      });
+      const claims = challengeSchema.parse(payload);
+      return { userId: claims.sub, clinicId: claims.cid };
     } catch {
       return null;
     }

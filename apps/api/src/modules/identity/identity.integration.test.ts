@@ -7,8 +7,10 @@ import { assertRowLevelSecurityEnforced, createPool, type Pool } from '../../pla
 import { buildServer } from '../../server.js';
 import { createDummyHash, hashPassword } from './passwords.js';
 import { CSRF_HEADER, REFRESH_COOKIE } from './routes.js';
-import { IdentityService } from './service.js';
-import { loadSigningKeys, TokenService } from './tokens.js';
+import { SecretBox } from '../../platform/secret-box.js';
+import { IdentityService, type IdentityPolicy } from './service.js';
+import { ChallengeTokens, loadSigningKeys, TokenService } from './tokens.js';
+import { timeStep, totpAt } from './totp.js';
 
 /** F5 against a real PostgreSQL: the API connects as the application role, as in production. */
 
@@ -18,6 +20,7 @@ let container: StartedPostgreSqlContainer;
 let owner: pg.Client;
 let pool: Pool;
 let app: FastifyInstance;
+let tokens: TokenService;
 const ids = {
   alpha: uuidv7(),
   beta: uuidv7(),
@@ -26,6 +29,19 @@ const ids = {
   locked: uuidv7(),
   retired: uuidv7(),
 };
+
+async function makeService(policy?: IdentityPolicy) {
+  const keys = loadSigningKeys();
+  tokens = new TokenService(keys, 600);
+  return new IdentityService({
+    pool,
+    tokens,
+    challenges: new ChallengeTokens(keys),
+    secrets: SecretBox.development(),
+    dummyHash: await createDummyHash(),
+    policy,
+  });
+}
 
 async function addUser(id: string, email: string, status = 'active') {
   await owner.query(
@@ -78,16 +94,12 @@ beforeAll(async () => {
   url.username = 'app';
   url.password = 'app';
   pool = createPool(url.toString());
-  const tokens = new TokenService(loadSigningKeys(), 600);
+  const service = await makeService({ lockThreshold: 3, lockBaseSeconds: 60, refreshTtlDays: 7 });
   app = await buildServer({
     identity: {
       pool,
       tokens,
-      service: new IdentityService(pool, tokens, await createDummyHash(), {
-        lockThreshold: 3,
-        lockBaseSeconds: 60,
-        refreshTtlDays: 7,
-      }),
+      service,
       cookie: { secure: false, sameSite: 'lax' },
       // Many sign-ins come from one address in this suite; the limit has its own test.
       loginRateLimit: 1000,
@@ -112,6 +124,25 @@ beforeEach(async () => {
 
 const login = (body: Record<string, unknown>) =>
   app.inject({ method: 'POST', url: '/v1/auth/login', payload: body });
+
+/** TOTP secrets handed out at enrolment, by lower-case email. */
+const totpSecrets = new Map<string, string>();
+
+const verifyMfa = (challengeToken: string, code: string) =>
+  app.inject({ method: 'POST', url: '/v1/auth/mfa/verify', payload: { challengeToken, code } });
+
+/** Signs in through both factors when the account needs them, enrolling on first use. */
+async function signIn(email: string, extra: Record<string, unknown> = {}) {
+  const first = await login({ email, password: PASSWORD, ...extra });
+  const body = first.json();
+  if (first.statusCode !== 200 || body.status === 'signed_in') return first;
+  const key = email.toLowerCase();
+  if (body.status === 'mfa_enrollment_required') totpSecrets.set(key, body.secret);
+  // Each code is accepted once; clearing the last step lets this suite sign in repeatedly
+  // within one 30-second step.
+  await owner.query('UPDATE core.users SET mfa_last_step = NULL WHERE email = $1', [key]);
+  return verifyMfa(body.challengeToken, totpAt(totpSecrets.get(key)!, timeStep()));
+}
 
 const refreshCookie = (response: { cookies: { name: string; value: string }[] }) =>
   response.cookies.find((cookie) => cookie.name === REFRESH_COOKIE)?.value;
@@ -140,7 +171,7 @@ describe('database connection', () => {
 
 describe('sign-in', () => {
   it('returns an access token, permissions and an httpOnly refresh cookie', async () => {
-    const response = await login({ email: 'Dentist@Alpha.test', password: PASSWORD });
+    const response = await signIn('Dentist@Alpha.test');
     expect(response.statusCode).toBe(200);
     const body = response.json();
     expect(body).toMatchObject({
@@ -159,9 +190,7 @@ describe('sign-in', () => {
   });
 
   it('serves /v1/me with the clinic read under row-level security', async () => {
-    const { accessToken } = (
-      await login({ email: 'dentist@alpha.test', password: PASSWORD })
-    ).json();
+    const { accessToken } = (await signIn('dentist@alpha.test')).json();
     const me = await app.inject({
       method: 'GET',
       url: '/v1/me',
@@ -261,7 +290,7 @@ describe('rate limit', () => {
       identity: {
         pool,
         tokens,
-        service: new IdentityService(pool, tokens, await createDummyHash()),
+        service: await makeService(),
         cookie: { secure: false, sameSite: 'lax' },
         loginRateLimit: 2,
       },
@@ -281,7 +310,7 @@ describe('rate limit', () => {
 
 describe('refresh-token rotation', () => {
   it('rotates the refresh token and issues a new access token', async () => {
-    const first = refreshCookie(await login({ email: 'dentist@alpha.test', password: PASSWORD }))!;
+    const first = refreshCookie(await signIn('dentist@alpha.test'))!;
     const rotated = await refresh(first);
     expect(rotated.statusCode).toBe(200);
     expect(rotated.json()).toMatchObject({ clinic: { id: ids.alpha }, role: 'dentist' });
@@ -292,7 +321,7 @@ describe('refresh-token rotation', () => {
   });
 
   it('revokes the whole family when a used refresh token comes back', async () => {
-    const first = refreshCookie(await login({ email: 'dentist@alpha.test', password: PASSWORD }))!;
+    const first = refreshCookie(await signIn('dentist@alpha.test'))!;
     const second = refreshCookie(await refresh(first))!;
 
     // Someone replays the first token after it was rotated.
@@ -315,7 +344,7 @@ describe('refresh-token rotation', () => {
   });
 
   it('requires the CSRF header and a cookie', async () => {
-    const token = refreshCookie(await login({ email: 'dentist@alpha.test', password: PASSWORD }))!;
+    const token = refreshCookie(await signIn('dentist@alpha.test'))!;
     const noHeader = await app.inject({
       method: 'POST',
       url: '/v1/auth/refresh',
@@ -343,7 +372,7 @@ describe('refresh-token rotation', () => {
 
 describe('sign-out', () => {
   it('revokes the family and clears the cookie', async () => {
-    const token = refreshCookie(await login({ email: 'dentist@alpha.test', password: PASSWORD }))!;
+    const token = refreshCookie(await signIn('dentist@alpha.test'))!;
     const logout = await app.inject({
       method: 'POST',
       url: '/v1/auth/logout',
@@ -354,5 +383,112 @@ describe('sign-out', () => {
     const cleared = logout.cookies.find((cookie) => cookie.name === REFRESH_COOKIE);
     expect(cleared?.value).toBe('');
     expect((await refresh(token)).statusCode).toBe(401);
+  });
+});
+
+describe('second factor', () => {
+  async function newUser(role: string) {
+    const id = uuidv7();
+    const email = `${role}-${id.slice(-6)}@alpha.test`;
+    await addUser(id, email);
+    await addMembership(id, ids.alpha, role);
+    return { id, email };
+  }
+
+  const mfaColumns = async (id: string) =>
+    (
+      await owner.query(
+        `SELECT mfa_secret, mfa_pending_secret, mfa_enrolled_at, mfa_last_step
+         FROM core.users WHERE id = $1`,
+        [id]
+      )
+    ).rows[0];
+
+  it('enrols a dentist on first sign-in and stores the secret encrypted', async () => {
+    const { id, email } = await newUser('dentist');
+    const offer = await login({ email, password: PASSWORD });
+    expect(offer.statusCode).toBe(200);
+    const body = offer.json();
+    expect(body).toMatchObject({ status: 'mfa_enrollment_required', expiresIn: 300 });
+    expect(body.secret).toMatch(/^[A-Z2-7]{32}$/);
+    expect(body.otpauthUrl).toMatch(/^otpauth:\/\/totp\/Dental%20Platform%3A/);
+    expect(body).not.toHaveProperty('accessToken');
+    expect(offer.cookies.find((cookie) => cookie.name === REFRESH_COOKIE)).toBeUndefined();
+
+    const pending = await mfaColumns(id);
+    expect(pending.mfa_secret).toBeNull();
+    expect(pending.mfa_pending_secret).toMatch(/^v1\./);
+    expect(pending.mfa_pending_secret).not.toContain(body.secret);
+
+    const wrong = await verifyMfa(body.challengeToken, '000000');
+    expect(wrong.statusCode).toBe(401);
+    expect(wrong.json()).toMatchObject({ code: 'invalid_mfa_code' });
+
+    const done = await verifyMfa(body.challengeToken, totpAt(body.secret, timeStep()));
+    expect(done.statusCode).toBe(200);
+    expect(done.json()).toMatchObject({ status: 'signed_in', role: 'dentist' });
+    expect(refreshCookie(done)).toBeDefined();
+
+    const enrolled = await mfaColumns(id);
+    expect(enrolled.mfa_enrolled_at).toBeInstanceOf(Date);
+    expect(enrolled.mfa_pending_secret).toBeNull();
+    expect(enrolled.mfa_secret).toMatch(/^v1\./);
+  });
+
+  it('asks an enrolled user for a code and accepts each code only once', async () => {
+    const { email } = await newUser('admin');
+    const offer = (await login({ email, password: PASSWORD })).json();
+    const code = totpAt(offer.secret, timeStep());
+    expect((await verifyMfa(offer.challengeToken, code)).statusCode).toBe(200);
+
+    const challenge = (await login({ email, password: PASSWORD })).json();
+    expect(challenge).toMatchObject({ status: 'mfa_required', expiresIn: 300 });
+    expect(challenge).not.toHaveProperty('secret');
+
+    const replay = await verifyMfa(challenge.challengeToken, code);
+    expect(replay.statusCode).toBe(401);
+    expect(replay.json()).toMatchObject({ code: 'invalid_mfa_code' });
+
+    const next = await verifyMfa(challenge.challengeToken, totpAt(offer.secret, timeStep() + 1));
+    expect(next.statusCode).toBe(200);
+  });
+
+  it('does not accept a challenge token as an access token, or a forged challenge', async () => {
+    const { email } = await newUser('manager');
+    const { challengeToken } = (await login({ email, password: PASSWORD })).json();
+    const me = await app.inject({
+      method: 'GET',
+      url: '/v1/me',
+      headers: { authorization: `Bearer ${challengeToken}` },
+    });
+    expect(me.statusCode).toBe(401);
+    const forged = await verifyMfa('not.a.token', '123456');
+    expect(forged.statusCode).toBe(401);
+    expect(forged.json()).toMatchObject({ code: 'unauthenticated' });
+  });
+
+  it('locks the account after failed codes, and the password step does not reset the count', async () => {
+    const { email } = await newUser('dentist');
+    const first = (await login({ email, password: PASSWORD })).json();
+    expect((await verifyMfa(first.challengeToken, '111111')).statusCode).toBe(401);
+    expect((await verifyMfa(first.challengeToken, '222222')).statusCode).toBe(401);
+
+    // A correct password again must not clear the two failed codes.
+    const again = (await login({ email, password: PASSWORD })).json();
+    const third = await verifyMfa(again.challengeToken, '333333');
+    expect(third.statusCode).toBe(423);
+    expect(third.json()).toMatchObject({ code: 'account_locked' });
+  });
+
+  it('signs in roles without a second factor directly', async () => {
+    const { email } = await newUser('receptionist');
+    const response = await login({ email, password: PASSWORD });
+    expect(response.json()).toMatchObject({ status: 'signed_in', role: 'receptionist' });
+  });
+
+  it('rejects a code that is not six digits before checking it', async () => {
+    const response = await verifyMfa('anything', '12ab');
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: 'validation_failed' });
   });
 });

@@ -2,11 +2,14 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { authenticate } from '../../platform/auth.js';
 import { HttpProblem } from '../../platform/http-problem.js';
-import type { IdentityService, SessionResult } from './service.js';
+import type { IdentityService, LoginResult, SessionResult } from './service.js';
 import type { TokenService } from './tokens.js';
 
 /**
- * POST /v1/auth/login, /refresh, /logout and GET /v1/me.
+ * POST /v1/auth/login, /mfa/verify, /refresh, /logout and GET /v1/me.
+ *
+ * Login answers with status "signed_in", or with "mfa_required" or "mfa_enrollment_required"
+ * and a challenge token that /mfa/verify exchanges, with a TOTP code, for a session.
  *
  * The refresh token lives only in an httpOnly cookie scoped to /v1/auth. The cookie endpoints
  * also require the X-Requested-With header: a cross-site form cannot send it, and CORS only
@@ -30,6 +33,14 @@ const loginBody = z.object({
   clinicId: z.string().uuid().optional(),
 });
 
+const mfaBody = z.object({
+  challengeToken: z.string().min(1).max(2048),
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'Enter the 6-digit code.'),
+});
+
 function parse<T>(schema: z.ZodType<T>, body: unknown): T {
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
@@ -51,6 +62,7 @@ function requireCsrfHeader(request: FastifyRequest) {
 
 function sessionBody(result: SessionResult) {
   return {
+    status: 'signed_in',
     accessToken: result.accessToken,
     tokenType: 'Bearer',
     expiresIn: result.expiresIn,
@@ -82,7 +94,22 @@ export async function registerIdentityRoutes(app: FastifyInstance, options: Iden
     { config: { rateLimit: { max: options.loginRateLimit ?? 10, timeWindow: '1 minute' } } },
     async (request, reply) => {
       const body = parse(loginBody, request.body);
-      const result = await service.login({ ...body, device: request.headers['user-agent'] });
+      const result: LoginResult = await service.login({
+        ...body,
+        device: request.headers['user-agent'],
+      });
+      if (result.status !== 'signed_in') return result;
+      setRefreshCookie(reply, result);
+      return sessionBody(result);
+    }
+  );
+
+  app.post(
+    '/v1/auth/mfa/verify',
+    { config: { rateLimit: { max: options.loginRateLimit ?? 10, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const body = parse(mfaBody, request.body);
+      const result = await service.verifyMfa({ ...body, device: request.headers['user-agent'] });
       setRefreshCookie(reply, result);
       return sessionBody(result);
     }
