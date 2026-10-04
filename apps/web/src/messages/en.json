@@ -46,6 +46,17 @@
       "audio": "Audio length"
     },
     "target": "Target: under 2,000 ms at the 95th percentile",
-    "empty": "No attempts yet."
+    "empty": "No attempts yet.",
+    "settings": "Settings",
+    "interpreter": "Interpreter",
+    "interpreterHint": "The language model that turns the transcript into a command. Each attempt uses the one selected when you start speaking.",
+    "interpreterWaiting": "Waiting for the server to list its interpreters…",
+    "interpreterUsed": "Interpreter",
+    "byInterpreter": "By interpreter",
+    "attemptsColumn": "Attempts",
+    "llmP50": "Interpretation p50",
+    "llmP95": "Interpretation p95",
+    "roundTripP50": "Release to proposal p50",
+    "roundTripP95": "Release to proposal p95"
   }
 }

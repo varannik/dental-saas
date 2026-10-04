@@ -38,8 +38,15 @@ interface Timings {
   audioMs: number;
 }
 
+interface InterpreterOption {
+  id: string;
+  label: string;
+  model: string;
+}
+
 interface Attempt {
   at: string;
+  interpreter: InterpreterOption;
   transcript: string;
   sttConfidence: number;
   activeTooth: string | null;
@@ -49,10 +56,16 @@ interface Attempt {
 }
 
 type ServerMessage =
+  | { type: 'hello'; interpreters: InterpreterOption[]; defaultInterpreter: string }
   | { type: 'ready' }
   | { type: 'partial'; text: string }
   | { type: 'transcript'; transcript: string; confidence: number }
-  | { type: 'result'; result: Result; timings: Timings }
+  | {
+      type: 'result';
+      result: Result;
+      timings: Timings;
+      interpreter: { id: string; model: string };
+    }
   | { type: 'error'; message: string };
 
 interface Audio {
@@ -67,6 +80,25 @@ function percentile(values: number[], p: number): number {
   return sorted[
     Math.min(Math.max(Math.ceil((p / 100) * sorted.length) - 1, 0), sorted.length - 1)
   ]!;
+}
+
+const INTERPRETER_STORAGE_KEY = 'voiceSpike.interpreter';
+
+/** The last chosen interpreter is a per-browser convenience; storage may be unavailable. */
+function storedInterpreter(): string | null {
+  try {
+    return window.localStorage.getItem(INTERPRETER_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function storeInterpreter(id: string) {
+  try {
+    window.localStorage.setItem(INTERPRETER_STORAGE_KEY, id);
+  } catch {
+    // Not saved; the selection still applies to this session.
+  }
 }
 
 const ms = (value: number) => `${Math.round(value).toLocaleString('en')} ms`;
@@ -90,6 +122,8 @@ export default function VoiceSpikePage() {
   const [activeTooth, setActiveTooth] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [interpreters, setInterpreters] = useState<InterpreterOption[]>([]);
+  const [interpreterId, setInterpreterId] = useState<string | null>(null);
 
   const socketRef = useRef<WebSocket | null>(null);
   const audioRef = useRef<Audio | null>(null);
@@ -98,6 +132,7 @@ export default function VoiceSpikePage() {
   const releasedAtRef = useRef(0);
   const transcriptRef = useRef({ transcript: '', confidence: 0 });
   const activeToothRef = useRef<string | null>(null);
+  const interpretersRef = useRef<InterpreterOption[]>([]);
 
   const connect = useCallback(() => {
     socketRef.current?.close();
@@ -111,13 +146,27 @@ export default function VoiceSpikePage() {
     };
     socket.onmessage = (event: MessageEvent<string>) => {
       const message = JSON.parse(event.data) as ServerMessage;
-      if (message.type === 'partial') setPartial(message.text);
+      if (message.type === 'hello') {
+        interpretersRef.current = message.interpreters;
+        setInterpreters(message.interpreters);
+        const stored = storedInterpreter();
+        setInterpreterId((selected) => {
+          const preferred = selected ?? stored;
+          return message.interpreters.some((option) => option.id === preferred)
+            ? preferred
+            : message.defaultInterpreter;
+        });
+      } else if (message.type === 'partial') setPartial(message.text);
       else if (message.type === 'transcript') {
         transcriptRef.current = message;
         setPartial(message.transcript);
       } else if (message.type === 'result') {
+        const known = interpretersRef.current.find(
+          (option) => option.id === message.interpreter.id
+        );
         const attempt: Attempt = {
           at: new Date().toISOString(),
+          interpreter: { label: known?.label ?? message.interpreter.id, ...message.interpreter },
           transcript: transcriptRef.current.transcript,
           sttConfidence: transcriptRef.current.confidence,
           activeTooth: activeToothRef.current,
@@ -191,6 +240,7 @@ export default function VoiceSpikePage() {
     socketRef.current?.send(
       JSON.stringify({
         type: 'start',
+        ...(interpreterId ? { interpreter: interpreterId } : {}),
         context: activeToothRef.current ? { activeTooth: activeToothRef.current } : {},
       })
     );
@@ -199,7 +249,7 @@ export default function VoiceSpikePage() {
     setPartial('');
     setCurrent(null);
     setPhase('listening');
-  }, [activeTooth, connection, ensureAudio, phase]);
+  }, [activeTooth, connection, ensureAudio, interpreterId, phase]);
 
   const release = useCallback(() => {
     pressedRef.current = false;
@@ -239,7 +289,16 @@ export default function VoiceSpikePage() {
       })
     );
     await navigator.clipboard.writeText(
-      JSON.stringify({ userAgent: navigator.userAgent, summary, attempts }, null, 2)
+      JSON.stringify(
+        {
+          userAgent: navigator.userAgent,
+          summary,
+          byInterpreter: byInterpreter(attempts),
+          attempts,
+        },
+        null,
+        2
+      )
     );
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
@@ -281,16 +340,58 @@ export default function VoiceSpikePage() {
         <span className="text-neutral-500">{SOCKET_URL}</span>
       </section>
 
-      <label className="flex max-w-sm flex-col gap-1">
-        <span className="font-medium">{t.activeTooth}</span>
-        <input
-          value={activeTooth}
-          onChange={(event) => setActiveTooth(event.target.value)}
-          placeholder="16"
-          className="h-12 rounded-md border border-neutral-300 px-3 text-lg"
-        />
-        <span className="text-sm text-neutral-500">{t.activeToothHint}</span>
-      </label>
+      <section className="flex flex-col gap-5 rounded-2xl border border-neutral-200 p-5">
+        <h2 className="text-xl font-semibold">{t.settings}</h2>
+
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1 font-medium">{t.interpreter}</legend>
+          {interpreters.length === 0 ? (
+            <p className="text-sm text-neutral-500">{t.interpreterWaiting}</p>
+          ) : (
+            <div className="flex flex-wrap gap-3">
+              {interpreters.map((option) => (
+                <label
+                  key={option.id}
+                  className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border px-4 py-2 ${
+                    interpreterId === option.id
+                      ? 'border-neutral-900 bg-neutral-50'
+                      : 'border-neutral-300 hover:bg-neutral-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="interpreter"
+                    value={option.id}
+                    checked={interpreterId === option.id}
+                    disabled={phase !== 'idle'}
+                    onChange={() => {
+                      setInterpreterId(option.id);
+                      storeInterpreter(option.id);
+                    }}
+                    className="size-5"
+                  />
+                  <span className="flex flex-col">
+                    <span className="font-medium">{option.label}</span>
+                    <span className="text-sm text-neutral-500">{option.model}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
+          <span className="text-sm text-neutral-500">{t.interpreterHint}</span>
+        </fieldset>
+
+        <label className="flex max-w-sm flex-col gap-1">
+          <span className="font-medium">{t.activeTooth}</span>
+          <input
+            value={activeTooth}
+            onChange={(event) => setActiveTooth(event.target.value)}
+            placeholder="16"
+            className="h-12 rounded-md border border-neutral-300 px-3 text-lg"
+          />
+          <span className="text-sm text-neutral-500">{t.activeToothHint}</span>
+        </label>
+      </section>
 
       <button
         type="button"
@@ -379,6 +480,7 @@ export default function VoiceSpikePage() {
             </table>
           </div>
         )}
+        {attempts.length > 0 && <InterpreterTable attempts={attempts} />}
       </section>
     </main>
   );
@@ -396,6 +498,9 @@ function ResultCard({
   const { result, timings } = attempt;
   return (
     <section className="flex flex-col gap-4 rounded-2xl border-2 border-dashed border-neutral-400 p-5">
+      <p className="text-sm text-neutral-500">
+        {t.interpreterUsed}: {attempt.interpreter.label} · {attempt.interpreter.model}
+      </p>
       {result.kind === 'no_command' ? (
         <div className="flex flex-col gap-1">
           <h2 className="text-xl font-semibold">{t.noCommand}</h2>
@@ -474,5 +579,66 @@ function ResultCard({
         </div>
       </dl>
     </section>
+  );
+}
+
+function byInterpreter(attempts: Attempt[]) {
+  const groups = new Map<string, Attempt[]>();
+  for (const attempt of attempts) {
+    const key = `${attempt.interpreter.id}|${attempt.interpreter.model}`;
+    groups.set(key, [...(groups.get(key) ?? []), attempt]);
+  }
+  return [...groups.values()].map((group) => {
+    const llm = group.map((attempt) => attempt.timings.interpretMs);
+    const roundTrip = group.map((attempt) => attempt.roundTripMs);
+    return {
+      interpreter: group[0]!.interpreter,
+      attempts: group.length,
+      interpretP50: percentile(llm, 50),
+      interpretP95: percentile(llm, 95),
+      roundTripP50: percentile(roundTrip, 50),
+      roundTripP95: percentile(roundTrip, 95),
+    };
+  });
+}
+
+function InterpreterTable({ attempts }: { attempts: Attempt[] }) {
+  const rows = byInterpreter(attempts);
+  return (
+    <div className="flex flex-col gap-2">
+      <h3 className="font-semibold">{t.byInterpreter}</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead className="text-neutral-500">
+            <tr>
+              <th className="py-2 pr-4 font-medium">{t.interpreter}</th>
+              <th className="py-2 pr-4 font-medium">{t.attemptsColumn}</th>
+              <th className="py-2 pr-4 font-medium">{t.llmP50}</th>
+              <th className="py-2 pr-4 font-medium">{t.llmP95}</th>
+              <th className="py-2 pr-4 font-medium">{t.roundTripP50}</th>
+              <th className="py-2 font-medium">{t.roundTripP95}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr
+                key={`${row.interpreter.id}|${row.interpreter.model}`}
+                className="border-t border-neutral-200"
+              >
+                <td className="py-2 pr-4">
+                  {row.interpreter.label}
+                  <span className="block text-neutral-500">{row.interpreter.model}</span>
+                </td>
+                <td className="py-2 pr-4 tabular-nums">{row.attempts}</td>
+                <td className="py-2 pr-4 tabular-nums">{ms(row.interpretP50)}</td>
+                <td className="py-2 pr-4 tabular-nums">{ms(row.interpretP95)}</td>
+                <td className="py-2 pr-4 tabular-nums">{ms(row.roundTripP50)}</td>
+                <td className="py-2 tabular-nums">{ms(row.roundTripP95)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

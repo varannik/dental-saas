@@ -2,7 +2,12 @@ import { performance } from 'node:perf_hooks';
 import type { FastifyInstance } from 'fastify';
 import type { RawData, WebSocket } from 'ws';
 import { z } from 'zod';
-import type { Interpreter, SpeechToText, SttStream } from '../../modules/voice/types.js';
+import {
+  INTERPRETER_IDS,
+  type InterpreterId,
+  type InterpreterRegistry,
+} from '../../modules/voice/interpreters.js';
+import type { SpeechToText, SttStream } from '../../modules/voice/types.js';
 import { SPIKE_KEYTERMS } from './catalog.js';
 import { runAfterSpeech } from './pipeline.js';
 
@@ -10,20 +15,23 @@ import { runAfterSpeech } from './pipeline.js';
  * Voice spike endpoint (F7): microphone audio in, proposed command and stage timings out.
  * Development only and unauthenticated; the production gateway with tickets is V1.
  *
- * Client to server: {"type":"start","context":{...}}, binary 16 kHz PCM16 frames, {"type":"stop"}.
- * Server to client: ready, partial, transcript, result (with timings), error.
+ * Client to server: {"type":"start","interpreter":"openai","context":{...}}, binary 16 kHz
+ * PCM16 frames, {"type":"stop"}. The interpreter is optional and defaults to the server's.
+ * Server to client: hello (available interpreters), ready, partial, transcript,
+ * result (with timings and the interpreter used), error.
  */
 
 export const SAMPLE_RATE = 16_000;
 
 export interface VoiceSpikeDeps {
   stt: SpeechToText;
-  interpreter: Interpreter;
+  interpreters: InterpreterRegistry;
 }
 
 const controlMessage = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('start'),
+    interpreter: z.enum(INTERPRETER_IDS).optional(),
     context: z.object({ activeTooth: z.string().max(40).optional() }).default({}),
   }),
   z.object({ type: z.literal('stop') }),
@@ -39,6 +47,7 @@ export async function registerVoiceSpike(app: FastifyInstance, deps: VoiceSpikeD
     // A connected stream kept ready so the provider handshake is not in the latency path.
     let standby: SttStream | undefined;
     let context: { activeTooth?: string } = {};
+    let interpreterId: InterpreterId | undefined;
     let audioBytes = 0;
     let busy = false;
     let closed = false;
@@ -69,6 +78,12 @@ export async function registerVoiceSpike(app: FastifyInstance, deps: VoiceSpikeD
     };
     warmUp();
 
+    send(socket, {
+      type: 'hello',
+      interpreters: deps.interpreters.list(),
+      defaultInterpreter: deps.interpreters.defaultId,
+    });
+
     socket.on('message', async (data: RawData, isBinary: boolean) => {
       if (isBinary) {
         if (stream) {
@@ -95,7 +110,23 @@ export async function registerVoiceSpike(app: FastifyInstance, deps: VoiceSpikeD
           send(socket, { type: 'error', message: 'Still processing the last utterance.' });
           return;
         }
+        if (!deps.interpreters.get(parsed.data.interpreter)) {
+          send(socket, {
+            type: 'error',
+            message: `Interpreter "${parsed.data.interpreter}" is not configured on the server.`,
+          });
+          return;
+        }
         stream?.close();
+        interpreterId = parsed.data.interpreter;
+        // Refresh the interpreter connection while the clinician speaks. Failures surface on
+        // the real call, so a failed warm-up is only logged.
+        deps.interpreters
+          .get(interpreterId)
+          ?.interpreter.warm?.()
+          .catch((error: unknown) =>
+            request.log.debug({ err: error }, 'interpreter warm-up failed')
+          );
         context = parsed.data.context;
         audioBytes = 0;
         stream = standby ?? openStream();
@@ -110,6 +141,7 @@ export async function registerVoiceSpike(app: FastifyInstance, deps: VoiceSpikeD
         send(socket, { type: 'error', message: 'No utterance in progress.' });
         return;
       }
+      const chosen = deps.interpreters.get(interpreterId)!;
       busy = true;
       const endOfSpeech = performance.now();
       // Warm the next stream while this utterance is finalised and interpreted.
@@ -118,24 +150,38 @@ export async function registerVoiceSpike(app: FastifyInstance, deps: VoiceSpikeD
         const outcome = await runAfterSpeech(
           endOfSpeech,
           () => current.finish(),
-          deps.interpreter,
+          chosen.interpreter,
           context,
           (transcript) => send(socket, { type: 'transcript', ...transcript })
         );
         const audioMs = Math.round((audioBytes / 2 / SAMPLE_RATE) * 1000);
         // Timings only: no transcript or patient content in logs (spec section M).
         request.log.info(
-          { voiceSpike: { ...outcome.timings, audioMs, kind: outcome.result.kind } },
+          {
+            voiceSpike: {
+              ...outcome.timings,
+              audioMs,
+              kind: outcome.result.kind,
+              interpreter: chosen.id,
+              model: chosen.interpreter.model,
+            },
+          },
           'voice spike utterance'
         );
         send(socket, {
           type: 'result',
           result: outcome.result,
           timings: { ...outcome.timings, audioMs },
+          interpreter: { id: chosen.id, model: chosen.interpreter.model },
         });
       } catch (error) {
-        request.log.error({ err: error }, 'voice spike pipeline failed');
-        send(socket, { type: 'error', message: 'Interpretation failed.' });
+        request.log.error({ err: error, interpreter: chosen.id }, 'voice spike pipeline failed');
+        // Development only: the provider's message (for example a billing or key error) helps.
+        const detail = error instanceof Error ? error.message.slice(0, 300) : '';
+        send(socket, {
+          type: 'error',
+          message: `Interpretation failed (${chosen.id}${detail ? `: ${detail}` : ''}).`,
+        });
       } finally {
         if (stream === current) stream = undefined;
         current.close();

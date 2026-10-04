@@ -53,4 +53,10 @@ export interface Interpreter {
   readonly model: string;
   readonly promptVersion: number;
   interpret(transcript: string, context: InterpretContext): Promise<RawIntent>;
+  /**
+   * Opens or refreshes the provider connection without generating anything. Called when the
+   * clinician starts speaking: an idle HTTPS connection is dropped after a few seconds, and the
+   * new handshake otherwise lands after the end of speech.
+   */
+  warm?(): Promise<void>;
 }

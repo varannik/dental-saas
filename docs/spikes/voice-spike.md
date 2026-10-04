@@ -1,6 +1,6 @@
 # Voice spike (F7)
 
-The spike answers one question before the voice layer is built: can a spoken command become a proposal on screen in under 2 seconds at the 95th percentile, using external speech and LLM APIs from a CPU-only server? It also confirms the provider choice. The result is recorded as an ADR in `docs/adr`.
+The spike answers one question before the voice layer is built: can a spoken command become a proposal on screen in under 2 seconds at the 95th percentile, using external speech and LLM APIs from a CPU-only server? It also confirms the provider choice. The result is recorded in [ADR 0001](../adr/0001-voice-providers-and-latency.md).
 
 The code is deliberately narrow: one intent (`procedure.add`), a fixed seven-item catalog, no authentication, nothing saved. The reusable parts live in `apps/api/src/modules/voice` (tooth parser, catalog resolver, proposal builder, provider adapters). The throwaway parts live in `apps/api/src/spikes/voice` and `apps/web/src/app/spike/voice`.
 
@@ -21,18 +21,24 @@ Audio streams while the clinician talks, so recognition overlaps speech. Only th
 
 ## Providers
 
-| Role           | Default            | Setting                                 |
-| -------------- | ------------------ | --------------------------------------- |
-| Speech-to-text | Deepgram `nova-3`  | `DEEPGRAM_API_KEY`, `DEEPGRAM_MODEL`    |
-| Interpreter    | `claude-haiku-4-5` | `ANTHROPIC_API_KEY`, `VOICE_LLM_MODEL`  |
+| Role           | Providers                                   | Settings                                                   |
+| -------------- | ------------------------------------------- | ---------------------------------------------------------- |
+| Speech-to-text | Deepgram `nova-3`                           | `DEEPGRAM_API_KEY`, `DEEPGRAM_MODEL`                       |
+| Interpreter    | Anthropic Claude (default `claude-haiku-4-5`) | `ANTHROPIC_API_KEY`, `VOICE_LLM_MODEL`                     |
+| Interpreter    | OpenAI (default `gpt-4.1-mini`)             | `OPENAI_API_KEY`, `OPENAI_MODEL`                           |
+| Interpreter    | Run BiOS gateway (default `openai/gpt-4.1-mini`) | `RUNBIOS_API_KEY`, `RUNBIOS_MODEL`, `RUNBIOS_BASE_URL` |
 
-Both adapters sit behind the interfaces in `modules/voice/types.ts`, so a second provider can be benchmarked by adding one adapter.
+Every interpreter with a key is registered at start-up, and the spike page lets you pick one per utterance under Settings. `VOICE_INTERPRETER` (`anthropic` or `openai`) is the default when the client does not choose; its key is required. Both interpreters send the same prompt and tool definitions (`modules/voice/interpreter-spec.ts`) and go through the same validation, so a comparison measures the model, not the prompt.
 
-The interpreter uses the official Anthropic SDK rather than the Vercel AI SDK named in the implementation plan. The adapter interface already provides provider independence. Recording that choice belongs in the ADR.
+Run BiOS is a gateway to many providers' models. The spike calls it through its OpenAI-compatible API with any model from its catalog (`https://api.runbios.ai/v1/models`), for example `anthropic/claude-sonnet-5-5` or `deepseek/deepseek-v4-flash`. Running the same model directly and through Run BiOS shows what the extra hop costs in latency. Run BiOS does not document data retention or hosting regions; review that before any real patient speech goes through it (spec section L).
+
+The OpenAI default is a model that does not reason before answering, chosen for latency. A reasoning model such as `gpt-5.4-mini` can be set with `OPENAI_MODEL`; the adapter leaves room for its reasoning tokens.
+
+Adding a provider means one adapter implementing `Interpreter` and one entry in `modules/voice/interpreters.ts`. Both adapters use the providers' official SDKs rather than the Vercel AI SDK named in the implementation plan; the shared interface already gives provider independence. Record that choice in the ADR.
 
 ## Running it
 
-1. Copy `.env.example` to `apps/api/.env` and set `VOICE_SPIKE_ENABLED=true`, `DEEPGRAM_API_KEY` and `ANTHROPIC_API_KEY`. The API refuses to start with the spike on and a key missing, and refuses the spike in production.
+1. Copy `.env.example` to `.env` at the repository root (or `apps/api/.env`, which wins) and set `VOICE_SPIKE_ENABLED=true`, `DEEPGRAM_API_KEY`, and the key of each interpreter you want to compare. The API refuses to start with the spike on and the Deepgram key or the default interpreter's key missing, and refuses the spike in production.
 2. Start the API and the web app in two terminals:
 
    ```bash
@@ -40,7 +46,7 @@ The interpreter uses the official Anthropic SDK rather than the Vercel AI SDK na
    pnpm --filter @dental/web dev
    ```
 
-3. Open http://localhost:3000/spike/voice in Chrome or Firefox. Hold the button or the space bar, say a command such as "add a root canal on tooth sixteen", and let go. The page shows the transcript, the proposal card and the timings, and keeps p50 and p95 across attempts. "Copy results as JSON" exports them for the ADR.
+3. Open http://localhost:3000/spike/voice in Chrome or Firefox. Hold the button or the space bar, say a command such as "add a root canal on tooth sixteen", and let go. Pick the interpreter under Settings; the choice is remembered in this browser. The page shows the transcript, the proposal card with the interpreter used, and the timings. It keeps p50 and p95 across attempts, and a table by interpreter compares interpretation and round-trip times. "Copy results as JSON" exports them for the ADR.
 
 The page talks to `NEXT_PUBLIC_API_URL`, which defaults to `http://localhost:4000`.
 
@@ -52,8 +58,10 @@ The benchmark streams WAV files to Deepgram at real-time pace, then runs the sam
 # Synthetic samples from macOS text-to-speech: checks the pipeline and gives a latency floor.
 tests/voice/spike/make-samples.sh
 
-# Interpreter only, from the transcripts in the manifest.
-pnpm --filter @dental/api voice:bench --dir ../../tests/voice/spike --text --runs 5
+# Interpreter only, from the transcripts in the manifest; run once per provider to compare.
+pnpm --filter @dental/api voice:bench --dir ../../tests/voice/spike --text --runs 5 --interpreter anthropic
+pnpm --filter @dental/api voice:bench --dir ../../tests/voice/spike --text --runs 5 --interpreter openai
+pnpm --filter @dental/api voice:bench --dir ../../tests/voice/spike --text --runs 5 --interpreter runbios
 
 # Full audio path.
 pnpm --filter @dental/api voice:bench --dir ../../tests/voice/spike --runs 5

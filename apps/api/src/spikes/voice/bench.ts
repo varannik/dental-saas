@@ -4,8 +4,8 @@ import { join, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
-import { ClaudeInterpreter } from '../../modules/voice/adapters/claude.js';
 import { DeepgramStt } from '../../modules/voice/adapters/deepgram.js';
+import { INTERPRETER_IDS, interpretersFromConfig } from '../../modules/voice/interpreters.js';
 import type { InterpretResult } from '../../modules/voice/proposal.js';
 import { SPIKE_KEYTERMS } from './catalog.js';
 import { runAfterSpeech, type StageTimings } from './pipeline.js';
@@ -18,6 +18,7 @@ import { readWavPcm16 } from './wav.js';
  *
  *   pnpm --filter @dental/api voice:bench --dir ../../tests/voice/spike [--runs 3] [--text]
  *
+ * --interpreter anthropic|openai|runbios picks the LLM (default VOICE_INTERPRETER, then anthropic).
  * --text skips audio and sends each sample's transcript straight to the interpreter.
  * --tail-ms appends silence after each recording (default 300), like a pause before release.
  * --connect-ms waits for the provider handshake before streaming (default 2500), as the
@@ -37,11 +38,22 @@ const sampleSchema = z.object({
 const manifestSchema = z.object({ samples: z.array(sampleSchema).min(1) });
 type Sample = z.infer<typeof sampleSchema>;
 
+const optionalSecret = z.preprocess(
+  (value) => (value === '' ? undefined : value),
+  z.string().min(1).optional()
+);
+
 const envSchema = z.object({
-  DEEPGRAM_API_KEY: z.string().min(1).optional(),
+  DEEPGRAM_API_KEY: optionalSecret,
   DEEPGRAM_MODEL: z.string().min(1).default('nova-3'),
-  ANTHROPIC_API_KEY: z.string().min(1),
+  ANTHROPIC_API_KEY: optionalSecret,
   VOICE_LLM_MODEL: z.string().min(1).default('claude-haiku-4-5'),
+  OPENAI_API_KEY: optionalSecret,
+  OPENAI_MODEL: z.string().min(1).default('gpt-4.1-mini'),
+  RUNBIOS_API_KEY: optionalSecret,
+  RUNBIOS_MODEL: z.string().min(1).default('openai/gpt-4.1-mini'),
+  RUNBIOS_BASE_URL: z.string().url().default('https://api.runbios.ai/v1'),
+  VOICE_INTERPRETER: z.enum(INTERPRETER_IDS).default('anthropic'),
 });
 
 const CHUNK_MS = 20;
@@ -85,6 +97,7 @@ async function main() {
       'no-warmup': { type: 'boolean', default: false },
       'tail-ms': { type: 'string', default: '300' },
       'connect-ms': { type: 'string', default: '2500' },
+      interpreter: { type: 'string' },
       out: { type: 'string' },
     },
   });
@@ -105,10 +118,19 @@ async function main() {
     throw new Error('DEEPGRAM_API_KEY is required unless --text is passed.');
   }
 
-  const interpreter = new ClaudeInterpreter({
-    apiKey: env.ANTHROPIC_API_KEY,
-    model: env.VOICE_LLM_MODEL,
-  });
+  const requested = z.enum(INTERPRETER_IDS).optional().safeParse(values.interpreter);
+  if (!requested.success) {
+    throw new Error(`--interpreter must be one of: ${INTERPRETER_IDS.join(', ')}.`);
+  }
+  const interpreterId = requested.data ?? env.VOICE_INTERPRETER;
+  let interpreter;
+  try {
+    interpreter = interpretersFromConfig({ ...env, VOICE_INTERPRETER: interpreterId }).get()!
+      .interpreter;
+  } catch {
+    const key = `${interpreterId.toUpperCase()}_API_KEY`;
+    throw new Error(`Set ${key} to benchmark the ${interpreterId} interpreter.`);
+  }
   const stt = new DeepgramStt({ apiKey: env.DEEPGRAM_API_KEY ?? '', model: env.DEEPGRAM_MODEL });
 
   // A long-running server keeps its provider connections warm; exclude the first handshake.
@@ -145,6 +167,8 @@ async function main() {
         const stream = stt.open({ sampleRate: SAMPLE_RATE, keyterms: SPIKE_KEYTERMS });
         // The server keeps a connected stream ready; let the handshake finish before speaking.
         await sleep(Number(values['connect-ms']));
+        // As on the server: refresh the interpreter connection when speech starts.
+        void interpreter.warm?.().catch(() => {});
         await streamRealtime(pcm, (chunk) => stream.send(chunk));
         outcome = await runAfterSpeech(
           performance.now(),
@@ -195,7 +219,9 @@ async function main() {
       'before comparing with the 2-second target.'
   );
 
-  const out = values.out ?? join(dir, `results-${textMode ? 'text' : 'audio'}-${Date.now()}.json`);
+  const out =
+    values.out ??
+    join(dir, `results-${interpreterId}-${textMode ? 'text' : 'audio'}-${Date.now()}.json`);
   writeFileSync(
     out,
     JSON.stringify(
@@ -203,6 +229,7 @@ async function main() {
         mode: textMode ? 'text' : 'audio',
         sttProvider: textMode ? null : stt.provider,
         sttModel: textMode ? null : env.DEEPGRAM_MODEL,
+        interpreter: interpreterId,
         llmModel: interpreter.model,
         promptVersion: interpreter.promptVersion,
         runs,

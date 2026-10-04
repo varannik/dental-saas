@@ -51,6 +51,48 @@ describe('loadConfig', () => {
     expect(config.VOICE_SPIKE_ENABLED).toBe(true);
   });
 
+  it('requires the key of the default interpreter only', () => {
+    const openaiOnly = {
+      ...complete,
+      VOICE_SPIKE_ENABLED: 'true',
+      DEEPGRAM_API_KEY: 'dg',
+      OPENAI_API_KEY: 'sk-oai',
+    };
+    expect(() => loadConfig(openaiOnly)).toThrow(/ANTHROPIC_API_KEY/);
+    const config = loadConfig({ ...openaiOnly, VOICE_INTERPRETER: 'openai' });
+    expect(config.VOICE_INTERPRETER).toBe('openai');
+    expect(config.OPENAI_MODEL).toBe('gpt-4.1-mini');
+    expect(() => loadConfig({ ...openaiOnly, VOICE_INTERPRETER: 'mistral' })).toThrow(
+      /VOICE_INTERPRETER/
+    );
+  });
+
+  it('accepts Run BiOS as the default interpreter', () => {
+    const config = loadConfig({
+      ...complete,
+      VOICE_SPIKE_ENABLED: 'true',
+      DEEPGRAM_API_KEY: 'dg',
+      RUNBIOS_API_KEY: 'bios-key',
+      VOICE_INTERPRETER: 'runbios',
+    });
+    expect(config.RUNBIOS_MODEL).toBe('openai/gpt-4.1-mini');
+    expect(config.RUNBIOS_BASE_URL).toBe('https://api.runbios.ai/v1');
+    expect(() =>
+      loadConfig({
+        ...complete,
+        VOICE_SPIKE_ENABLED: 'true',
+        DEEPGRAM_API_KEY: 'dg',
+        VOICE_INTERPRETER: 'runbios',
+      })
+    ).toThrow(/RUNBIOS_API_KEY/);
+  });
+
+  it('treats an empty key in .env as unset', () => {
+    const config = loadConfig({ ...complete, OPENAI_API_KEY: '', DEEPGRAM_API_KEY: '' });
+    expect(config.OPENAI_API_KEY).toBeUndefined();
+    expect(config.DEEPGRAM_API_KEY).toBeUndefined();
+  });
+
   it('refuses the voice spike in production', () => {
     expect(() =>
       loadConfig({

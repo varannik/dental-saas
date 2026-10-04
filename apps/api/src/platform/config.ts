@@ -1,4 +1,17 @@
 import { z } from 'zod';
+import { INTERPRETER_IDS } from '../modules/voice/interpreters.js';
+
+/** An optional secret; an empty value such as `KEY=` in .env counts as unset. */
+const optionalSecret = z.preprocess(
+  (value) => (value === '' ? undefined : value),
+  z.string().min(1).optional()
+);
+
+const API_KEY_FOR = {
+  anthropic: 'ANTHROPIC_API_KEY',
+  openai: 'OPENAI_API_KEY',
+  runbios: 'RUNBIOS_API_KEY',
+} as const;
 
 const configSchema = z
   .object({
@@ -18,10 +31,18 @@ const configSchema = z
     NEO4J_USER: z.string().min(1),
     NEO4J_PASSWORD: z.string().min(1),
     VOICE_SPIKE_ENABLED: z.stringbool().default(false),
-    DEEPGRAM_API_KEY: z.string().min(1).optional(),
+    DEEPGRAM_API_KEY: optionalSecret,
     DEEPGRAM_MODEL: z.string().min(1).default('nova-3'),
-    ANTHROPIC_API_KEY: z.string().min(1).optional(),
+    ANTHROPIC_API_KEY: optionalSecret,
     VOICE_LLM_MODEL: z.string().min(1).default('claude-haiku-4-5'),
+    OPENAI_API_KEY: optionalSecret,
+    OPENAI_MODEL: z.string().min(1).default('gpt-4.1-mini'),
+    /** Run BiOS inference key (bios-…), not the platform key (sk-bios-…). */
+    RUNBIOS_API_KEY: optionalSecret,
+    RUNBIOS_MODEL: z.string().min(1).default('openai/gpt-4.1-mini'),
+    RUNBIOS_BASE_URL: z.string().url().default('https://api.runbios.ai/v1'),
+    /** Interpreter used when the client does not choose one. */
+    VOICE_INTERPRETER: z.enum(INTERPRETER_IDS).default('anthropic'),
   })
   .superRefine((config, context) => {
     if (!config.VOICE_SPIKE_ENABLED) return;
@@ -32,14 +53,20 @@ const configSchema = z
         message: 'the voice spike is unauthenticated and must not run in production',
       });
     }
-    for (const key of ['DEEPGRAM_API_KEY', 'ANTHROPIC_API_KEY'] as const) {
-      if (!config[key]) {
-        context.addIssue({
-          code: 'custom',
-          path: [key],
-          message: 'required when VOICE_SPIKE_ENABLED is true',
-        });
-      }
+    if (!config.DEEPGRAM_API_KEY) {
+      context.addIssue({
+        code: 'custom',
+        path: ['DEEPGRAM_API_KEY'],
+        message: 'required when VOICE_SPIKE_ENABLED is true',
+      });
+    }
+    const defaultKey = API_KEY_FOR[config.VOICE_INTERPRETER];
+    if (!config[defaultKey]) {
+      context.addIssue({
+        code: 'custom',
+        path: [defaultKey],
+        message: `required when VOICE_SPIKE_ENABLED is true and VOICE_INTERPRETER is ${config.VOICE_INTERPRETER}`,
+      });
     }
   });
 
