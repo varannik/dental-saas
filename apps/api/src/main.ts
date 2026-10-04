@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './platform/env.js';
 import { start } from './start.js';
 
 try {

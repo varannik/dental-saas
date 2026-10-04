@@ -50,3 +50,7 @@ pnpm-debug.log*
 
 # Local data volumes
 infra/compose/data/
+
+# Voice spike recordings and benchmark output
+tests/voice/spike/*.wav
+tests/voice/spike/results-*.json

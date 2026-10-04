@@ -31,4 +31,35 @@ describe('loadConfig', () => {
   it('refuses a malformed connection string', () => {
     expect(() => loadConfig({ ...complete, VALKEY_URL: 'not a url' })).toThrow(ConfigError);
   });
+
+  it('keeps the voice spike off by default', () => {
+    const config = loadConfig(complete);
+    expect(config.VOICE_SPIKE_ENABLED).toBe(false);
+    expect(config.VOICE_LLM_MODEL).toBe('claude-haiku-4-5');
+  });
+
+  it('requires provider keys when the voice spike is on', () => {
+    expect(() => loadConfig({ ...complete, VOICE_SPIKE_ENABLED: 'true' })).toThrow(
+      /DEEPGRAM_API_KEY.*ANTHROPIC_API_KEY/
+    );
+    const config = loadConfig({
+      ...complete,
+      VOICE_SPIKE_ENABLED: 'true',
+      DEEPGRAM_API_KEY: 'dg',
+      ANTHROPIC_API_KEY: 'sk',
+    });
+    expect(config.VOICE_SPIKE_ENABLED).toBe(true);
+  });
+
+  it('refuses the voice spike in production', () => {
+    expect(() =>
+      loadConfig({
+        ...complete,
+        NODE_ENV: 'production',
+        VOICE_SPIKE_ENABLED: 'true',
+        DEEPGRAM_API_KEY: 'dg',
+        ANTHROPIC_API_KEY: 'sk',
+      })
+    ).toThrow(/must not run in production/);
+  });
 });

@@ -1,12 +1,16 @@
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import websocket from '@fastify/websocket';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { problem } from './platform/problems.js';
+import { registerVoiceSpike, type VoiceSpikeDeps } from './spikes/voice/route.js';
 
 export interface ServerOptions {
   logger?: boolean | { level: string };
   corsOrigin?: string;
+  /** Registers the development-only voice spike endpoint when set. */
+  voiceSpike?: VoiceSpikeDeps;
 }
 
 export async function buildServer(options: ServerOptions = {}): Promise<FastifyInstance> {
@@ -34,6 +38,11 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
 
   app.get('/healthz', async () => ({ status: 'ok' }));
   app.get('/readyz', async () => ({ status: 'ok' }));
+
+  if (options.voiceSpike) {
+    await app.register(websocket);
+    await registerVoiceSpike(app, options.voiceSpike);
+  }
 
   app.setNotFoundHandler((request, reply) => {
     reply

@@ -3,5 +3,49 @@
     "name": "Dental Platform",
     "tagline": "Voice-first clinical records",
     "stage": "Foundation"
+  },
+  "voiceSpike": {
+    "title": "Voice spike",
+    "intro": "Hold the button or the space bar, say one procedure command, then let go. This measures the time from releasing the button to the proposal on screen.",
+    "notice": "Development only. Nothing is saved, and confirming does not run the command.",
+    "hold": "Hold to talk",
+    "listening": "Listening… let go to send",
+    "processing": "Working…",
+    "micBlocked": "Microphone access was refused. Allow it in the browser and reload.",
+    "connection": {
+      "connecting": "Connecting to the API…",
+      "open": "Connected",
+      "closed": "Not connected",
+      "retry": "Reconnect"
+    },
+    "activeTooth": "Tooth in focus (optional)",
+    "activeToothHint": "Lets you test a command that leaves out the tooth, for example \"add a crown\".",
+    "heard": "Heard",
+    "proposal": "Proposal",
+    "noCommand": "No command",
+    "fromContext": "from context",
+    "said": "said",
+    "alternatives": "Also possible",
+    "risk": "Risk tier",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "confirmed": "Confirmed (not executed: this is the spike)",
+    "cancelled": "Cancelled",
+    "timings": "Timings",
+    "history": "Attempts",
+    "copy": "Copy results as JSON",
+    "copied": "Copied",
+    "clear": "Clear",
+    "stage": {
+      "roundTrip": "Release to proposal (browser)",
+      "server": "Server total",
+      "stt": "Final transcript",
+      "llm": "Interpretation",
+      "resolve": "Resolve and validate",
+      "network": "Network and browser",
+      "audio": "Audio length"
+    },
+    "target": "Target: under 2,000 ms at the 95th percentile",
+    "empty": "No attempts yet."
   }
 }

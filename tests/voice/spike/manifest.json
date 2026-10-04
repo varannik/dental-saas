@@ -1,0 +1,70 @@
+{
+  "samples": [
+    {
+      "file": "rct-16.wav",
+      "transcript": "Add a root canal on tooth sixteen",
+      "expect": { "kind": "proposal", "procedureTypeId": "spike-root-canal", "tooth": "16" }
+    },
+    {
+      "file": "rct-one-six.wav",
+      "transcript": "Root canal for tooth one six",
+      "expect": { "kind": "proposal", "procedureTypeId": "spike-root-canal", "tooth": "16" }
+    },
+    {
+      "file": "rct-descriptive.wav",
+      "transcript": "The upper right first molar needs a root canal",
+      "expect": { "kind": "proposal", "procedureTypeId": "spike-root-canal", "tooth": "16" }
+    },
+    {
+      "file": "crown-26.wav",
+      "transcript": "Crown on twenty six",
+      "expect": { "kind": "proposal", "procedureTypeId": "spike-crown", "tooth": "26" }
+    },
+    {
+      "file": "extraction-38.wav",
+      "transcript": "Extraction of the lower left third molar",
+      "expect": { "kind": "proposal", "procedureTypeId": "spike-extraction", "tooth": "38" }
+    },
+    {
+      "file": "composite-14.wav",
+      "transcript": "Composite filling on tooth fourteen",
+      "expect": { "kind": "proposal", "procedureTypeId": "spike-composite", "tooth": "14" }
+    },
+    {
+      "file": "filling-46.wav",
+      "transcript": "Filling on tooth forty six",
+      "expect": { "kind": "proposal", "procedureTypeId": "spike-composite", "tooth": "46" }
+    },
+    {
+      "file": "implant-36.wav",
+      "transcript": "Implant on thirty six",
+      "expect": { "kind": "proposal", "procedureTypeId": "spike-implant", "tooth": "36" }
+    },
+    {
+      "file": "crown-context.wav",
+      "transcript": "Add a crown",
+      "context": { "activeTooth": "16" },
+      "expect": { "kind": "proposal", "procedureTypeId": "spike-crown", "tooth": "16" }
+    },
+    {
+      "file": "rct-no-tooth.wav",
+      "transcript": "Add a root canal",
+      "expect": { "kind": "proposal", "procedureTypeId": "spike-root-canal", "tooth": null }
+    },
+    {
+      "file": "scaling.wav",
+      "transcript": "Scale and polish please",
+      "expect": { "kind": "proposal", "procedureTypeId": "spike-scaling", "tooth": null }
+    },
+    {
+      "file": "chatter-time.wav",
+      "transcript": "What time is my next patient?",
+      "expect": { "kind": "no_command" }
+    },
+    {
+      "file": "chatter-mirror.wav",
+      "transcript": "Can you pass me the mirror",
+      "expect": { "kind": "no_command" }
+    }
+  ]
+}
