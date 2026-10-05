@@ -16,7 +16,7 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,md,json,yml,yaml}\"",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "licence:check": "node scripts/licences/check.mjs",
+    "licence:check": "pnpm --filter @dental/config build && node scripts/licences/check.mjs",
     "stack:up": "docker compose -f infra/compose/compose.dev.yml up -d --wait",
     "stack:down": "docker compose -f infra/compose/compose.dev.yml down",
     "stack:ps": "docker compose -f infra/compose/compose.dev.yml ps",
