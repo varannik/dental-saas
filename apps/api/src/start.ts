@@ -43,6 +43,9 @@ export async function start(env: Record<string, string | undefined> = process.en
       // Production serves the web app from another site, so the cookie must be SameSite=None
       // and therefore Secure. Locally both apps are on localhost, the same site, over HTTP.
       cookie: production ? { secure: true, sameSite: 'none' } : { secure: false, sameSite: 'lax' },
+      dataBox: config.DATA_ENCRYPTION_KEY
+        ? SecretBox.fromBase64(config.DATA_ENCRYPTION_KEY)
+        : SecretBox.development(),
     },
     voiceSpike: config.VOICE_SPIKE_ENABLED
       ? {
@@ -54,6 +57,11 @@ export async function start(env: Record<string, string | undefined> = process.en
   if (keys.ephemeral) {
     app.log.warn(
       'AUTH_PRIVATE_KEY is not set; tokens are signed with a key that lasts until restart'
+    );
+  }
+  if (!config.DATA_ENCRYPTION_KEY) {
+    app.log.warn(
+      'DATA_ENCRYPTION_KEY is not set; patient identifiers use a public development key'
     );
   }
   if (!config.MFA_ENCRYPTION_KEY) {

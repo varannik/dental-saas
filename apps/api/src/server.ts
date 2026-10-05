@@ -9,6 +9,9 @@ import { registerClinicCommands } from './modules/clinic/commands.js';
 import { registerClinicRoutes } from './modules/clinic/routes.js';
 import { CommandBus } from './modules/commands/bus.js';
 import { CSRF_HEADER, registerIdentityRoutes } from './modules/identity/routes.js';
+import { registerPatientCommands } from './modules/patients/commands.js';
+import { registerPatientRoutes } from './modules/patients/routes.js';
+import type { SecretBox } from './platform/secret-box.js';
 import type { IdentityService } from './modules/identity/service.js';
 import type { TokenService } from './modules/identity/tokens.js';
 import type { Pool } from './platform/db.js';
@@ -29,6 +32,8 @@ export interface IdentityDeps {
   tokens: TokenService;
   cookie: { secure: boolean; sameSite: 'lax' | 'strict' | 'none' };
   loginRateLimit?: number;
+  /** Encrypts patient identifiers such as national IDs. */
+  dataBox: SecretBox;
 }
 
 export interface ServerOptions {
@@ -140,15 +145,17 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   });
 
   if (options.identity) {
-    const { pool, tokens } = options.identity;
+    const { pool, tokens, dataBox } = options.identity;
     await registerIdentityRoutes(app, options.identity);
 
     const bus = new CommandBus(pool);
     registerClinicCommands(bus);
+    registerPatientCommands(bus, dataBox);
     options.onCommandBus?.(bus);
     app.decorate('commandBus', bus);
     await registerClinicRoutes(app, { bus, tokens });
     await registerAuditRoutes(app, { pool, tokens });
+    await registerPatientRoutes(app, { pool, bus, tokens, secrets: dataBox });
   }
 
   if (options.voiceSpike) {

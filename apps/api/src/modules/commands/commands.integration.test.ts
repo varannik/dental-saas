@@ -69,6 +69,7 @@ beforeAll(async () => {
         dummyHash: await createDummyHash(),
       }),
       cookie: { secure: false, sameSite: 'lax' },
+      dataBox: SecretBox.development(),
     },
     onCommandBus: (commandBus) => {
       bus = commandBus;

@@ -26,6 +26,8 @@ const configSchema = z
     DATABASE_MIGRATION_URL: z.string().url().optional(),
     /** Ed25519 private key, PKCS#8 PEM. Required in production; generated per process otherwise. */
     AUTH_PRIVATE_KEY: optionalSecret,
+    /** 32 random bytes, base64. Encrypts patient identifiers such as national IDs. */
+    DATA_ENCRYPTION_KEY: optionalSecret,
     /** 32 random bytes, base64. Encrypts TOTP secrets. Required in production. */
     MFA_ENCRYPTION_KEY: optionalSecret,
     AUTH_ACCESS_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(600),
@@ -58,6 +60,13 @@ const configSchema = z
       context.addIssue({
         code: 'custom',
         path: ['AUTH_PRIVATE_KEY'],
+        message: 'required in production; generate one with pnpm --filter @dental/api auth:keygen',
+      });
+    }
+    if (config.NODE_ENV === 'production' && !config.DATA_ENCRYPTION_KEY) {
+      context.addIssue({
+        code: 'custom',
+        path: ['DATA_ENCRYPTION_KEY'],
         message: 'required in production; generate one with pnpm --filter @dental/api auth:keygen',
       });
     }

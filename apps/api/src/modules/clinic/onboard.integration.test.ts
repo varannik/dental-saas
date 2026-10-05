@@ -78,6 +78,7 @@ beforeAll(async () => {
         dummyHash: await createDummyHash(),
       }),
       cookie: { secure: false, sameSite: 'lax' },
+      dataBox: SecretBox.development(),
     },
   });
 }, 180_000);

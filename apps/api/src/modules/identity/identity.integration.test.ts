@@ -101,6 +101,7 @@ beforeAll(async () => {
       tokens,
       service,
       cookie: { secure: false, sameSite: 'lax' },
+      dataBox: SecretBox.development(),
       // Many sign-ins come from one address in this suite; the limit has its own test.
       loginRateLimit: 1000,
     },
@@ -292,6 +293,7 @@ describe('rate limit', () => {
         tokens,
         service: await makeService(),
         cookie: { secure: false, sameSite: 'lax' },
+        dataBox: SecretBox.development(),
         loginRateLimit: 2,
       },
     });

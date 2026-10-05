@@ -7,6 +7,9 @@ export type { SystemRole } from './roles.js';
 export {
   clinicOnboard,
   clinicUpdateSettings,
+  PATIENT_SEX,
+  patientCreate,
+  patientUpdate,
   TOOTH_NOTATIONS,
   COMMAND_SOURCES,
   COMMANDS,
@@ -16,6 +19,8 @@ export {
 export type {
   ClinicOnboard,
   ClinicUpdateSettings,
+  PatientCreate,
+  PatientUpdate,
   CommandDefinition,
   CommandSource,
   CommandType,

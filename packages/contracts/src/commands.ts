@@ -24,6 +24,11 @@ export interface CommandDefinition<Payload extends z.ZodType = z.ZodType> {
   permission: PermissionKey;
   risk: RiskTier;
   payload: Payload;
+  /**
+   * What the command log stores instead of the payload, for commands that carry an
+   * identifier that is encrypted at rest, such as a national ID.
+   */
+  redact?: (payload: z.infer<Payload>) => unknown;
 }
 
 function defineCommand<Payload extends z.ZodType>(
@@ -103,10 +108,101 @@ export const clinicUpdateSettings = defineCommand({
 
 export type ClinicUpdateSettings = z.infer<typeof clinicUpdateSettings.payload>;
 
+export const PATIENT_SEX = ['female', 'male', 'other', 'unknown'] as const;
+
+function isPastDate(value: string): boolean {
+  const date = new Date(`${value}T00:00:00Z`);
+  return (
+    !Number.isNaN(date.getTime()) &&
+    date.toISOString().startsWith(value) &&
+    value >= '1900-01-01' &&
+    date.getTime() <= Date.now()
+  );
+}
+
+const personName = z.string().trim().min(1).max(100);
+const birthDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD.')
+  .refine(isPastDate, 'Enter a real date of birth, not in the future.');
+const phone = z
+  .string()
+  .trim()
+  .regex(/^\+?[\d\s().-]{6,24}$/, 'Enter a phone number.')
+  .refine((value) => value.replace(/\D/g, '').length >= 6, 'Enter a phone number.');
+const email = z.string().trim().toLowerCase().email().max(320);
+const nationalId = z
+  .string()
+  .trim()
+  .min(4)
+  .max(32)
+  .regex(/^[A-Za-z0-9\s-]+$/, 'Use letters, digits, spaces or hyphens.');
+
+/** The national ID is encrypted at rest, so the command log keeps only whether one was sent. */
+function redactNationalId<T extends { nationalId?: string | null }>(payload: T) {
+  return payload.nationalId ? { ...payload, nationalId: '[redacted]' } : payload;
+}
+
+export const patientCreate = defineCommand({
+  type: 'patient.create',
+  description: 'Register a new patient.',
+  permission: 'patient.write',
+  risk: 'R2',
+  payload: z
+    .object({
+      givenName: personName,
+      familyName: personName,
+      birthDate,
+      sex: z.enum(PATIENT_SEX),
+      phone: phone.optional(),
+      email: email.optional(),
+      nationalId: nationalId.optional(),
+      /** Create even though possible duplicates were found and reviewed. */
+      force: z.boolean().default(false),
+    })
+    .strict(),
+  redact: redactNationalId,
+});
+
+export type PatientCreate = z.infer<typeof patientCreate.payload>;
+
+export const patientUpdate = defineCommand({
+  type: 'patient.update',
+  description: "Change a patient's details, or archive or restore the patient.",
+  permission: 'patient.write',
+  risk: 'R2',
+  payload: z
+    .object({
+      patientId: z.string().uuid(),
+      version: z.number().int().positive(),
+      givenName: personName.optional(),
+      familyName: personName.optional(),
+      birthDate: birthDate.optional(),
+      sex: z.enum(PATIENT_SEX).optional(),
+      /** null removes the value. */
+      phone: phone.nullable().optional(),
+      email: email.nullable().optional(),
+      nationalId: nationalId.nullable().optional(),
+      /** Patients are archived, never deleted. */
+      status: z.enum(['active', 'archived']).optional(),
+    })
+    .strict()
+    .refine(
+      ({ patientId: _id, version: _version, ...changes }) =>
+        Object.values(changes).some((value) => value !== undefined),
+      'Change at least one detail.'
+    ),
+  redact: redactNationalId,
+});
+
+export type PatientUpdate = z.infer<typeof patientUpdate.payload>;
+
 /** Keyed by type; a test checks every key matches its definition's type. */
 export const COMMANDS = {
   'clinic.onboard': clinicOnboard,
   'clinic.update_settings': clinicUpdateSettings,
+  'patient.create': patientCreate,
+  'patient.update': patientUpdate,
 } as const satisfies Record<string, CommandDefinition>;
 
 export type CommandType = keyof typeof COMMANDS;

@@ -56,6 +56,10 @@ With the API and the web app running, open http://localhost:3000 and sign in, fo
 
 Clinics are onboarded by an operator with `clinic:onboard`, which runs as the database owner and goes through the command bus as the system actor, so the onboarding is a recorded command and the first entries of the clinic's audit chain. Each clinic chooses its country, regulatory profile (`--profile`, default `standard`), language, currency, time zone and tooth notation (`--notation`, FDI only for now). The first administrator gets a one-time password, printed once, and sets up an authenticator app at first sign-in. An existing account is added as administrator and keeps its password. No clinic role can onboard clinics, and there is no HTTP route for it.
 
+## Patients
+
+`GET /v1/patients?q=` finds patients by name, phone digits or file number. Names match with trigram similarity on a normalised form (no Latin accents, one Persian form per letter) and with Double Metaphone codes, so "Sarah Ahmad" finds "Sara Ahmed". `POST /v1/patients` warns with `409 possible_duplicate` and the candidates when the national ID matches, or the date of birth or phone matches with a similar name; send `"force": true` after reviewing them. The national ID is encrypted (`DATA_ENCRYPTION_KEY`) and never appears in clear in the command log or the audit trail. Every search and profile read is recorded in `audit.access_log`. Patients are archived, never deleted.
+
 ## Writing data
 
 Every state change is a command, and the command bus (`apps/api/src/modules/commands/bus.ts`) is the only write path. It validates the payload against the registry in `packages/contracts/src/commands.ts`, checks the permission, then runs the handler, writes the command row (`voice.commands`) and the audit entries (`audit.audit_log`) in one transaction scoped to the clinic. REST routes only translate HTTP into commands; voice will confirm proposals into the same commands.

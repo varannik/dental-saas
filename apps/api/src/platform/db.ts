@@ -5,6 +5,10 @@ import pg from 'pg';
  * bypass row-level security; every clinic-owned query runs inside withClinic.
  */
 
+// Dates (OID 1082) stay as YYYY-MM-DD strings. The default turns them into Date objects at
+// local midnight, which can shift a date of birth by a day.
+pg.types.setTypeParser(1082, (value: string) => value);
+
 export type Pool = pg.Pool;
 export type PoolClient = pg.PoolClient;
 

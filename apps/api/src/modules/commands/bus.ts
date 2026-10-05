@@ -136,7 +136,8 @@ export class CommandBus {
       id: commandId,
       clinicId: actor.clinicId,
       type: definition.type,
-      payload,
+      // Commands carrying an identifier that is encrypted at rest store a redacted copy.
+      payload: definition.redact ? definition.redact(payload) : payload,
       requestHash,
       source: request.source,
       actorId: actor.userId,

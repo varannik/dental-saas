@@ -4,6 +4,8 @@ import {
   clinicUpdateSettings,
   COMMANDS,
   isCommandType,
+  patientCreate,
+  patientUpdate,
   RISK_TIERS,
 } from './commands.js';
 import { ERROR_CODES } from './errors.js';
@@ -94,5 +96,36 @@ describe('contracts', () => {
     expect(parse({ version: 1, defaultLocale: 'english' })).toBe(false);
     expect(parse({ version: 1, name: 'x', currency: 'USD' })).toBe(false);
     expect(parse({ name: 'x' })).toBe(false);
+  });
+
+  it('validates patients and redacts the national ID for the command log', () => {
+    const valid = {
+      givenName: 'Sara',
+      familyName: 'Ahmed',
+      birthDate: '1990-04-12',
+      sex: 'female',
+      phone: '+44 7700 900123',
+      nationalId: 'AB 12 34 56 C',
+    };
+    const parsed = patientCreate.payload.parse(valid);
+    expect(parsed.force).toBe(false);
+    expect(patientCreate.redact!(parsed)).toMatchObject({
+      nationalId: '[redacted]',
+      givenName: 'Sara',
+    });
+
+    const fails = (change: Record<string, unknown>) =>
+      !patientCreate.payload.safeParse({ ...valid, ...change }).success;
+    expect(fails({ birthDate: '2999-01-01' })).toBe(true);
+    expect(fails({ birthDate: '1990-02-30' })).toBe(true);
+    expect(fails({ phone: 'call me' })).toBe(true);
+    expect(fails({ sex: 'f' })).toBe(true);
+    expect(fails({ givenName: '' })).toBe(true);
+
+    const id = '0192f3a1-7c1e-7d7a-9b0e-3d2a4c5e6f70';
+    expect(
+      patientUpdate.payload.safeParse({ patientId: id, version: 1, phone: null }).success
+    ).toBe(true);
+    expect(patientUpdate.payload.safeParse({ patientId: id, version: 1 }).success).toBe(false);
   });
 });
