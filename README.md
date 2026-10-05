@@ -24,7 +24,8 @@ pnpm licence:check
 pnpm stack:up
 pnpm db:migrate                          # as the owner, DATABASE_MIGRATION_URL
 pnpm --filter @dental/api db:seed        # Demo Dental clinic, one user per role
-pnpm --filter @dental/api auth:keygen    # prints an AUTH_PRIVATE_KEY line for .env
+pnpm --filter @dental/api auth:keygen    # prints AUTH_PRIVATE_KEY and MFA_ENCRYPTION_KEY lines
+pnpm --filter @dental/api audit:verify   # recomputes every clinic's audit chain
 ```
 
 `pnpm stack:up` starts PostgreSQL 16 (pgvector), Valkey 8, SeaweedFS and Neo4j, and waits until every health check is green. `pnpm stack:down` stops them.
@@ -44,3 +45,11 @@ The API connects as the `app` role, which cannot bypass row-level security, and 
 `pnpm test` includes the clinic-isolation test, which starts PostgreSQL through Docker. Pull requests run the same checks, plus the licence gate, in GitHub Actions. A dependency whose licence is not on the allow-list fails the build.
 
 Production targets Node.js 22. Development works on Node.js 20 or newer.
+
+## Writing data
+
+Every state change is a command, and the command bus (`apps/api/src/modules/commands/bus.ts`) is the only write path. It validates the payload against the registry in `packages/contracts/src/commands.ts`, checks the permission, then runs the handler, writes the command row (`voice.commands`) and the audit entries (`audit.audit_log`) in one transaction scoped to the clinic. REST routes only translate HTTP into commands; voice will confirm proposals into the same commands.
+
+- Writes need an `Idempotency-Key` header. A retry with the same key and body returns the first answer, with `idempotent-replayed: true`; the same key with a different body is refused with `idempotency_key_reused`.
+- The audit log is insert-only and hash-chained per clinic. Each entry's hash covers its content and the previous hash, so an edited or deleted entry breaks the chain, which `audit:verify` reports.
+- To add a command: define it (type, payload schema, permission, risk tier) in `packages/contracts`, write a handler that returns its result and the changes for the audit log, register it, and add a route that calls `bus.execute`. Include an inverse for undo where one exists, the GUI entry, utterance examples and tests.

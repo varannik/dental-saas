@@ -35,6 +35,15 @@ const results = (transcript: string, extra: Record<string, unknown>) =>
     ...extra,
   });
 
+/** Polls until the condition holds, so timing tests do not depend on machine load. */
+async function waitFor(condition: () => boolean, timeoutMs = 3000) {
+  const deadline = Date.now() + timeoutMs;
+  while (!condition()) {
+    if (Date.now() > deadline) throw new Error('Timed out waiting for the condition');
+    await new Promise((done) => setTimeout(done, 10));
+  }
+}
+
 let close: (() => void) | undefined;
 afterEach(() => close?.());
 
@@ -74,7 +83,7 @@ describe('DeepgramStt', () => {
     });
     close = () => fake.server.close();
 
-    const stt = new DeepgramStt({ apiKey: 'key', url: fake.url, finalizeTimeoutMs: 100 });
+    const stt = new DeepgramStt({ apiKey: 'key', url: fake.url, finalizeTimeoutMs: 500 });
     const stream = stt.open({ sampleRate: 16000, keyterms: [] });
     stream.send(Buffer.alloc(640));
     const result = await stream.finish();
@@ -85,11 +94,11 @@ describe('DeepgramStt', () => {
   it('waits for a slow handshake instead of timing out', async () => {
     const fake = await fakeDeepgram((socket) => {
       socket.send(results('crown on twenty six', { is_final: true, from_finalize: true }));
-    }, 300);
+    }, 1000);
     close = () => fake.server.close();
 
     const errors: Error[] = [];
-    const stt = new DeepgramStt({ apiKey: 'key', url: fake.url, finalizeTimeoutMs: 100 });
+    const stt = new DeepgramStt({ apiKey: 'key', url: fake.url, finalizeTimeoutMs: 400 });
     const stream = stt.open({ sampleRate: 16000, keyterms: [], onError: (e) => errors.push(e) });
     stream.send(Buffer.alloc(640));
     // Finish is called long before the connection opens; the finalize timeout must not run yet.
@@ -125,7 +134,9 @@ describe('DeepgramStt', () => {
     const errors: Error[] = [];
     const stt = new DeepgramStt({ apiKey: 'key', url: fake.url, connectTimeoutMs: 50 });
     stt.open({ sampleRate: 16000, keyterms: [], onError: (e) => errors.push(e) });
-    await new Promise((done) => setTimeout(done, 150));
+    await waitFor(() => errors.length > 0);
+    // Give a duplicate error from the socket the chance to arrive, which it must not.
+    await new Promise((done) => setTimeout(done, 50));
     expect(errors.map((error) => error.message)).toEqual(['Speech-to-text connection timed out']);
   });
 
@@ -135,8 +146,7 @@ describe('DeepgramStt', () => {
 
     const stt = new DeepgramStt({ apiKey: 'key', url: fake.url, keepAliveMs: 20 });
     const stream = stt.open({ sampleRate: 16000, keyterms: [] });
-    await new Promise((done) => setTimeout(done, 100));
-    expect(fake.received.controls).toContain('KeepAlive');
+    await waitFor(() => fake.received.controls.includes('KeepAlive'));
     stream.close();
   });
 });

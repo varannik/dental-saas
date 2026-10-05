@@ -4,6 +4,10 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import websocket from '@fastify/websocket';
 import Fastify, { type FastifyInstance } from 'fastify';
+import { registerAuditRoutes } from './modules/audit/routes.js';
+import { registerClinicCommands } from './modules/clinic/commands.js';
+import { registerClinicRoutes } from './modules/clinic/routes.js';
+import { CommandBus } from './modules/commands/bus.js';
 import { CSRF_HEADER, registerIdentityRoutes } from './modules/identity/routes.js';
 import type { IdentityService } from './modules/identity/service.js';
 import type { TokenService } from './modules/identity/tokens.js';
@@ -11,6 +15,13 @@ import type { Pool } from './platform/db.js';
 import { HttpProblem } from './platform/http-problem.js';
 import { problem } from './platform/problems.js';
 import { registerVoiceSpike, type VoiceSpikeDeps } from './spikes/voice/route.js';
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    /** Present when the server has a database (identity deps). */
+    commandBus?: CommandBus;
+  }
+}
 
 export interface IdentityDeps {
   pool: Pool;
@@ -23,8 +34,10 @@ export interface IdentityDeps {
 export interface ServerOptions {
   logger?: boolean | { level: string };
   corsOrigin?: string;
-  /** Registers sign-in and the routes that need the database when set. */
+  /** Registers sign-in, the command bus and every route that needs the database when set. */
   identity?: IdentityDeps;
+  /** Lets tests register extra commands on the bus the server builds. */
+  onCommandBus?: (bus: CommandBus) => void;
   /** Registers the development-only voice spike endpoint when set. */
   voiceSpike?: VoiceSpikeDeps;
 }
@@ -101,6 +114,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     // The refresh cookie travels with credentialed requests from the web app only.
     credentials: true,
     allowedHeaders: ['authorization', 'content-type', 'idempotency-key', CSRF_HEADER],
+    exposedHeaders: ['command-id', 'idempotent-replayed', 'retry-after', 'x-request-id'],
   });
   await app.register(rateLimit, {
     max: 300,
@@ -126,7 +140,15 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   });
 
   if (options.identity) {
+    const { pool, tokens } = options.identity;
     await registerIdentityRoutes(app, options.identity);
+
+    const bus = new CommandBus(pool);
+    registerClinicCommands(bus);
+    options.onCommandBus?.(bus);
+    app.decorate('commandBus', bus);
+    await registerClinicRoutes(app, { bus, tokens });
+    await registerAuditRoutes(app, { pool, tokens });
   }
 
   if (options.voiceSpike) {

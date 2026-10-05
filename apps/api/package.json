@@ -14,7 +14,8 @@
     "voice:bench": "tsx src/spikes/voice/bench.ts",
     "auth:keygen": "tsx src/scripts/keygen.ts",
     "db:seed": "tsx src/scripts/seed-dev.ts",
-    "auth:totp": "tsx src/scripts/totp.ts"
+    "auth:totp": "tsx src/scripts/totp.ts",
+    "audit:verify": "tsx src/scripts/verify-audit.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

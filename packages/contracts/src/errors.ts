@@ -9,6 +9,7 @@ export const ERROR_CODES = [
   'forbidden',
   'not_found',
   'version_conflict',
+  'idempotency_key_reused',
   'session_signed',
   'domain_rule_violated',
   'rate_limited',
