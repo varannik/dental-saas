@@ -41,6 +41,43 @@ function isTimeZone(value: string): boolean {
   }
 }
 
+function isCurrency(value: string): boolean {
+  return Intl.supportedValuesOf('currency').includes(value);
+}
+
+/** Supported tooth notations. Only FDI has a parser and chart so far (spec section Q, 10). */
+export const TOOTH_NOTATIONS = ['FDI'] as const;
+
+export const clinicOnboard = defineCommand({
+  type: 'clinic.onboard',
+  description: 'Create a clinic with its settings and its first administrator.',
+  permission: 'platform.manage',
+  risk: 'R3',
+  payload: z
+    .object({
+      name: z.string().trim().min(1).max(200),
+      country: z.string().regex(/^[A-Z]{2}$/, 'Use an ISO 3166 country code such as GB.'),
+      currency: z.string().refine(isCurrency, 'Use an ISO 4217 currency code such as GBP.'),
+      timezone: z.string().refine(isTimeZone, 'Unknown time zone.'),
+      defaultLocale: z
+        .string()
+        .regex(/^[a-z]{2}(-[A-Z]{2})?$/, 'Use a language tag such as en or fa-IR.'),
+      toothNotation: z.enum(TOOTH_NOTATIONS).default('FDI'),
+      /** Key of a regulatory profile; the profile turns the clinic's rules into settings. */
+      regulatoryProfile: z.string().min(1).max(100),
+      admin: z
+        .object({
+          email: z.string().trim().toLowerCase().email().max(320),
+          /** argon2id hash of a one-time password; the operator CLI prints the password once. */
+          passwordHash: z.string().startsWith('$argon2id$'),
+        })
+        .strict(),
+    })
+    .strict(),
+});
+
+export type ClinicOnboard = z.infer<typeof clinicOnboard.payload>;
+
 export const clinicUpdateSettings = defineCommand({
   type: 'clinic.update_settings',
   description: "Change the clinic's name, default language or time zone.",
@@ -68,6 +105,7 @@ export type ClinicUpdateSettings = z.infer<typeof clinicUpdateSettings.payload>;
 
 /** Keyed by type; a test checks every key matches its definition's type. */
 export const COMMANDS = {
+  'clinic.onboard': clinicOnboard,
   'clinic.update_settings': clinicUpdateSettings,
 } as const satisfies Record<string, CommandDefinition>;
 

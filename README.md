@@ -26,6 +26,8 @@ pnpm db:migrate                          # as the owner, DATABASE_MIGRATION_URL
 pnpm --filter @dental/api db:seed        # Demo Dental clinic, one user per role
 pnpm --filter @dental/api auth:keygen    # prints AUTH_PRIVATE_KEY and MFA_ENCRYPTION_KEY lines
 pnpm --filter @dental/api audit:verify   # recomputes every clinic's audit chain
+pnpm --filter @dental/api clinic:onboard --name "Tehran Smile" --country IR \
+  --currency IRR --timezone Asia/Tehran --locale fa-IR --admin owner@example.com
 ```
 
 `pnpm stack:up` starts PostgreSQL 16 (pgvector), Valkey 8, SeaweedFS and Neo4j, and waits until every health check is green. `pnpm stack:down` stops them.
@@ -45,6 +47,10 @@ The API connects as the `app` role, which cannot bypass row-level security, and 
 `pnpm test` includes the clinic-isolation test, which starts PostgreSQL through Docker. Pull requests run the same checks, plus the licence gate, in GitHub Actions. A dependency whose licence is not on the allow-list fails the build.
 
 Production targets Node.js 22. Development works on Node.js 20 or newer.
+
+## Onboarding a clinic
+
+Clinics are onboarded by an operator with `clinic:onboard`, which runs as the database owner and goes through the command bus as the system actor, so the onboarding is a recorded command and the first entries of the clinic's audit chain. Each clinic chooses its country, regulatory profile (`--profile`, default `standard`), language, currency, time zone and tooth notation (`--notation`, FDI only for now). The first administrator gets a one-time password, printed once, and sets up an authenticator app at first sign-in. An existing account is added as administrator and keeps its password. No clinic role can onboard clinics, and there is no HTTP route for it.
 
 ## Writing data
 

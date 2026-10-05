@@ -16,7 +16,8 @@ import { appendAudit, canonicalJson, sha256, type AuditChange } from '../audit/c
  */
 
 export interface Actor {
-  userId: string;
+  /** Null for the system actor, which runs platform commands from the operator CLI. */
+  userId: string | null;
   clinicId: string;
   permissions: readonly string[];
   requestId?: string;
@@ -73,6 +74,7 @@ interface CommandRow {
 }
 
 const UNIQUE_VIOLATION = '23505';
+const FOREIGN_KEY_VIOLATION = '23503';
 const IDEMPOTENCY_CONSTRAINT = 'commands_idempotency_unique';
 
 function isIdempotencyConflict(error: unknown): boolean {
@@ -194,6 +196,15 @@ export class CommandBus {
         })
       );
     } catch (insertError) {
+      // A refused onboarding has no clinic to store the refusal under; the answer stands.
+      if (
+        typeof insertError === 'object' &&
+        insertError !== null &&
+        'code' in insertError &&
+        insertError.code === FOREIGN_KEY_VIOLATION
+      ) {
+        return undefined;
+      }
       // A concurrent request with the same key was stored first; its answer stands.
       if (!isIdempotencyConflict(insertError)) throw insertError;
       const winner = await this.find(row.clinicId, row.idempotencyKey);
@@ -237,7 +248,7 @@ async function insertCommand(
     payload: unknown;
     requestHash: string;
     source: CommandSource;
-    actorId: string;
+    actorId: string | null;
     risk: string;
     idempotencyKey: string;
     requestId: string | null;

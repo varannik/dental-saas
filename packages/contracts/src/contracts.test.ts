@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { clinicUpdateSettings, COMMANDS, isCommandType, RISK_TIERS } from './commands.js';
+import {
+  clinicOnboard,
+  clinicUpdateSettings,
+  COMMANDS,
+  isCommandType,
+  RISK_TIERS,
+} from './commands.js';
 import { ERROR_CODES } from './errors.js';
 import { isPermissionKey, PERMISSIONS } from './permissions.js';
 import { MFA_REQUIRED_ROLES, ROLE_PERMISSIONS, SYSTEM_ROLES } from './roles.js';
@@ -50,6 +56,33 @@ describe('contracts', () => {
     }
     expect(isCommandType('clinic.update_settings')).toBe(true);
     expect(isCommandType('toString')).toBe(false);
+  });
+
+  it('keeps platform operations out of every clinic role', () => {
+    for (const keys of Object.values(ROLE_PERMISSIONS)) {
+      expect(keys).not.toContain('platform.manage');
+    }
+  });
+
+  it('validates clinic onboarding', () => {
+    const valid = {
+      name: 'Tehran Smile',
+      country: 'IR',
+      currency: 'IRR',
+      timezone: 'Asia/Tehran',
+      defaultLocale: 'fa-IR',
+      regulatoryProfile: 'standard',
+      admin: { email: 'Owner@Example.com', passwordHash: '$argon2id$v=19$m=19456,t=2,p=1$x' },
+    };
+    const parsed = clinicOnboard.payload.parse(valid);
+    expect(parsed.toothNotation).toBe('FDI');
+    expect(parsed.admin.email).toBe('owner@example.com');
+    const fails = (change: Record<string, unknown>) =>
+      clinicOnboard.payload.safeParse({ ...valid, ...change }).success === false;
+    expect(fails({ country: 'Iran' })).toBe(true);
+    expect(fails({ currency: 'EURO' })).toBe(true);
+    expect(fails({ toothNotation: 'Universal' })).toBe(true);
+    expect(fails({ admin: { email: 'x@y.z', passwordHash: 'plain-text' } })).toBe(true);
   });
 
   it('validates clinic settings changes', () => {

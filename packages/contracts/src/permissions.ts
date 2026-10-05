@@ -21,6 +21,9 @@ export const PERMISSIONS = [
   'research.export',
   'lab.manage',
   'lab.review',
+  // Platform operations such as onboarding a clinic. No clinic role holds it; only the
+  // operator CLI's system actor does.
+  'platform.manage',
 ] as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[number];
