@@ -17,7 +17,8 @@ import type { TokenService } from './tokens.js';
  */
 
 export const REFRESH_COOKIE = 'dental_refresh';
-export const CSRF_HEADER = 'x-requested-with';
+export { CSRF_HEADER } from '@dental/contracts';
+import { CSRF_HEADER } from '@dental/contracts';
 
 export interface IdentityRouteOptions {
   service: IdentityService;
@@ -127,7 +128,10 @@ export async function registerIdentityRoutes(app: FastifyInstance, options: Iden
         setRefreshCookie(reply, result);
         return sessionBody(result);
       } catch (error) {
-        reply.clearCookie(REFRESH_COOKIE, cookieOptions);
+        // A superseded refresh keeps the cookie: the browser already holds the newer one.
+        if (error instanceof HttpProblem && error.statusCode === 401) {
+          reply.clearCookie(REFRESH_COOKIE, cookieOptions);
+        }
         throw error;
       }
     }

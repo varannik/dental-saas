@@ -34,6 +34,13 @@ export interface IdentityPolicy {
   refreshTtlDays: number;
 }
 
+/**
+ * A token replaced this recently is answered with 409 refresh_superseded instead of being
+ * treated as theft: two tabs, or a page that refreshes twice, can send the same cookie at
+ * once. Nothing is issued for it, so an attacker gains nothing; older reuse still revokes.
+ */
+const SUPERSEDED_GRACE_MS = 10_000;
+
 export const DEFAULT_IDENTITY_POLICY: IdentityPolicy = {
   lockThreshold: 5,
   lockBaseSeconds: 60,
@@ -255,6 +262,20 @@ export class IdentityService {
       const session = rows[0];
       if (!session) return { error: sessionEnded() };
 
+      if (
+        session.replaced_by &&
+        session.revoked_at &&
+        Date.now() - session.revoked_at.getTime() < SUPERSEDED_GRACE_MS &&
+        (await isActive(client, session.replaced_by))
+      ) {
+        return {
+          error: new HttpProblem(
+            409,
+            'refresh_superseded',
+            'This sign-in was just refreshed elsewhere. Retry with the current cookie.'
+          ),
+        };
+      }
       if (session.revoked_at || session.replaced_by) {
         // Committed before the error is returned, so the revocation survives.
         await revokeFamily(client, session.family_id);
@@ -442,6 +463,15 @@ function chooseClinic(memberships: Membership[], clinicId?: string): Membership 
     });
   }
   return memberships[0]!;
+}
+
+async function isActive(client: PoolClient, sessionId: string): Promise<boolean> {
+  const { rows } = await client.query<{ active: boolean }>(
+    `SELECT revoked_at IS NULL AND expires_at > now() AS active
+     FROM core.auth_sessions WHERE id = $1`,
+    [sessionId]
+  );
+  return rows[0]?.active ?? false;
 }
 
 async function revokeFamily(client: PoolClient, familyId: string) {

@@ -324,7 +324,12 @@ describe('refresh-token rotation', () => {
     const first = refreshCookie(await signIn('dentist@alpha.test'))!;
     const second = refreshCookie(await refresh(first))!;
 
-    // Someone replays the first token after it was rotated.
+    // Someone replays the first token well after it was rotated.
+    await owner.query(
+      `UPDATE core.auth_sessions SET revoked_at = now() - interval '1 minute'
+       WHERE replaced_by IS NOT NULL AND user_id = $1`,
+      [ids.dentist]
+    );
     const reuse = await refresh(first);
     expect(reuse.statusCode).toBe(401);
     expect(reuse.json()).toMatchObject({ code: 'refresh_token_reused' });
@@ -341,6 +346,21 @@ describe('refresh-token rotation', () => {
       [ids.dentist]
     );
     expect(rows[0].open).toBe(0);
+  });
+
+  it('answers a just-replaced token with 409 and keeps the session', async () => {
+    const first = refreshCookie(await signIn('dentist@alpha.test'))!;
+    const second = refreshCookie(await refresh(first))!;
+
+    // Another tab sent the same cookie at the same moment.
+    const late = await refresh(first);
+    expect(late.statusCode).toBe(409);
+    expect(late.json()).toMatchObject({ code: 'refresh_superseded' });
+    // The cookie is left alone: the browser already holds the newer one.
+    expect(refreshCookie(late)).toBeUndefined();
+
+    // The current token still works: nothing was revoked.
+    expect((await refresh(second)).statusCode).toBe(200);
   });
 
   it('requires the CSRF header and a cookie', async () => {

@@ -6,6 +6,7 @@ export const ERROR_CODES = [
   'account_locked',
   'clinic_required',
   'refresh_token_reused',
+  'refresh_superseded',
   'forbidden',
   'not_found',
   'version_conflict',

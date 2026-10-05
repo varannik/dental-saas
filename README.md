@@ -48,6 +48,10 @@ The API connects as the `app` role, which cannot bypass row-level security, and 
 
 Production targets Node.js 22. Development works on Node.js 20 or newer.
 
+## Signing in on the web
+
+With the API and the web app running, open http://localhost:3000 and sign in, for example as `dentist@demo.test` with `dental-dev-password`. Dentists, managers and administrators set up an authenticator app at their first sign-in (the page shows a QR code) and enter a code after that; members of several clinics choose one. The access token stays in memory and the refresh token in an httpOnly cookie, so a reload restores the session; refreshes are serialised across tabs.
+
 ## Onboarding a clinic
 
 Clinics are onboarded by an operator with `clinic:onboard`, which runs as the database owner and goes through the command bus as the system actor, so the onboarding is a recorded command and the first entries of the clinic's audit chain. Each clinic chooses its country, regulatory profile (`--profile`, default `standard`), language, currency, time zone and tooth notation (`--notation`, FDI only for now). The first administrator gets a one-time password, printed once, and sets up an authenticator app at first sign-in. An existing account is added as administrator and keeps its password. No clinic role can onboard clinics, and there is no HTTP route for it.

@@ -21,3 +21,13 @@ export type {
   CommandType,
   RiskTier,
 } from './commands.js';
+export { CSRF_HEADER } from './auth.js';
+export type {
+  ClinicMembership,
+  ClinicRequiredProblem,
+  LoginResponse,
+  MeResponse,
+  MfaChallengeResponse,
+  MfaEnrollmentResponse,
+  SessionResponse,
+} from './auth.js';

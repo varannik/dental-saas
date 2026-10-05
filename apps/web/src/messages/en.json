@@ -58,5 +58,52 @@
     "llmP95": "Interpretation p95",
     "roundTripP50": "Release to proposal p50",
     "roundTripP95": "Release to proposal p95"
+  },
+  "auth": {
+    "title": "Sign in",
+    "subtitle": "Use your clinic account.",
+    "email": "Email",
+    "password": "Password",
+    "signIn": "Sign in",
+    "signingIn": "Signing in…",
+    "chooseClinic": "Choose a clinic",
+    "chooseClinicHint": "Your account belongs to more than one clinic.",
+    "codeTitle": "Enter your code",
+    "codeHint": "Open your authenticator app and enter the 6-digit code for Dental Platform.",
+    "code": "6-digit code",
+    "verify": "Verify",
+    "verifying": "Checking…",
+    "enrollTitle": "Set up your authenticator app",
+    "enrollHint": "Your role needs a second step at sign-in. Scan this code with an authenticator app, such as Google Authenticator, Microsoft Authenticator or 1Password, then enter the 6-digit code it shows.",
+    "enrollManual": "Can't scan? Enter this key instead:",
+    "back": "Start again",
+    "errors": {
+      "invalidCredentials": "The email or password is incorrect.",
+      "locked": "Too many failed attempts. Try again in {minutes} min.",
+      "rateLimited": "Too many attempts. Wait a minute and try again.",
+      "invalidCode": "That code is not valid. Check the time on your phone and try the newest code.",
+      "challengeExpired": "The sign-in took too long. Please start again.",
+      "noClinic": "Your account has no access to a clinic. Ask your clinic administrator.",
+      "network": "The server cannot be reached. Check your connection and try again.",
+      "invalidInput": "Check the email and password and try again.",
+      "generic": "Something went wrong. Please try again."
+    }
+  },
+  "shell": {
+    "loading": "Loading…",
+    "signOut": "Sign out",
+    "noPatient": "No patient selected",
+    "noSession": "No session open",
+    "voiceOff": "Voice is not available yet",
+    "welcome": "Welcome",
+    "clinicSettings": "Clinic settings",
+    "country": "Country",
+    "currency": "Currency",
+    "timezone": "Time zone",
+    "language": "Language",
+    "toothNotation": "Tooth notation",
+    "role": "Role",
+    "permissions": "What you can do",
+    "comingSoon": "Patients, sessions and charting arrive in the next milestone."
   }
 }
