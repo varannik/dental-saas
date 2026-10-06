@@ -1,6 +1,7 @@
 'use client';
 
 import type { MeResponse } from '@dental/contracts';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { AppFrame } from '../components/app-frame';
 import { RequireSession } from '../components/require-session';
@@ -51,6 +52,14 @@ function Dashboard() {
           {t.welcome}, {me.user.email}
         </h1>
         <p className="text-neutral-600">{t.comingSoon}</p>
+        {me.permissions.includes('patient.read') && (
+          <Link
+            href="/patients"
+            className="mt-3 flex h-12 w-fit items-center rounded-lg bg-neutral-900 px-5 text-lg font-semibold text-white hover:bg-neutral-800"
+          >
+            {messages.patients.searchLabel}
+          </Link>
+        )}
       </div>
 
       <section className="rounded-2xl border border-neutral-200 bg-white p-6">

@@ -1,4 +1,5 @@
 import {
+  type DuplicateCandidate,
   patientCreate,
   patientUpdate,
   type PatientCreate,
@@ -23,14 +24,6 @@ import {
  * ID, or the same date of birth or phone with a similar name. The national ID is encrypted, and
  * audit entries record only that it was set, changed or removed.
  */
-
-export interface DuplicateCandidate {
-  id: string;
-  fileNumber: number;
-  givenName: string;
-  familyName: string;
-  birthDate: string;
-}
 
 const NAME_SIMILARITY = 0.5;
 

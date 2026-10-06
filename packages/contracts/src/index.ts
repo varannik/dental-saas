@@ -7,7 +7,6 @@ export type { SystemRole } from './roles.js';
 export {
   clinicOnboard,
   clinicUpdateSettings,
-  PATIENT_SEX,
   patientCreate,
   patientUpdate,
   TOOTH_NOTATIONS,
@@ -36,3 +35,11 @@ export type {
   MfaEnrollmentResponse,
   SessionResponse,
 } from './auth.js';
+export { PATIENT_SEX } from './patients.js';
+export type {
+  DuplicateCandidate,
+  Patient,
+  PatientHit,
+  PatientSearchResponse,
+  PatientSex,
+} from './patients.js';

@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import messages from '../messages/en.json';
 import { useSession } from '../lib/session';
@@ -12,17 +14,51 @@ import { useSession } from '../lib/session';
 
 const t = messages.shell;
 
-export function AppFrame({ children }: { children: ReactNode }) {
+const NAV = [
+  { href: '/', label: t.nav.home, permission: null },
+  { href: '/patients', label: t.nav.patients, permission: 'patient.read' },
+] as const;
+
+export function AppFrame({
+  children,
+  patientBanner,
+}: {
+  children: ReactNode;
+  /** The open patient, shown in the banner on every screen of that patient. */
+  patientBanner?: ReactNode;
+}) {
   const { state, signOut } = useSession();
+  const pathname = usePathname();
   if (state.status !== 'signed_in') return null;
   const { session } = state;
 
   return (
     <div className="flex min-h-screen flex-col bg-neutral-50 text-base">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 bg-white px-4 py-3">
-        <div className="flex items-baseline gap-3">
-          <span className="text-lg font-semibold">{session.clinic.name}</span>
-          <span className="text-sm text-neutral-500">{messages.app.name}</span>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <div className="flex items-baseline gap-3">
+            <span className="text-lg font-semibold">{session.clinic.name}</span>
+            <span className="text-sm text-neutral-500">{messages.app.name}</span>
+          </div>
+          <nav className="flex gap-1">
+            {NAV.filter(
+              (item) => !item.permission || session.permissions.includes(item.permission)
+            ).map((item) => {
+              const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? 'page' : undefined}
+                  className={`flex h-11 items-center rounded-lg px-4 font-medium ${
+                    active ? 'bg-neutral-900 text-white' : 'text-neutral-700 hover:bg-neutral-100'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
         <div className="flex items-center gap-4">
           <span className="text-sm text-neutral-600">
@@ -41,9 +77,13 @@ export function AppFrame({ children }: { children: ReactNode }) {
       {/* Patient banner: name, age, file number and alerts once a patient is open. */}
       <section
         aria-label="Patient"
-        className="border-b border-neutral-200 bg-white px-4 py-3 text-neutral-500"
+        className={`border-b px-4 py-3 ${
+          patientBanner
+            ? 'border-sky-200 bg-sky-50 text-neutral-900'
+            : 'border-neutral-200 bg-white text-neutral-500'
+        }`}
       >
-        {t.noPatient}
+        {patientBanner ?? t.noPatient}
       </section>
       {/* Session strip: time, active procedure, tooth and running material cost. */}
       <section

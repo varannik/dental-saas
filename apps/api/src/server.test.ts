@@ -36,4 +36,22 @@ describe('api server', () => {
     });
     await app.close();
   });
+
+  it('lets the web app send updates across origins', async () => {
+    const app = await buildServer({ corsOrigin: 'http://localhost:3000' });
+    const preflight = await app.inject({
+      method: 'OPTIONS',
+      url: '/v1/patients/x',
+      headers: {
+        origin: 'http://localhost:3000',
+        'access-control-request-method': 'PATCH',
+        'access-control-request-headers': 'authorization,content-type,idempotency-key',
+      },
+    });
+    expect(preflight.statusCode).toBe(204);
+    expect(preflight.headers['access-control-allow-methods']).toContain('PATCH');
+    expect(preflight.headers['access-control-allow-headers']).toContain('idempotency-key');
+    expect(preflight.headers['access-control-allow-credentials']).toBe('true');
+    await app.close();
+  });
 });

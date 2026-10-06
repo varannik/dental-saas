@@ -1,3 +1,4 @@
+import type { PatientHit } from '@dental/contracts';
 import type { PoolClient } from '../../platform/db.js';
 
 /**
@@ -6,18 +7,7 @@ import type { PoolClient } from '../../platform/db.js';
  * Scores run from 0 to 1; weak matches are left out.
  */
 
-export interface PatientHit {
-  id: string;
-  fileNumber: number;
-  givenName: string;
-  familyName: string;
-  birthDate: string;
-  sex: string;
-  phone: string | null;
-  status: string;
-  /** How well the patient matches, from 0 to 1. */
-  score: number;
-}
+export type { PatientHit };
 
 const MIN_SCORE = 0.3;
 

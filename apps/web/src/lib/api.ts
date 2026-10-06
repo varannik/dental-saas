@@ -2,6 +2,8 @@ import {
   CSRF_HEADER,
   type LoginResponse,
   type MeResponse,
+  type Patient,
+  type PatientSearchResponse,
   type SessionResponse,
 } from '@dental/contracts';
 
@@ -33,6 +35,8 @@ interface CallOptions {
   token?: string;
   /** The cookie endpoints require the CSRF header. */
   csrf?: boolean;
+  /** Every write sends one, so a retried request cannot apply twice. */
+  idempotencyKey?: string;
 }
 
 export type Fetcher = typeof fetch;
@@ -43,6 +47,7 @@ export function createApi(fetcher: Fetcher = (...args) => fetch(...args), baseUr
     if (options.body !== undefined) headers['content-type'] = 'application/json';
     if (options.token) headers.authorization = `Bearer ${options.token}`;
     if (options.csrf) headers[CSRF_HEADER] = 'fetch';
+    if (options.idempotencyKey) headers['idempotency-key'] = options.idempotencyKey;
 
     let response: Response;
     try {
@@ -72,6 +77,31 @@ export function createApi(fetcher: Fetcher = (...args) => fetch(...args), baseUr
     refresh: () => call<SessionResponse>('/v1/auth/refresh', { method: 'POST', csrf: true }),
     logout: () => call<void>('/v1/auth/logout', { method: 'POST', csrf: true }),
     me: (token: string) => call<MeResponse>('/v1/me', { token }),
+
+    searchPatients: (token: string, query: string, options: { includeArchived?: boolean } = {}) =>
+      call<PatientSearchResponse>(
+        `/v1/patients?${new URLSearchParams({
+          q: query,
+          ...(options.includeArchived ? { includeArchived: 'true' } : {}),
+        })}`,
+        { token }
+      ),
+    getPatient: (token: string, id: string) =>
+      call<Patient>(`/v1/patients/${encodeURIComponent(id)}`, { token }),
+    createPatient: (token: string, body: Record<string, unknown>, idempotencyKey: string) =>
+      call<Patient>('/v1/patients', { method: 'POST', body, token, idempotencyKey }),
+    updatePatient: (
+      token: string,
+      id: string,
+      body: Record<string, unknown>,
+      idempotencyKey: string
+    ) =>
+      call<Patient>(`/v1/patients/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body,
+        token,
+        idempotencyKey,
+      }),
   };
 }
 

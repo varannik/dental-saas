@@ -118,6 +118,8 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     origin: options.corsOrigin ?? 'http://localhost:3000',
     // The refresh cookie travels with credentialed requests from the web app only.
     credentials: true,
+    // The default allows only GET, HEAD and POST; updates use PATCH.
+    methods: ['GET', 'HEAD', 'POST', 'PATCH', 'PUT'],
     allowedHeaders: ['authorization', 'content-type', 'idempotency-key', CSRF_HEADER],
     exposedHeaders: ['command-id', 'idempotent-replayed', 'retry-after', 'x-request-id'],
   });

@@ -1,3 +1,4 @@
+import type { Patient } from '@dental/contracts';
 import type { SecretBox } from '../../platform/secret-box.js';
 
 /** A patient row and the shape the API returns for it. */
@@ -24,22 +25,8 @@ export const PATIENT_COLUMNS = `id, file_number, given_name, family_name, birth_
   phone_digits, email, national_id_encrypted, national_id_index, status, version, created_at,
   updated_at`;
 
-export interface PatientView {
-  id: string;
-  fileNumber: number;
-  givenName: string;
-  familyName: string;
-  birthDate: string;
-  sex: string;
-  phone: string | null;
-  email: string | null;
-  /** Masked, showing the last characters only. The full number is never returned. */
-  nationalId: string | null;
-  status: string;
-  version: number;
-  createdAt: string;
-  updatedAt: string;
-}
+/** The API's patient shape lives in the contracts so the web client shares it. */
+export type PatientView = Patient;
 
 export function phoneDigits(phone: string): string {
   return phone.replace(/\D/g, '');

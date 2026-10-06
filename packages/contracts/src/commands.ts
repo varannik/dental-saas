@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PATIENT_SEX } from './patients.js';
 import type { PermissionKey } from './permissions.js';
 
 /**
@@ -107,8 +108,6 @@ export const clinicUpdateSettings = defineCommand({
 });
 
 export type ClinicUpdateSettings = z.infer<typeof clinicUpdateSettings.payload>;
-
-export const PATIENT_SEX = ['female', 'male', 'other', 'unknown'] as const;
 
 function isPastDate(value: string): boolean {
   const date = new Date(`${value}T00:00:00Z`);
