@@ -1,12 +1,18 @@
 import {
   CSRF_HEADER,
+  type ChartEntry,
+  type ClinicalNote,
+  type ClinicalSession,
+  type Finding,
   type HistoryEntry,
   type HistoryKind,
   type LoginResponse,
   type MeResponse,
   type Patient,
   type PatientHistory,
+  type PatientChart,
   type PatientSearchResponse,
+  type SessionDetail,
   type SessionResponse,
 } from '@dental/contracts';
 
@@ -135,6 +141,59 @@ export function createApi(fetcher: Fetcher = (...args) => fetch(...args), baseUr
         `/v1/patients/${encodeURIComponent(patientId)}/history/${encodeURIComponent(entryId)}/end`,
         { method: 'POST', body, token, idempotencyKey }
       ),
+
+    listSessions: (token: string, patientId: string) =>
+      call<{ sessions: ClinicalSession[] }>(
+        `/v1/patients/${encodeURIComponent(patientId)}/sessions`,
+        { token }
+      ),
+    getSession: (token: string, sessionId: string) =>
+      call<SessionDetail>(`/v1/sessions/${encodeURIComponent(sessionId)}`, { token }),
+    getChart: (token: string, patientId: string) =>
+      call<PatientChart>(`/v1/patients/${encodeURIComponent(patientId)}/chart`, { token }),
+    startSession: (token: string, body: Record<string, unknown>, idempotencyKey: string) =>
+      call<ClinicalSession>('/v1/sessions', { method: 'POST', body, token, idempotencyKey }),
+    completeSession: (token: string, sessionId: string, idempotencyKey: string) =>
+      call<ClinicalSession>(`/v1/sessions/${encodeURIComponent(sessionId)}/complete`, {
+        method: 'POST',
+        body: {},
+        token,
+        idempotencyKey,
+      }),
+    addFinding: (
+      token: string,
+      sessionId: string,
+      body: Record<string, unknown>,
+      idempotencyKey: string
+    ) =>
+      call<{ findings: Finding[]; chart: ChartEntry[] }>(
+        `/v1/sessions/${encodeURIComponent(sessionId)}/findings`,
+        { method: 'POST', body, token, idempotencyKey }
+      ),
+    recordPerio: (
+      token: string,
+      sessionId: string,
+      body: Record<string, unknown>,
+      idempotencyKey: string
+    ) =>
+      call<{ recorded: number }>(`/v1/sessions/${encodeURIComponent(sessionId)}/perio`, {
+        method: 'POST',
+        body,
+        token,
+        idempotencyKey,
+      }),
+    addNote: (
+      token: string,
+      sessionId: string,
+      body: Record<string, unknown>,
+      idempotencyKey: string
+    ) =>
+      call<ClinicalNote>(`/v1/sessions/${encodeURIComponent(sessionId)}/notes`, {
+        method: 'POST',
+        body,
+        token,
+        idempotencyKey,
+      }),
   };
 }
 

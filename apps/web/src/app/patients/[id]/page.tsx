@@ -6,11 +6,12 @@ import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { AppFrame } from '../../../components/app-frame';
 import { FormActions, PatientFormFields, secondaryButton } from '../../../components/patient-form';
+import { PatientBanner } from '../../../components/patient-banner';
 import { PatientHistorySection } from '../../../components/patient-history';
+import { PatientSessions } from '../../../components/patient-sessions';
 import { RequireSession } from '../../../components/require-session';
 import { api, ApiError } from '../../../lib/api';
 import {
-  ageOn,
   fieldErrors,
   formFrom,
   newIdempotencyKey,
@@ -27,46 +28,6 @@ export default function PatientPage() {
     <RequireSession>
       <PatientProfile />
     </RequireSession>
-  );
-}
-
-function PatientBanner({
-  patient,
-  allergies,
-}: {
-  patient: Patient;
-  /** Active allergies, or null when the user cannot see clinical history. */
-  allergies: HistoryEntry[] | null;
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-      <span className="text-xl font-semibold">
-        {patient.givenName} {patient.familyName}
-      </span>
-      <span>{t.age.replace('{age}', String(ageOn(patient.birthDate)))}</span>
-      <span className="text-neutral-600">
-        {t.fileNumber} #{patient.fileNumber}
-      </span>
-      {patient.status === 'archived' && (
-        <span className="rounded-full bg-neutral-200 px-2 py-0.5 text-xs font-medium uppercase text-neutral-700">
-          {t.archived}
-        </span>
-      )}
-      {allergies && allergies.length === 0 && (
-        <span className="text-sm text-neutral-500">{messages.history.noAllergiesRecorded}</span>
-      )}
-      {allergies?.map((allergy) => (
-        <span
-          key={allergy.id}
-          className="rounded-full bg-red-600 px-3 py-1 text-sm font-semibold text-white"
-        >
-          {messages.history.allergyAlert}: {allergy.label}
-          {allergy.severity && allergy.severity !== 'unknown'
-            ? ` (${messages.history.severities[allergy.severity]})`
-            : ''}
-        </span>
-      ))}
-    </div>
   );
 }
 
@@ -256,6 +217,13 @@ function PatientProfile() {
             </dl>
           )}
         </section>
+
+        {canReadHistory && (
+          <PatientSessions
+            patientId={patient.id}
+            canStart={permissions.includes('session.write') && !archived}
+          />
+        )}
 
         {canReadHistory && history && (
           <PatientHistorySection

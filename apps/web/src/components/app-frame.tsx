@@ -22,10 +22,13 @@ const NAV = [
 export function AppFrame({
   children,
   patientBanner,
+  sessionStrip,
 }: {
   children: ReactNode;
   /** The open patient, shown in the banner on every screen of that patient. */
   patientBanner?: ReactNode;
+  /** The open session: time, chief complaint, later the active procedure and running cost. */
+  sessionStrip?: ReactNode;
 }) {
   const { state, signOut } = useSession();
   const pathname = usePathname();
@@ -88,9 +91,13 @@ export function AppFrame({
       {/* Session strip: time, active procedure, tooth and running material cost. */}
       <section
         aria-label="Session"
-        className="border-b border-neutral-200 bg-neutral-100 px-4 py-2 text-sm text-neutral-500"
+        className={`border-b px-4 py-2 text-sm ${
+          sessionStrip
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+            : 'border-neutral-200 bg-neutral-100 text-neutral-500'
+        }`}
       >
-        {t.noSession}
+        {sessionStrip ?? t.noSession}
       </section>
 
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
