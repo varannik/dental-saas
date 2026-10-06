@@ -158,5 +158,62 @@
     "failed": "The change could not be saved. Try again.",
     "notSet": "—",
     "back": "All patients"
+  },
+  "history": {
+    "title": "Medical history",
+    "showEnded": "Show ended entries",
+    "groups": {
+      "allergies": "Allergies",
+      "conditions": "Conditions",
+      "medications": "Medications",
+      "riskFactors": "Risk factors"
+    },
+    "kinds": {
+      "allergy": "allergy",
+      "condition": "condition",
+      "medication": "medication",
+      "risk_factor": "risk factor"
+    },
+    "none": "None recorded",
+    "add": "Add {kind}",
+    "label": "Name",
+    "labelPlaceholders": {
+      "allergy": "e.g. Penicillin",
+      "condition": "e.g. Type 2 diabetes",
+      "medication": "e.g. Warfarin",
+      "risk_factor": "e.g. Smoker"
+    },
+    "detail": "Details",
+    "detailPlaceholders": {
+      "allergy": "Reaction, e.g. rash",
+      "condition": "Notes",
+      "medication": "Dose and frequency",
+      "risk_factor": "e.g. 10 a day"
+    },
+    "severity": "Severity",
+    "severities": {
+      "mild": "Mild",
+      "moderate": "Moderate",
+      "severe": "Severe",
+      "unknown": "Unknown"
+    },
+    "onsetDate": "Since",
+    "save": "Add",
+    "end": "End",
+    "endTitle": "End this entry",
+    "endReason": "Why",
+    "endReasons": {
+      "resolved": "Resolved",
+      "stopped": "Stopped",
+      "entered_in_error": "Entered in error"
+    },
+    "endNote": "Note",
+    "confirmEnd": "End entry",
+    "ended": "Ended {date} · {reason}",
+    "noted": "Noted {date}",
+    "alreadyActive": "This is already recorded.",
+    "failed": "The change could not be saved. Try again.",
+    "allergyAlert": "Allergy",
+    "noAllergiesRecorded": "No allergies recorded"
   }
 }

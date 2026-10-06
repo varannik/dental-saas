@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ALLERGY_SEVERITIES, HISTORY_END_REASONS, HISTORY_KINDS } from './history.js';
 import { PATIENT_SEX } from './patients.js';
 import type { PermissionKey } from './permissions.js';
 
@@ -196,12 +197,59 @@ export const patientUpdate = defineCommand({
 
 export type PatientUpdate = z.infer<typeof patientUpdate.payload>;
 
+export const historyAdd = defineCommand({
+  type: 'history.add',
+  description: 'Record a condition, medication, allergy or risk factor for a patient.',
+  permission: 'history.write',
+  risk: 'R2',
+  payload: z
+    .object({
+      patientId: z.string().uuid(),
+      kind: z.enum(HISTORY_KINDS),
+      label: z.string().trim().min(1).max(200),
+      code: z.string().trim().min(1).max(50).optional(),
+      detail: z.string().trim().min(1).max(500).optional(),
+      severity: z.enum(ALLERGY_SEVERITIES).optional(),
+      onsetDate: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD.')
+        .refine(isPastDate, 'Enter a real date, not in the future.')
+        .optional(),
+    })
+    .strict()
+    .refine((payload) => payload.kind === 'allergy' || payload.severity === undefined, {
+      message: 'Only allergies have a severity.',
+      path: ['severity'],
+    }),
+});
+
+export type HistoryAdd = z.infer<typeof historyAdd.payload>;
+
+export const historyEnd = defineCommand({
+  type: 'history.end',
+  description: 'End a history entry as resolved, stopped or entered in error. Nothing is deleted.',
+  permission: 'history.write',
+  risk: 'R2',
+  payload: z
+    .object({
+      patientId: z.string().uuid(),
+      entryId: z.string().uuid(),
+      reason: z.enum(HISTORY_END_REASONS),
+      note: z.string().trim().min(1).max(500).optional(),
+    })
+    .strict(),
+});
+
+export type HistoryEnd = z.infer<typeof historyEnd.payload>;
+
 /** Keyed by type; a test checks every key matches its definition's type. */
 export const COMMANDS = {
   'clinic.onboard': clinicOnboard,
   'clinic.update_settings': clinicUpdateSettings,
   'patient.create': patientCreate,
   'patient.update': patientUpdate,
+  'history.add': historyAdd,
+  'history.end': historyEnd,
 } as const satisfies Record<string, CommandDefinition>;
 
 export type CommandType = keyof typeof COMMANDS;

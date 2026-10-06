@@ -1,8 +1,11 @@
 import {
   CSRF_HEADER,
+  type HistoryEntry,
+  type HistoryKind,
   type LoginResponse,
   type MeResponse,
   type Patient,
+  type PatientHistory,
   type PatientSearchResponse,
   type SessionResponse,
 } from '@dental/contracts';
@@ -102,6 +105,36 @@ export function createApi(fetcher: Fetcher = (...args) => fetch(...args), baseUr
         token,
         idempotencyKey,
       }),
+
+    getHistory: (token: string, patientId: string, includeEnded = false) =>
+      call<PatientHistory>(
+        `/v1/patients/${encodeURIComponent(patientId)}/history${includeEnded ? '?includeEnded=true' : ''}`,
+        { token }
+      ),
+    addHistory: (
+      token: string,
+      patientId: string,
+      kind: HistoryKind,
+      body: Record<string, unknown>,
+      idempotencyKey: string
+    ) =>
+      call<HistoryEntry>(`/v1/patients/${encodeURIComponent(patientId)}/history/${kind}`, {
+        method: 'POST',
+        body,
+        token,
+        idempotencyKey,
+      }),
+    endHistory: (
+      token: string,
+      patientId: string,
+      entryId: string,
+      body: Record<string, unknown>,
+      idempotencyKey: string
+    ) =>
+      call<HistoryEntry>(
+        `/v1/patients/${encodeURIComponent(patientId)}/history/${encodeURIComponent(entryId)}/end`,
+        { method: 'POST', body, token, idempotencyKey }
+      ),
   };
 }
 

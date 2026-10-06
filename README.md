@@ -60,6 +60,10 @@ Clinics are onboarded by an operator with `clinic:onboard`, which runs as the da
 
 `GET /v1/patients?q=` finds patients by name, phone digits or file number. Names match with trigram similarity on a normalised form (no Latin accents, one Persian form per letter) and with Double Metaphone codes, so "Sarah Ahmad" finds "Sara Ahmed". `POST /v1/patients` warns with `409 possible_duplicate` and the candidates when the national ID matches, or the date of birth or phone matches with a similar name; send `"force": true` after reviewing them. The national ID is encrypted (`DATA_ENCRYPTION_KEY`) and never appears in clear in the command log or the audit trail. Every search and profile read is recorded in `audit.access_log`. Patients are archived, never deleted.
 
+## Medical history
+
+`GET /v1/patients/:id/history` returns a patient's allergies, conditions, medications and risk factors (add `?includeEnded=true` for ended entries). Reading it needs `patient.read` and `session.read`, so receptionists see no clinical content. `POST /v1/patients/:id/history/:kind` adds an entry (`allergy`, `condition`, `medication`, `risk_factor`) and `POST /v1/patients/:id/history/:entryId/end` ends one as resolved, stopped or entered in error. Entries are never edited or deleted; a database trigger enforces this. Active allergies show as alerts in the patient banner. See [ADR 0002](docs/adr/0002-history-model-and-access.md).
+
 ## Writing data
 
 Every state change is a command, and the command bus (`apps/api/src/modules/commands/bus.ts`) is the only write path. It validates the payload against the registry in `packages/contracts/src/commands.ts`, checks the permission, then runs the handler, writes the command row (`voice.commands`) and the audit entries (`audit.audit_log`) in one transaction scoped to the clinic. REST routes only translate HTTP into commands; voice will confirm proposals into the same commands.

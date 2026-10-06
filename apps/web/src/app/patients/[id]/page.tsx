@@ -1,11 +1,12 @@
 'use client';
 
-import type { Patient } from '@dental/contracts';
+import type { HistoryEntry, Patient, PatientHistory } from '@dental/contracts';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { AppFrame } from '../../../components/app-frame';
 import { FormActions, PatientFormFields, secondaryButton } from '../../../components/patient-form';
+import { PatientHistorySection } from '../../../components/patient-history';
 import { RequireSession } from '../../../components/require-session';
 import { api, ApiError } from '../../../lib/api';
 import {
@@ -29,9 +30,16 @@ export default function PatientPage() {
   );
 }
 
-function PatientBanner({ patient }: { patient: Patient }) {
+function PatientBanner({
+  patient,
+  allergies,
+}: {
+  patient: Patient;
+  /** Active allergies, or null when the user cannot see clinical history. */
+  allergies: HistoryEntry[] | null;
+}) {
   return (
-    <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
       <span className="text-xl font-semibold">
         {patient.givenName} {patient.familyName}
       </span>
@@ -44,6 +52,20 @@ function PatientBanner({ patient }: { patient: Patient }) {
           {t.archived}
         </span>
       )}
+      {allergies && allergies.length === 0 && (
+        <span className="text-sm text-neutral-500">{messages.history.noAllergiesRecorded}</span>
+      )}
+      {allergies?.map((allergy) => (
+        <span
+          key={allergy.id}
+          className="rounded-full bg-red-600 px-3 py-1 text-sm font-semibold text-white"
+        >
+          {messages.history.allergyAlert}: {allergy.label}
+          {allergy.severity && allergy.severity !== 'unknown'
+            ? ` (${messages.history.severities[allergy.severity]})`
+            : ''}
+        </span>
+      ))}
     </div>
   );
 }
@@ -58,8 +80,29 @@ function PatientProfile() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const canEdit =
-    state.status === 'signed_in' && state.session.permissions.includes('patient.write');
+  const permissions = state.status === 'signed_in' ? state.session.permissions : [];
+  const canEdit = permissions.includes('patient.write');
+  // History is clinical content: receptionists cannot see it (ADR 0002).
+  const canReadHistory = permissions.includes('session.read');
+  const canWriteHistory = permissions.includes('history.write');
+  const [history, setHistory] = useState<PatientHistory | null>(null);
+  const [activeAllergies, setActiveAllergies] = useState<HistoryEntry[] | null>(null);
+  const [includeEnded, setIncludeEnded] = useState(false);
+
+  const loadHistory = useCallback(async () => {
+    if (!canReadHistory) return;
+    try {
+      const loaded = await authed((token) => api.getHistory(token, id, includeEnded));
+      setHistory(loaded);
+      setActiveAllergies(loaded.allergies.filter((entry) => entry.status === 'active'));
+    } catch {
+      setHistory(null);
+    }
+  }, [authed, canReadHistory, id, includeEnded]);
+
+  useEffect(() => {
+    void loadHistory();
+  }, [loadHistory]);
 
   const load = useCallback(
     () =>
@@ -131,7 +174,11 @@ function PatientProfile() {
 
   const archived = patient.status === 'archived';
   return (
-    <AppFrame patientBanner={<PatientBanner patient={patient} />}>
+    <AppFrame
+      patientBanner={
+        <PatientBanner patient={patient} allergies={canReadHistory ? activeAllergies : null} />
+      }
+    >
       <div className="flex flex-col gap-6">
         <Link href="/patients" className="text-neutral-600 hover:text-neutral-900">
           ← {t.back}
@@ -209,6 +256,17 @@ function PatientProfile() {
             </dl>
           )}
         </section>
+
+        {canReadHistory && history && (
+          <PatientHistorySection
+            patientId={patient.id}
+            history={history}
+            canWrite={canWriteHistory && !archived}
+            includeEnded={includeEnded}
+            onIncludeEndedChange={setIncludeEnded}
+            onChanged={() => void loadHistory()}
+          />
+        )}
       </div>
     </AppFrame>
   );

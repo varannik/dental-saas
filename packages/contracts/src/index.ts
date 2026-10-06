@@ -7,6 +7,8 @@ export type { SystemRole } from './roles.js';
 export {
   clinicOnboard,
   clinicUpdateSettings,
+  historyAdd,
+  historyEnd,
   patientCreate,
   patientUpdate,
   TOOTH_NOTATIONS,
@@ -18,6 +20,8 @@ export {
 export type {
   ClinicOnboard,
   ClinicUpdateSettings,
+  HistoryAdd,
+  HistoryEnd,
   PatientCreate,
   PatientUpdate,
   CommandDefinition,
@@ -43,3 +47,16 @@ export type {
   PatientSearchResponse,
   PatientSex,
 } from './patients.js';
+export {
+  ALLERGY_SEVERITIES,
+  HISTORY_END_REASONS,
+  HISTORY_GROUP,
+  HISTORY_KINDS,
+} from './history.js';
+export type {
+  AllergySeverity,
+  HistoryEndReason,
+  HistoryEntry,
+  HistoryKind,
+  PatientHistory,
+} from './history.js';

@@ -3,6 +3,7 @@ import {
   clinicOnboard,
   clinicUpdateSettings,
   COMMANDS,
+  historyAdd,
   isCommandType,
   patientCreate,
   patientUpdate,
@@ -127,5 +128,18 @@ describe('contracts', () => {
       patientUpdate.payload.safeParse({ patientId: id, version: 1, phone: null }).success
     ).toBe(true);
     expect(patientUpdate.payload.safeParse({ patientId: id, version: 1 }).success).toBe(false);
+  });
+
+  it('validates history entries', () => {
+    const patientId = '0192f3a1-7c1e-7d7a-9b0e-3d2a4c5e6f70';
+    const ok = (payload: Record<string, unknown>) =>
+      historyAdd.payload.safeParse({ patientId, ...payload }).success;
+    expect(ok({ kind: 'allergy', label: 'Penicillin', severity: 'severe', detail: 'Rash' })).toBe(
+      true
+    );
+    expect(ok({ kind: 'medication', label: 'Warfarin', detail: '5 mg daily' })).toBe(true);
+    expect(ok({ kind: 'condition', label: 'Diabetes', severity: 'mild' })).toBe(false);
+    expect(ok({ kind: 'habit', label: 'x' })).toBe(false);
+    expect(ok({ kind: 'risk_factor', label: 'Smoker', onsetDate: '2999-01-01' })).toBe(false);
   });
 });
