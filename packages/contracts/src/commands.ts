@@ -1,4 +1,14 @@
 import { z } from 'zod';
+import {
+  FINDING_CODES,
+  FINDINGS,
+  isValidFdi,
+  NOTE_TYPES,
+  PERIO_SITES,
+  SURFACES,
+  surfacesOf,
+  type FindingCode,
+} from './chart.js';
 import { ALLERGY_SEVERITIES, HISTORY_END_REASONS, HISTORY_KINDS } from './history.js';
 import { PATIENT_SEX } from './patients.js';
 import type { PermissionKey } from './permissions.js';
@@ -242,6 +252,131 @@ export const historyEnd = defineCommand({
 
 export type HistoryEnd = z.infer<typeof historyEnd.payload>;
 
+const tooth = z.string().refine(isValidFdi, 'Use an FDI tooth number such as 16.');
+
+export const sessionStart = defineCommand({
+  type: 'session.start',
+  description: "Open today's clinical session for a patient.",
+  permission: 'session.write',
+  risk: 'R2',
+  payload: z
+    .object({
+      patientId: z.string().uuid(),
+      chiefComplaint: z.string().trim().min(1).max(500).optional(),
+    })
+    .strict(),
+});
+
+export type SessionStart = z.infer<typeof sessionStart.payload>;
+
+export const sessionComplete = defineCommand({
+  type: 'session.complete',
+  description: 'Mark a session as completed. Signing follows in C6.',
+  permission: 'session.write',
+  risk: 'R2',
+  payload: z.object({ sessionId: z.string().uuid() }).strict(),
+});
+
+export type SessionComplete = z.infer<typeof sessionComplete.payload>;
+
+export const findingAdd = defineCommand({
+  type: 'finding.add',
+  description: 'Record an examination finding on a tooth or some of its surfaces.',
+  permission: 'session.write',
+  risk: 'R2',
+  payload: z
+    .object({
+      sessionId: z.string().uuid(),
+      tooth,
+      /** Leave out for a whole-tooth finding. */
+      surfaces: z.array(z.enum(SURFACES)).min(1).max(5).optional(),
+      code: z.enum(FINDING_CODES as [FindingCode, ...FindingCode[]]),
+      /** For example a mobility grade or a restoration material. */
+      value: z.string().trim().min(1).max(50).optional(),
+      note: z.string().trim().min(1).max(500).optional(),
+      /** An earlier finding on the same place that this one corrects. */
+      supersedesId: z.string().uuid().optional(),
+    })
+    .strict()
+    .superRefine((payload, context) => {
+      const scope = FINDINGS[payload.code].scope;
+      if (scope === 'surface' && !payload.surfaces) {
+        context.addIssue({
+          code: 'custom',
+          path: ['surfaces'],
+          message: 'Choose the surfaces.',
+        });
+      }
+      if (scope === 'tooth' && payload.surfaces) {
+        context.addIssue({
+          code: 'custom',
+          path: ['surfaces'],
+          message: 'This finding applies to the whole tooth.',
+        });
+      }
+      if (payload.surfaces && isValidFdi(payload.tooth)) {
+        const allowed = surfacesOf(payload.tooth);
+        const wrong = payload.surfaces.filter((surface) => !allowed.includes(surface));
+        if (wrong.length > 0) {
+          context.addIssue({
+            code: 'custom',
+            path: ['surfaces'],
+            message: `Tooth ${payload.tooth} has no ${wrong.join(', ')} surface.`,
+          });
+        }
+        if (new Set(payload.surfaces).size !== payload.surfaces.length) {
+          context.addIssue({ code: 'custom', path: ['surfaces'], message: 'Repeated surface.' });
+        }
+      }
+    }),
+});
+
+export type FindingAdd = z.infer<typeof findingAdd.payload>;
+
+export const perioRecord = defineCommand({
+  type: 'perio.record',
+  description: 'Record periodontal probing for some or all sites.',
+  permission: 'session.write',
+  risk: 'R2',
+  payload: z
+    .object({
+      sessionId: z.string().uuid(),
+      measurements: z
+        .array(
+          z
+            .object({
+              tooth,
+              site: z.enum(PERIO_SITES),
+              pocketDepth: z.number().int().min(0).max(20),
+              bleeding: z.boolean().default(false),
+              recession: z.number().int().min(-5).max(15).optional(),
+            })
+            .strict()
+        )
+        .min(1)
+        .max(32 * 6),
+    })
+    .strict(),
+});
+
+export type PerioRecord = z.infer<typeof perioRecord.payload>;
+
+export const noteAdd = defineCommand({
+  type: 'note.add',
+  description: 'Add a note to a session.',
+  permission: 'session.write',
+  risk: 'R2',
+  payload: z
+    .object({
+      sessionId: z.string().uuid(),
+      type: z.enum(NOTE_TYPES).default('clinical'),
+      body: z.string().trim().min(1).max(10_000),
+    })
+    .strict(),
+});
+
+export type NoteAdd = z.infer<typeof noteAdd.payload>;
+
 /** Keyed by type; a test checks every key matches its definition's type. */
 export const COMMANDS = {
   'clinic.onboard': clinicOnboard,
@@ -250,6 +385,11 @@ export const COMMANDS = {
   'patient.update': patientUpdate,
   'history.add': historyAdd,
   'history.end': historyEnd,
+  'session.start': sessionStart,
+  'session.complete': sessionComplete,
+  'finding.add': findingAdd,
+  'perio.record': perioRecord,
+  'note.add': noteAdd,
 } as const satisfies Record<string, CommandDefinition>;
 
 export type CommandType = keyof typeof COMMANDS;

@@ -12,6 +12,8 @@ export const ERROR_CODES = [
   'version_conflict',
   'idempotency_key_reused',
   'session_signed',
+  'session_open',
+  'session_closed',
   'domain_rule_violated',
   'rate_limited',
   'possible_duplicate',

@@ -17,5 +17,6 @@ Spec section F lists four tables for a patient's history: `patient_conditions`, 
 ## Consequences
 
 - Kind-specific fields that grow later (for example a medication's structured dose) go into new nullable columns or a typed JSON column, guarded by check constraints per kind.
+- The same rule covers all later clinical reads: sessions, findings, the tooth chart, periodontal readings and notes (C3) need `patient.read` and `session.read`.
 - A role that needs allergies without clinical sessions, for example a receptionist checking before booking, would need a new permission; none does today.
 - "No known allergies" is not yet recorded as a fact distinct from "nothing recorded". It needs its own design, likely a reviewed-at marker per kind.

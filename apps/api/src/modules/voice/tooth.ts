@@ -3,6 +3,8 @@
  * Only FDI is implemented; it is the default notation (spec section Q, decision 10).
  */
 
+import { isValidFdi } from '@dental/contracts';
+
 export type ToothNotation = 'FDI';
 
 const UNITS: Record<string, number> = {
@@ -61,14 +63,7 @@ const POSITIONS: [RegExp, number][] = [
   [/\bsecond molar\b/, 7],
 ];
 
-export function isValidFdi(code: string): boolean {
-  if (!/^\d\d$/.test(code)) return false;
-  const quadrant = Number(code[0]);
-  const tooth = Number(code[1]);
-  if (quadrant >= 1 && quadrant <= 4) return tooth >= 1 && tooth <= 8;
-  if (quadrant >= 5 && quadrant <= 8) return tooth >= 1 && tooth <= 5;
-  return false;
-}
+export { isValidFdi };
 
 function normalise(input: string): string {
   return input

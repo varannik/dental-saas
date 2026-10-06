@@ -13,6 +13,8 @@ import { registerHistoryRoutes } from './modules/history/routes.js';
 import { CSRF_HEADER, registerIdentityRoutes } from './modules/identity/routes.js';
 import { registerPatientCommands } from './modules/patients/commands.js';
 import { registerPatientRoutes } from './modules/patients/routes.js';
+import { registerSessionCommands } from './modules/sessions/commands.js';
+import { registerSessionRoutes } from './modules/sessions/routes.js';
 import type { SecretBox } from './platform/secret-box.js';
 import type { IdentityService } from './modules/identity/service.js';
 import type { TokenService } from './modules/identity/tokens.js';
@@ -156,12 +158,14 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     registerClinicCommands(bus);
     registerPatientCommands(bus, dataBox);
     registerHistoryCommands(bus);
+    registerSessionCommands(bus);
     options.onCommandBus?.(bus);
     app.decorate('commandBus', bus);
     await registerClinicRoutes(app, { bus, tokens });
     await registerAuditRoutes(app, { pool, tokens });
     await registerPatientRoutes(app, { pool, bus, tokens, secrets: dataBox });
     await registerHistoryRoutes(app, { pool, bus, tokens });
+    await registerSessionRoutes(app, { pool, bus, tokens });
   }
 
   if (options.voiceSpike) {

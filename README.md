@@ -64,6 +64,10 @@ Clinics are onboarded by an operator with `clinic:onboard`, which runs as the da
 
 `GET /v1/patients/:id/history` returns a patient's allergies, conditions, medications and risk factors (add `?includeEnded=true` for ended entries). Reading it needs `patient.read` and `session.read`, so receptionists see no clinical content. `POST /v1/patients/:id/history/:kind` adds an entry (`allergy`, `condition`, `medication`, `risk_factor`) and `POST /v1/patients/:id/history/:entryId/end` ends one as resolved, stopped or entered in error. Entries are never edited or deleted; a database trigger enforces this. Active allergies show as alerts in the patient banner. See [ADR 0002](docs/adr/0002-history-model-and-access.md).
 
+## Sessions and the chart
+
+`POST /v1/sessions` opens a patient's session (one open session per patient); `POST /v1/sessions/:id/findings`, `/perio` and `/notes` record the examination, and `/complete` closes it. Findings use language-neutral codes from `FINDINGS` in `packages/contracts/src/chart.ts`, on FDI teeth and their surfaces (M, O or I, D, B, L). The tooth chart is event-sourced: each finding appends to `clinical.chart_events` and updates the `clinical.chart_entries` projection in the same transaction, and `rebuildChart` re-derives the projection from the events alone. `GET /v1/patients/:id/chart?history=true` returns the chart with every event. Findings, events, readings and notes are insert-only; a correction is a new finding that supersedes the old one.
+
 ## Writing data
 
 Every state change is a command, and the command bus (`apps/api/src/modules/commands/bus.ts`) is the only write path. It validates the payload against the registry in `packages/contracts/src/commands.ts`, checks the permission, then runs the handler, writes the command row (`voice.commands`) and the audit entries (`audit.audit_log`) in one transaction scoped to the clinic. REST routes only translate HTTP into commands; voice will confirm proposals into the same commands.
