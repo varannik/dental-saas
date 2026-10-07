@@ -72,6 +72,10 @@ Clinics are onboarded by an operator with `clinic:onboard`, which runs as the da
 
 Assistants suggest diagnoses (`POST /v1/sessions/:id/diagnoses`, status `suggested`); only dentists record confirmed ones and confirm, reject or retract (`PATCH /v1/diagnoses/:id`). Each action is its own command with its own permission (`diagnosis.suggest`, `diagnosis.write`), so the command bus refuses an assistant's confirmation before anything runs. A database trigger allows only suggested to confirmed or rejected, and confirmed to retracted (with a reason). Codes are listed in `DIAGNOSIS_CODES`; a diagnosis without a tooth covers the whole mouth.
 
+## Treatment plans
+
+`GET /v1/procedure-types` lists the procedure catalog: 26 generic procedures under language-neutral codes (not CDT, which is licensed; see [ADR 0003](docs/adr/0003-procedure-catalog-and-plans.md)). A patient has at most one open plan (`POST /v1/patients/:id/plans`). Items go at the end or after another item (`POST /v1/plans/:id/items` with `afterItemId`); `POST /v1/plans/:id/reorder` takes every item id in the new order with the plan's version, and the sequence stays 1..n. Items are cancelled, not deleted; plans move proposed, accepted, completed, or to cancelled. A procedure on a tooth charted as missing is refused unless it replaces a tooth.
+
 ## Writing data
 
 Every state change is a command, and the command bus (`apps/api/src/modules/commands/bus.ts`) is the only write path. It validates the payload against the registry in `packages/contracts/src/commands.ts`, checks the permission, then runs the handler, writes the command row (`voice.commands`) and the audit entries (`audit.audit_log`) in one transaction scoped to the clinic. REST routes only translate HTTP into commands; voice will confirm proposals into the same commands.

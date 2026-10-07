@@ -14,6 +14,7 @@ export const ERROR_CODES = [
   'session_signed',
   'session_open',
   'session_closed',
+  'plan_open',
   'domain_rule_violated',
   'rate_limited',
   'possible_duplicate',

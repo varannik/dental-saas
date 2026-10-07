@@ -13,6 +13,8 @@ import {
   type PatientHistory,
   type PatientChart,
   type PatientSearchResponse,
+  type ProcedureType,
+  type TreatmentPlan,
   type SessionDetail,
   type SessionResponse,
 } from '@dental/contracts';
@@ -202,6 +204,38 @@ export function createApi(fetcher: Fetcher = (...args) => fetch(...args), baseUr
       idempotencyKey: string
     ) =>
       call<Diagnosis>(`/v1/sessions/${encodeURIComponent(sessionId)}/diagnoses`, {
+        method: 'POST',
+        body,
+        token,
+        idempotencyKey,
+      }),
+    procedureTypes: (token: string) =>
+      call<{ procedureTypes: ProcedureType[] }>('/v1/procedure-types', { token }),
+    listPlans: (token: string, patientId: string) =>
+      call<{ plans: TreatmentPlan[] }>(`/v1/patients/${encodeURIComponent(patientId)}/plans`, {
+        token,
+      }),
+    createPlan: (
+      token: string,
+      patientId: string,
+      body: Record<string, unknown>,
+      idempotencyKey: string
+    ) =>
+      call<TreatmentPlan>(`/v1/patients/${encodeURIComponent(patientId)}/plans`, {
+        method: 'POST',
+        body,
+        token,
+        idempotencyKey,
+      }),
+    /** plan actions: items, items/:itemId/cancel, reorder, accept, cancel */
+    planAction: (
+      token: string,
+      planId: string,
+      action: string,
+      body: Record<string, unknown>,
+      idempotencyKey: string
+    ) =>
+      call<TreatmentPlan>(`/v1/plans/${encodeURIComponent(planId)}/${action}`, {
         method: 'POST',
         body,
         token,

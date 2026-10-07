@@ -10,6 +10,7 @@ import { PatientBanner } from '../../../components/patient-banner';
 import { PatientHistorySection } from '../../../components/patient-history';
 import { PatientSessions } from '../../../components/patient-sessions';
 import { RequireSession } from '../../../components/require-session';
+import { TreatmentPlanCard } from '../../../components/treatment-plan';
 import { api, ApiError } from '../../../lib/api';
 import {
   fieldErrors,
@@ -222,6 +223,13 @@ function PatientProfile() {
           <PatientSessions
             patientId={patient.id}
             canStart={permissions.includes('session.write') && !archived}
+          />
+        )}
+
+        {canReadHistory && (
+          <TreatmentPlanCard
+            patientId={patient.id}
+            canEdit={permissions.includes('plan.write') && !archived}
           />
         )}
 

@@ -344,5 +344,54 @@
       "pericoronitis": "Pericoronitis",
       "other": "Other"
     }
+  },
+  "plans": {
+    "title": "Treatment plan",
+    "none": "No open treatment plan.",
+    "create": "Create plan",
+    "planTitle": "Plan title",
+    "planTitlePlaceholder": "e.g. Upper right",
+    "statuses": {
+      "proposed": "Proposed",
+      "accepted": "Accepted",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "itemStatuses": {
+      "planned": "Planned",
+      "done": "Done",
+      "cancelled": "Cancelled"
+    },
+    "empty": "No items yet.",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "cancelItem": "Cancel item",
+    "cancelItemReason": "Why is this item cancelled? (optional)",
+    "addItem": "Add to plan",
+    "procedure": "Procedure",
+    "tooth": "Tooth",
+    "surfaces": "Surfaces",
+    "position": "Position",
+    "atEnd": "At the end",
+    "after": "After {n}. {name}",
+    "note": "Note",
+    "accept": "Patient accepted",
+    "cancelPlan": "Cancel plan",
+    "cancelPlanConfirm": "Cancel this plan? Its items stay on record.",
+    "conflict": "The plan changed elsewhere; it has been reloaded.",
+    "failed": "That could not be saved. Try again.",
+    "past": "Earlier plans",
+    "items": "{count} items",
+    "categories": {
+      "diagnostic": "Diagnostic",
+      "preventive": "Preventive",
+      "restorative": "Restorative",
+      "endodontic": "Endodontic",
+      "periodontic": "Periodontic",
+      "prosthodontic": "Prosthodontic",
+      "oral_surgery": "Oral surgery",
+      "implant": "Implant",
+      "other": "Other"
+    }
   }
 }

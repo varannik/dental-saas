@@ -446,6 +446,123 @@ export const diagnosisRetract = defineCommand({
 
 export type DiagnosisDecision = z.infer<typeof decision>;
 
+const procedureCode = z
+  .string()
+  .regex(/^[a-z][a-z0-9_]{1,63}$/, 'Use a procedure code from the catalog.');
+
+export const planCreate = defineCommand({
+  type: 'plan.create',
+  description: 'Open a treatment plan for a patient.',
+  permission: 'plan.write',
+  risk: 'R2',
+  payload: z
+    .object({
+      patientId: z.string().uuid(),
+      title: z.string().trim().min(1).max(200).optional(),
+    })
+    .strict(),
+});
+
+export type PlanCreate = z.infer<typeof planCreate.payload>;
+
+export const planItemAdd = defineCommand({
+  type: 'plan_item.add',
+  description: 'Add a procedure to a treatment plan, at the end or after another item.',
+  permission: 'plan.write',
+  risk: 'R2',
+  payload: z
+    .object({
+      planId: z.string().uuid(),
+      procedureCode,
+      tooth: tooth.optional(),
+      surfaces: z.array(z.enum(SURFACES)).min(1).max(5).optional(),
+      note: z.string().trim().min(1).max(500).optional(),
+      /** Place the item right after this one; otherwise it goes last. */
+      afterItemId: z.string().uuid().optional(),
+    })
+    .strict()
+    .superRefine((payload, context) => {
+      if (payload.surfaces && payload.tooth && isValidFdi(payload.tooth)) {
+        const allowed = surfacesOf(payload.tooth);
+        const wrong = payload.surfaces.filter((surface) => !allowed.includes(surface));
+        if (wrong.length > 0) {
+          context.addIssue({
+            code: 'custom',
+            path: ['surfaces'],
+            message: `Tooth ${payload.tooth} has no ${wrong.join(', ')} surface.`,
+          });
+        }
+      }
+      if (payload.surfaces && !payload.tooth) {
+        context.addIssue({ code: 'custom', path: ['tooth'], message: 'Surfaces need a tooth.' });
+      }
+    }),
+});
+
+export type PlanItemAdd = z.infer<typeof planItemAdd.payload>;
+
+export const planItemCancel = defineCommand({
+  type: 'plan_item.cancel',
+  description: 'Cancel a planned item. It stays in the plan, struck through.',
+  permission: 'plan.write',
+  risk: 'R2',
+  payload: z
+    .object({
+      itemId: z.string().uuid(),
+      reason: z.string().trim().min(1).max(500).optional(),
+    })
+    .strict(),
+});
+
+export type PlanItemCancel = z.infer<typeof planItemCancel.payload>;
+
+export const planReorder = defineCommand({
+  type: 'plan.reorder',
+  description: 'Put the items of a plan in a new order.',
+  permission: 'plan.write',
+  risk: 'R2',
+  payload: z
+    .object({
+      planId: z.string().uuid(),
+      /** The plan version the new order was made against. */
+      version: z.number().int().positive(),
+      /** Every item of the plan, in the new order. */
+      itemIds: z.array(z.string().uuid()).min(1).max(200),
+    })
+    .strict()
+    .refine((payload) => new Set(payload.itemIds).size === payload.itemIds.length, {
+      message: 'Each item may appear once.',
+      path: ['itemIds'],
+    }),
+});
+
+export type PlanReorder = z.infer<typeof planReorder.payload>;
+
+const planDecision = z
+  .object({
+    planId: z.string().uuid(),
+    reason: z.string().trim().min(1).max(500).optional(),
+  })
+  .strict();
+
+export const planAccept = defineCommand({
+  type: 'plan.accept',
+  description: 'Record that the patient accepted the plan.',
+  permission: 'plan.write',
+  risk: 'R2',
+  payload: planDecision,
+});
+
+export const planCancel = defineCommand({
+  type: 'plan.cancel',
+  description: 'Cancel a plan. Its items stay on record.',
+  permission: 'plan.write',
+  risk: 'R2',
+  payload: planDecision,
+});
+
+export type PlanDecision = z.infer<typeof planDecision>;
+
 /** Keyed by type; a test checks every key matches its definition's type. */
 export const COMMANDS = {
   'clinic.onboard': clinicOnboard,
@@ -464,6 +581,12 @@ export const COMMANDS = {
   'diagnosis.confirm': diagnosisConfirm,
   'diagnosis.reject': diagnosisReject,
   'diagnosis.retract': diagnosisRetract,
+  'plan.create': planCreate,
+  'plan_item.add': planItemAdd,
+  'plan_item.cancel': planItemCancel,
+  'plan.reorder': planReorder,
+  'plan.accept': planAccept,
+  'plan.cancel': planCancel,
 } as const satisfies Record<string, CommandDefinition>;
 
 export type CommandType = keyof typeof COMMANDS;

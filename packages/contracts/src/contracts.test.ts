@@ -53,7 +53,7 @@ describe('contracts', () => {
   it('registers every command under its own type with a known permission', () => {
     for (const [type, definition] of Object.entries(COMMANDS)) {
       expect(definition.type).toBe(type);
-      expect(type).toMatch(/^[a-z]+(\.[a-z_]+)+$/);
+      expect(type).toMatch(/^[a-z_]+(\.[a-z_]+)+$/);
       expect(isPermissionKey(definition.permission)).toBe(true);
       expect(RISK_TIERS).toContain(definition.risk);
     }
@@ -158,5 +158,22 @@ describe('contracts', () => {
     expect(
       COMMANDS['diagnosis.retract'].payload.safeParse({ diagnosisId: sessionId }).success
     ).toBe(false);
+  });
+
+  it('validates plan items and reorders', () => {
+    const planId = '0192f3a1-7c1e-7d7a-9b0e-3d2a4c5e6f70';
+    const add = (payload: Record<string, unknown>) =>
+      COMMANDS['plan_item.add'].payload.safeParse({ planId, ...payload }).success;
+    expect(add({ procedureCode: 'root_canal_molar', tooth: '16' })).toBe(true);
+    expect(add({ procedureCode: 'composite_filling', tooth: '11', surfaces: ['I', 'M'] })).toBe(
+      true
+    );
+    expect(add({ procedureCode: 'composite_filling', tooth: '11', surfaces: ['O'] })).toBe(false);
+    expect(add({ procedureCode: 'composite_filling', surfaces: ['O'] })).toBe(false);
+    expect(add({ procedureCode: 'Not A Code', tooth: '16' })).toBe(false);
+    const reorder = (itemIds: string[]) =>
+      COMMANDS['plan.reorder'].payload.safeParse({ planId, version: 1, itemIds }).success;
+    expect(reorder([planId])).toBe(true);
+    expect(reorder([planId, planId])).toBe(false);
   });
 });

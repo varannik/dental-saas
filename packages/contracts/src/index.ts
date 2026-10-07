@@ -19,6 +19,12 @@ export {
   patientCreate,
   patientUpdate,
   perioRecord,
+  planAccept,
+  planCancel,
+  planCreate,
+  planItemAdd,
+  planItemCancel,
+  planReorder,
   sessionComplete,
   sessionStart,
   TOOTH_NOTATIONS,
@@ -39,6 +45,11 @@ export type {
   PatientCreate,
   PatientUpdate,
   PerioRecord,
+  PlanCreate,
+  PlanDecision,
+  PlanItemAdd,
+  PlanItemCancel,
+  PlanReorder,
   SessionComplete,
   SessionStart,
   CommandDefinition,
@@ -109,3 +120,13 @@ export type {
   SessionStatus,
   Surface,
 } from './chart.js';
+export { PROCEDURE_CATEGORIES, PROCEDURE_SCOPES } from './plans.js';
+export type {
+  PlanItem,
+  PlanItemStatus,
+  PlanStatus,
+  ProcedureCategory,
+  ProcedureScope,
+  ProcedureType,
+  TreatmentPlan,
+} from './plans.js';
