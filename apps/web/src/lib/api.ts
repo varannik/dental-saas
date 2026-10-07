@@ -19,6 +19,7 @@ import {
   type PatientSearchResponse,
   type ProcedureType,
   type TreatmentPlan,
+  type VoiceTicketResponse,
   type SessionDetail,
   type SessionResponse,
 } from '@dental/contracts';
@@ -306,6 +307,8 @@ export function createApi(fetcher: Fetcher = (...args) => fetch(...args), baseUr
       ),
     dashboard: (token: string) => call<DashboardResponse>('/v1/dashboard', { token }),
     activity: (token: string) => call<ActivityResponse>('/v1/activity', { token }),
+    voiceTicket: (token: string) =>
+      call<VoiceTicketResponse>('/v1/voice/tickets', { method: 'POST', body: {}, token }),
   };
 }
 

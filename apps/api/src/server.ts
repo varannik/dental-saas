@@ -22,6 +22,9 @@ import { registerPatientRoutes } from './modules/patients/routes.js';
 import { registerSessionCommands } from './modules/sessions/commands.js';
 import { registerSessionRoutes } from './modules/sessions/routes.js';
 import { registerWorkspaceRoutes } from './modules/workspace/routes.js';
+import { registerVoiceStream, selectVoiceProtocol } from './modules/voice/stream/routes.js';
+import type { StreamSink, StreamTimings } from './modules/voice/stream/streams.js';
+import type { TicketHolder } from './modules/voice/stream/tickets.js';
 import type { SecretBox } from './platform/secret-box.js';
 import type { IdentityService } from './modules/identity/service.js';
 import type { TokenService } from './modules/identity/tokens.js';
@@ -56,6 +59,11 @@ export interface ServerOptions {
   onCommandBus?: (bus: CommandBus) => void;
   /** Registers the development-only voice spike endpoint when set. */
   voiceSpike?: VoiceSpikeDeps;
+  /** Voice stream tuning, for tests; speech-to-text plugs in as the sink (V2). */
+  voiceStream?: {
+    timings?: Partial<StreamTimings>;
+    createSink?: (owner: TicketHolder) => StreamSink;
+  };
 }
 
 export async function buildServer(options: ServerOptions = {}): Promise<FastifyInstance> {
@@ -160,6 +168,13 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     return { status: 'ok' };
   });
 
+  if (options.identity || options.voiceSpike) {
+    await app.register(websocket, {
+      // 20 ms frames are 645 bytes; anything near this is not audio from our client.
+      options: { maxPayload: 64 * 1024, handleProtocols: selectVoiceProtocol },
+    });
+  }
+
   if (options.identity) {
     const { pool, tokens, dataBox } = options.identity;
     await registerIdentityRoutes(app, options.identity);
@@ -183,10 +198,15 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     await registerPlanRoutes(app, { pool, bus, tokens });
     await registerProcedureRoutes(app, { bus, tokens });
     await registerWorkspaceRoutes(app, { pool, tokens });
+    await registerVoiceStream(app, {
+      pool,
+      tokens,
+      allowedOrigin: options.corsOrigin ?? 'http://localhost:3000',
+      ...options.voiceStream,
+    });
   }
 
   if (options.voiceSpike) {
-    await app.register(websocket);
     await registerVoiceSpike(app, options.voiceSpike);
   }
 

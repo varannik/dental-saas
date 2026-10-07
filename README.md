@@ -89,6 +89,10 @@ A dentist starts a procedure in an open session from a planned item, or ad hoc w
 
 Every clinical screen shares one frame: the patient banner (coloured while a session is open), the session strip (time, the procedure in progress with its timer, the selected tooth), the workspace, the activity rail and the voice bar. The dashboard (`GET /v1/dashboard`) lists the clinic's open sessions to resume and the patients you opened recently; a receptionist sees no sessions. The activity rail (`GET /v1/activity`) lists your last ten executed commands and refreshes after each one; Undo arrives with the voice layer.
 
+## Voice
+
+Clinicians with `voice.use` (dentists and assistants) see a voice bar at the bottom of every screen: hold the button or the space bar to talk. While it is held, speech (not silence) streams to `WS /v1/voice/stream`. The socket authenticates with a single-use, 30-second ticket from `POST /v1/voice/tickets`, sent as a WebSocket subprotocol. If the network drops, speech is kept and sent once the connection is back, and the stream resumes where it stopped. The design is in [ADR 0004](docs/adr/0004-voice-transport.md). Speech becomes commands from V2 on; until then the bar shows what the server heard.
+
 ## Writing data
 
 Every state change is a command, and the command bus (`apps/api/src/modules/commands/bus.ts`) is the only write path. It validates the payload against the registry in `packages/contracts/src/commands.ts`, checks the permission, then runs the handler, writes the command row (`voice.commands`) and the audit entries (`audit.audit_log`) in one transaction scoped to the clinic. REST routes only translate HTTP into commands; voice will confirm proposals into the same commands.

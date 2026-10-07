@@ -152,3 +152,15 @@ export type {
   PatientListing,
   RecentPatient,
 } from './workspace.js';
+export {
+  AUDIO_FRAME,
+  decodeAudioFrame,
+  encodeAudioFrame,
+  VOICE_CLOSE,
+  VOICE_FRAME_SAMPLES,
+  VOICE_PROTOCOL,
+  VOICE_SAMPLE_RATE,
+  VOICE_TICKET_PREFIX,
+  VOICE_TICKET_SECONDS,
+} from './voice.js';
+export type { VoiceClientMessage, VoiceServerMessage, VoiceTicketResponse } from './voice.js';

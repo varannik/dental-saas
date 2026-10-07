@@ -20,7 +20,11 @@ describe('TokenService', () => {
     expect(JSON.parse(Buffer.from(token.split('.')[0]!, 'base64url').toString())).toMatchObject({
       alg: 'EdDSA',
     });
-    expect(await tokens.verifyAccess(token)).toEqual(claims);
+    const now = Math.floor(Date.now() / 1000);
+    const verified = await tokens.verifyAccess(token);
+    expect(verified).toEqual({ ...claims, expiresAt: expect.any(Number) });
+    expect(verified!.expiresAt! - now).toBeGreaterThanOrEqual(599);
+    expect(verified!.expiresAt! - now).toBeLessThanOrEqual(601);
   });
 
   it('rejects a token signed with another key', async () => {
@@ -61,7 +65,10 @@ describe('TokenService', () => {
     const keys = loadSigningKeys(pem.replace(/\n/g, '\\n'));
     expect(keys.ephemeral).toBe(false);
     const tokens = new TokenService(keys, 600);
-    expect(await tokens.verifyAccess(await tokens.signAccess(claims))).toEqual(claims);
+    expect(await tokens.verifyAccess(await tokens.signAccess(claims))).toEqual({
+      ...claims,
+      expiresAt: expect.any(Number),
+    });
   });
 
   it('refuses a key that is not Ed25519', () => {

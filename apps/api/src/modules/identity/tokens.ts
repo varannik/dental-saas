@@ -28,6 +28,8 @@ export interface AccessClaims {
   sessionId: string;
   role: string;
   permissions: string[];
+  /** Seconds since the epoch; set on verified tokens. */
+  expiresAt?: number;
 }
 
 const claimsSchema = z.object({
@@ -36,6 +38,7 @@ const claimsSchema = z.object({
   sid: z.string().uuid(),
   role: z.string(),
   perms: z.array(z.string()),
+  exp: z.number(),
 });
 
 /** Proof that the password step passed; exchanged with a TOTP code for a session. */
@@ -104,6 +107,7 @@ export class TokenService {
         sessionId: claims.sid,
         role: claims.role,
         permissions: claims.perms,
+        expiresAt: claims.exp,
       };
     } catch {
       return null;
