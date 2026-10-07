@@ -94,7 +94,6 @@
     "signOut": "Sign out",
     "noPatient": "No patient selected",
     "noSession": "No session open",
-    "voiceOff": "Voice is not available yet",
     "welcome": "Welcome",
     "clinicSettings": "Clinic settings",
     "country": "Country",
@@ -504,5 +503,27 @@
       "session.sign": "Session signed",
       "session.amend": "Session amended"
     }
+  },
+  "voice": {
+    "talk": "Hold to talk",
+    "talking": "Listening… release to send",
+    "spaceHint": "or hold the space bar",
+    "states": {
+      "idle": "Voice ready when you talk",
+      "connecting": "Connecting voice…",
+      "open": "Voice connected",
+      "reconnecting": "Reconnecting voice…",
+      "offline": "Offline: your speech is kept and sent when the connection is back",
+      "unavailable": "Voice is not available for your role"
+    },
+    "pending": "{seconds} s of speech waiting to send",
+    "heard": "Heard {seconds} s",
+    "lost": "The connection was lost for too long; that last bit of speech was not received. Please say it again.",
+    "dropped": "Some speech could not be kept while offline; please repeat it.",
+    "micBlocked": "The microphone is blocked. Allow it in the browser's site settings.",
+    "micOff": "Turn microphone off",
+    "micOn": "Microphone on",
+    "level": "Input level",
+    "notYet": "Speech is not turned into commands yet; this checks the connection and the microphone."
   }
 }

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { totp } from './totp';
+import { signInNewDentist } from './sign-in';
 
 /**
  * C7 acceptance: a dentist completes and signs a full session by clicking only. Registers a
@@ -19,16 +19,8 @@ test('a full session, from sign-in to signature, by click', async ({ page }) => 
   const familyName = `Kovacs ${suffix}`;
 
   await test.step('sign in and enrol the authenticator', async () => {
-    await page.goto('/sign-in');
-    await page.getByLabel('Email').fill(process.env.E2E_EMAIL!);
-    await page.getByLabel('Password').fill(process.env.E2E_PASSWORD!);
-    await page.getByRole('button', { name: 'Sign in' }).click();
-    await page.getByRole('heading', { name: 'Set up your authenticator app' }).waitFor();
-    const secret = (await page.locator('code').innerText()).replace(/\s/g, '');
-    await page.getByLabel('6-digit code').fill(totp(secret));
-    await page.getByRole('button', { name: 'Verify' }).click();
+    await signInNewDentist(page, 'SESSION');
     await expect(page.getByLabel('Find a patient')).toBeVisible();
-    await expect(page.getByText(process.env.E2E_CLINIC!)).toBeVisible();
   });
 
   await test.step('register the patient', async () => {

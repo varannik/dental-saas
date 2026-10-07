@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import messages from '../messages/en.json';
 import { useSession } from '../lib/session';
 import { ActivityRail } from './activity-rail';
+import { VoiceBar } from './voice-bar';
 
 /**
  * The persistent frame every clinical screen shares (spec section K): who is signed in and
@@ -114,10 +115,9 @@ export function AppFrame({
       {/* Voice bar: microphone state, live transcript and the last acknowledgement. */}
       <footer
         aria-label="Voice"
-        className="sticky bottom-0 border-t border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-500"
+        className="sticky bottom-0 z-10 border-t border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-500"
       >
-        <span className="mr-2 inline-block size-2.5 rounded-full bg-neutral-300 align-middle" />
-        {t.voiceOff}
+        <VoiceBar />
       </footer>
     </div>
   );
