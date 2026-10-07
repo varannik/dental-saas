@@ -23,7 +23,7 @@ const t = messages.dashboard;
 export default function HomePage() {
   return (
     <RequireSession>
-      <AppFrame>
+      <AppFrame focus={{ patientId: null }}>
         <Dashboard />
       </AppFrame>
     </RequireSession>

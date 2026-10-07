@@ -1,6 +1,6 @@
 'use client';
 
-import { VOICE_FRAME_SAMPLES, VOICE_SAMPLE_RATE } from '@dental/contracts';
+import { VOICE_FRAME_SAMPLES, VOICE_SAMPLE_RATE, type VoiceFocusUpdate } from '@dental/contracts';
 import {
   createContext,
   useCallback,
@@ -53,6 +53,8 @@ interface VoiceValue {
   press(): void;
   release(): void;
   micOff(): void;
+  /** Tells the voice context what is on screen (V3). */
+  setFocus(focus: VoiceFocusUpdate): void;
 }
 
 const VoiceContext = createContext<VoiceValue | null>(null);
@@ -189,6 +191,24 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     releasingRef.current = setTimeout(finish, RELEASE_TAIL_MS);
   }, [finish]);
 
+  // The last focus sent, so an unchanged screen sends nothing.
+  const focusRef = useRef<string | null>(null);
+  const setFocus = useCallback(
+    (focus: VoiceFocusUpdate) => {
+      if (!available) return;
+      const key = JSON.stringify(focus);
+      if (key === focusRef.current) return;
+      focusRef.current = key;
+      void authedRef
+        .current((token) => api.setVoiceFocus(token, focus))
+        .catch(() => {
+          // Sent again with the next change of screen.
+          focusRef.current = null;
+        });
+    },
+    [available]
+  );
+
   const micOff = useCallback(() => {
     release();
     micRef.current?.stop();
@@ -211,6 +231,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       press,
       release,
       micOff,
+      setFocus,
     }),
     [
       available,
@@ -226,6 +247,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       press,
       release,
       micOff,
+      setFocus,
     ]
   );
 
@@ -236,4 +258,16 @@ export function useVoice(): VoiceValue {
   const value = useContext(VoiceContext);
   if (!value) throw new Error('useVoice needs a VoiceProvider');
   return value;
+}
+
+/**
+ * Declares the screen's focus: the patient, session, procedure and tooth it shows. Pass
+ * undefined while loading, so a page that does not know its patient yet changes nothing.
+ */
+export function useVoiceFocus(focus: VoiceFocusUpdate | undefined) {
+  const { setFocus } = useVoice();
+  const key = focus ? JSON.stringify(focus) : null;
+  useEffect(() => {
+    if (key) setFocus(JSON.parse(key) as VoiceFocusUpdate);
+  }, [key, setFocus]);
 }

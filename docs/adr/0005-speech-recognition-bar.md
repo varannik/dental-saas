@@ -1,6 +1,6 @@
 # ADR 0005: Speech recognition bar and vocabulary biasing
 
-- Status: Accepted, provisional. **The bar is not met on the primary condition** (see Results). The same bar is applied again to real recordings (open item 1 of ADR 0001).
+- Status: Accepted, provisional. The bar is not met on the primary condition (see Results); on 2026-10-07 the product owner accepted the measured rates for now and closed V2. The same bar is applied again to real recordings (open item 1 of ADR 0001).
 - Date: 2026-10-07
 - Work package: V2 speech adapter (implementation plan, milestone V)
 
@@ -80,4 +80,4 @@ Options, for the product owner to choose:
 2. **Keep the bar at 10 dB** and try further: server-side noise suppression before recognition, other providers (Anthropic and OpenAI could not be measured for lack of credit, ADR 0001), or a dental-specific language-model correction step.
 3. **Record real audio first** (open item 1 of ADR 0001) and judge the bar on it, since synthetic speech and synthetic noise are both stand-ins.
 
-Until one is chosen, V2 is complete as code: streaming transcription, vocabulary biasing and the benchmark. Its acceptance check is open.
+**Decision (2026-10-07):** the product owner accepted the current rates for now and closed V2. The bar stays in place, and is judged again on real recordings when they exist.

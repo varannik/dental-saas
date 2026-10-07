@@ -20,6 +20,8 @@ import {
   type ProcedureType,
   type TreatmentPlan,
   type VoiceTicketResponse,
+  type VoiceContext,
+  type VoiceFocusUpdate,
   type SessionDetail,
   type SessionResponse,
 } from '@dental/contracts';
@@ -47,7 +49,7 @@ export class ApiError extends Error {
 }
 
 interface CallOptions {
-  method?: 'GET' | 'POST' | 'PATCH';
+  method?: 'GET' | 'POST' | 'PATCH' | 'PUT';
   body?: unknown;
   token?: string;
   /** The cookie endpoints require the CSRF header. */
@@ -307,6 +309,8 @@ export function createApi(fetcher: Fetcher = (...args) => fetch(...args), baseUr
       ),
     dashboard: (token: string) => call<DashboardResponse>('/v1/dashboard', { token }),
     activity: (token: string) => call<ActivityResponse>('/v1/activity', { token }),
+    setVoiceFocus: (token: string, body: VoiceFocusUpdate) =>
+      call<VoiceContext>('/v1/voice/context/focus', { method: 'PUT', body, token }),
     voiceTicket: (token: string) =>
       call<VoiceTicketResponse>('/v1/voice/tickets', { method: 'POST', body: {}, token }),
   };

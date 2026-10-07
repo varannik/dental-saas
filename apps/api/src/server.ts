@@ -25,6 +25,9 @@ import { registerWorkspaceRoutes } from './modules/workspace/routes.js';
 import { registerVoiceStream, selectVoiceProtocol } from './modules/voice/stream/routes.js';
 import type { Emit, StreamSink, StreamTimings } from './modules/voice/stream/streams.js';
 import type { TicketHolder } from './modules/voice/stream/tickets.js';
+import { registerVoiceContextRoutes } from './modules/voice/context/routes.js';
+import { VoiceContextService } from './modules/voice/context/service.js';
+import { MemoryContextStore, type ContextStore } from './modules/voice/context/store.js';
 import type { SecretBox } from './platform/secret-box.js';
 import type { IdentityService } from './modules/identity/service.js';
 import type { TokenService } from './modules/identity/tokens.js';
@@ -59,6 +62,8 @@ export interface ServerOptions {
   onCommandBus?: (bus: CommandBus) => void;
   /** Registers the development-only voice spike endpoint when set. */
   voiceSpike?: VoiceSpikeDeps;
+  /** Where voice contexts live (V3): Valkey in the running API; in memory when unset. */
+  contextStore?: ContextStore;
   /** Voice stream tuning, for tests; speech-to-text plugs in as the sink (V2). */
   voiceStream?: {
     timings?: Partial<StreamTimings>;
@@ -165,6 +170,10 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
         return reply.status(503).send({ status: 'unavailable', database: 'down' });
       }
     }
+    if (options.contextStore?.ping && !(await options.contextStore.ping())) {
+      request.log.warn('valkey not ready');
+      return reply.status(503).send({ status: 'unavailable', valkey: 'down' });
+    }
     return { status: 'ok' };
   });
 
@@ -198,6 +207,11 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     await registerPlanRoutes(app, { pool, bus, tokens });
     await registerProcedureRoutes(app, { bus, tokens });
     await registerWorkspaceRoutes(app, { pool, tokens });
+    const contextStore = options.contextStore ?? new MemoryContextStore();
+    const voiceContext = new VoiceContextService(contextStore, pool);
+    app.decorate('voiceContext', voiceContext);
+    app.addHook('onClose', async () => contextStore.close());
+    await registerVoiceContextRoutes(app, { tokens, context: voiceContext });
     await registerVoiceStream(app, {
       pool,
       tokens,
@@ -211,4 +225,10 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   }
 
   return app;
+}
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    voiceContext?: VoiceContextService;
+  }
 }

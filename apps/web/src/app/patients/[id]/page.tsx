@@ -119,7 +119,7 @@ function PatientProfile() {
 
   if (loadError) {
     return (
-      <AppFrame>
+      <AppFrame focus={{ patientId: null }}>
         <p className="text-red-700">{loadError}</p>
         <Link href="/patients" className="mt-4 inline-block text-neutral-600 underline">
           {t.back}
@@ -138,6 +138,7 @@ function PatientProfile() {
   const archived = patient.status === 'archived';
   return (
     <AppFrame
+      focus={{ patientId: patient.id }}
       patientBanner={
         <PatientBanner patient={patient} allergies={canReadHistory ? activeAllergies : null} />
       }
