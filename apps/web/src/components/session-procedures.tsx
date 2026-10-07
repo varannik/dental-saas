@@ -14,6 +14,7 @@ import { api, ApiError } from '../lib/api';
 import { newIdempotencyKey } from '../lib/patients';
 import { useSession } from '../lib/session';
 import messages from '../messages/en.json';
+import { Elapsed } from './elapsed';
 import { inputClass, primaryButton, secondaryButton } from './patient-form';
 
 /**
@@ -238,6 +239,11 @@ function ProcedureItem({
           >
             {t.statuses[procedure.status]}
           </span>
+          {procedure.status === 'in_progress' && (
+            <span className="mr-2 font-semibold text-sky-800">
+              <Elapsed since={procedure.startedAt} />
+            </span>
+          )}
           {procedure.planItemId && <span className="text-neutral-600">{t.planned}</span>}
           {procedure.cancelReason && (
             <span className="text-neutral-500"> · {procedure.cancelReason}</span>

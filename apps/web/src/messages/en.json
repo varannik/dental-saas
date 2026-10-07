@@ -157,7 +157,9 @@
     "noPermission": "Your role cannot view patients.",
     "failed": "The change could not be saved. Try again.",
     "notSet": "—",
-    "back": "All patients"
+    "back": "All patients",
+    "chartTitle": "Chart",
+    "chartEmpty": "Nothing charted yet."
   },
   "history": {
     "title": "Medical history",
@@ -298,7 +300,11 @@
       "DL": "Disto-lingual"
     },
     "completeBlocked": "Complete or cancel the procedures in progress first.",
-    "amendmentBadge": "Amendment"
+    "amendmentBadge": "Amendment",
+    "activeProcedure": "Now: {name}",
+    "activeTooth": "Tooth {tooth}",
+    "stale": "The latest changes could not be loaded; what you see may be out of date.",
+    "refresh": "Refresh"
   },
   "diagnoses": {
     "title": "Diagnoses",
@@ -447,5 +453,56 @@
     "amendConfirm": "Save this amendment? It is added to the signed record and cannot be removed.",
     "failed": "That could not be saved. Try again.",
     "noteOne": "1 note"
+  },
+  "dashboard": {
+    "title": "Today",
+    "find": "Find a patient",
+    "findPlaceholder": "Name, phone or file number",
+    "search": "Search",
+    "openSessions": "Open sessions",
+    "noOpenSessions": "No sessions are open.",
+    "resume": "Resume",
+    "yours": "Yours",
+    "since": "since {time}",
+    "recentPatients": "Recently opened",
+    "noRecent": "Patients you open appear here.",
+    "openedAt": "Opened {date}"
+  },
+  "activity": {
+    "title": "Activity",
+    "show": "Show activity",
+    "hide": "Hide activity",
+    "none": "Nothing yet.",
+    "tooth": "tooth {tooth}",
+    "voice": "voice",
+    "types": {
+      "clinic.onboard": "Clinic set up",
+      "clinic.update_settings": "Clinic settings changed",
+      "patient.create": "Patient registered",
+      "patient.update": "Patient details changed",
+      "history.add": "History entry added",
+      "history.end": "History entry ended",
+      "session.start": "Session started",
+      "session.complete": "Session completed",
+      "finding.add": "Finding recorded",
+      "perio.record": "Probing recorded",
+      "note.add": "Note added",
+      "diagnosis.suggest": "Diagnosis suggested",
+      "diagnosis.record": "Diagnosis recorded",
+      "diagnosis.confirm": "Diagnosis confirmed",
+      "diagnosis.reject": "Diagnosis rejected",
+      "diagnosis.retract": "Diagnosis retracted",
+      "plan.create": "Plan created",
+      "plan_item.add": "Plan item added",
+      "plan_item.cancel": "Plan item cancelled",
+      "plan.reorder": "Plan reordered",
+      "plan.accept": "Plan accepted",
+      "plan.cancel": "Plan cancelled",
+      "procedure.start": "Procedure started",
+      "procedure.complete": "Procedure completed",
+      "procedure.cancel": "Procedure cancelled",
+      "session.sign": "Session signed",
+      "session.amend": "Session amended"
+    }
   }
 }

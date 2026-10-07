@@ -14,13 +14,14 @@ import {
 } from '@dental/contracts';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { AppFrame } from '../../../components/app-frame';
+import { Elapsed } from '../../../components/elapsed';
 import { PatientBanner, usePatientHeader } from '../../../components/patient-banner';
 import { inputClass, primaryButton, secondaryButton } from '../../../components/patient-form';
 import { RequireSession } from '../../../components/require-session';
 import { SessionDiagnoses } from '../../../components/session-diagnoses';
-import { SessionProcedures } from '../../../components/session-procedures';
+import { describeProcedure, SessionProcedures } from '../../../components/session-procedures';
 import { SessionSummary, SignedRecord, SignPanel } from '../../../components/session-signoff';
 import { ToothChart } from '../../../components/tooth-chart';
 import { api, ApiError } from '../../../lib/api';
@@ -61,6 +62,8 @@ function Examination() {
   const [chart, setChart] = useState<ChartEntry[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
+  const loaded = useRef(false);
   const header = usePatientHeader(session?.patientId ?? null);
 
   const reload = useCallback(async () => {
@@ -69,7 +72,14 @@ function Examination() {
       setSession(detail);
       const current = await authed((token) => api.getChart(token, detail.patientId));
       setChart(current.entries);
+      loaded.current = true;
+      setStale(false);
     } catch (failure) {
+      // Once the session is on screen, a failed refresh keeps it there and says so.
+      if (loaded.current) {
+        setStale(true);
+        return;
+      }
       setError(
         failure instanceof ApiError && failure.status === 404
           ? messages.patients.notFound
@@ -100,15 +110,31 @@ function Examination() {
   }
 
   const open = session.status === 'open';
+  const active = session.procedures.find((p) => p.status === 'in_progress');
   const strip = open ? (
-    <span>
-      <span className="font-semibold">
-        {t.strip.replace(
-          '{time}',
-          new Date(session.startedAt).toLocaleTimeString('en-GB', { timeStyle: 'short' })
-        )}
+    <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+      <span>
+        <span className="font-semibold">
+          {t.strip.replace(
+            '{time}',
+            new Date(session.startedAt).toLocaleTimeString('en-GB', { timeStyle: 'short' })
+          )}
+        </span>{' '}
+        (<Elapsed since={session.startedAt} />)
+        {session.chiefComplaint && ` · ${session.chiefComplaint}`}
       </span>
-      {session.chiefComplaint && ` · ${session.chiefComplaint}`}
+      {active && (
+        <span className="rounded-full bg-sky-600 px-3 py-0.5 font-semibold text-white">
+          {t.activeProcedure.replace(
+            '{name}',
+            `${active.procedureType.name} ${describeProcedure(active)}`.trim()
+          )}{' '}
+          · <Elapsed since={active.startedAt} />
+        </span>
+      )}
+      {selected && (
+        <span className="font-semibold">{t.activeTooth.replace('{tooth}', selected)}</span>
+      )}
     </span>
   ) : (
     t.stripClosed
@@ -124,6 +150,7 @@ function Examination() {
         ) : undefined
       }
       sessionStrip={strip}
+      sessionOpen={open}
     >
       <div className="flex flex-col gap-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -145,6 +172,17 @@ function Examination() {
           )}
         </div>
 
+        {stale && (
+          <div
+            role="alert"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-amber-50 px-4 py-3 text-amber-900"
+          >
+            {t.stale}
+            <button type="button" className={secondaryButton} onClick={() => void reload()}>
+              {t.refresh}
+            </button>
+          </div>
+        )}
         {session.status === 'completed' && (
           <p className="rounded-lg bg-neutral-100 px-4 py-3 text-neutral-700">
             {t.readOnly.replace('{status}', t.statuses[session.status].toLowerCase())}

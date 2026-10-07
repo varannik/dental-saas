@@ -33,6 +33,12 @@ function PatientSearch() {
   const canRegister =
     state.status === 'signed_in' && state.session.permissions.includes('patient.write');
 
+  // The dashboard hands over its search as ?q=.
+  useEffect(() => {
+    const initial = new URLSearchParams(window.location.search).get('q');
+    if (initial) setQuery(initial);
+  }, []);
+
   useEffect(() => {
     const trimmed = query.trim();
     if (trimmed.length < 2) {

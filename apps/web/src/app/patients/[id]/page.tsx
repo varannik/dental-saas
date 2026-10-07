@@ -1,6 +1,6 @@
 'use client';
 
-import type { HistoryEntry, Patient, PatientHistory } from '@dental/contracts';
+import type { ChartEntry, HistoryEntry, Patient, PatientHistory } from '@dental/contracts';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
@@ -10,6 +10,7 @@ import { PatientBanner } from '../../../components/patient-banner';
 import { PatientHistorySection } from '../../../components/patient-history';
 import { PatientSessions } from '../../../components/patient-sessions';
 import { RequireSession } from '../../../components/require-session';
+import { ToothChart } from '../../../components/tooth-chart';
 import { TreatmentPlanCard } from '../../../components/treatment-plan';
 import { api, ApiError } from '../../../lib/api';
 import {
@@ -219,6 +220,7 @@ function PatientProfile() {
           )}
         </section>
 
+        {canReadHistory && <PatientChartCard patientId={patient.id} />}
         {canReadHistory && (
           <PatientSessions
             patientId={patient.id}
@@ -254,5 +256,35 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
       <dt className="text-sm text-neutral-500">{label}</dt>
       <dd className="text-xl">{children}</dd>
     </div>
+  );
+}
+
+/** The chart as it stands, read-only; it changes only within a session. */
+function PatientChartCard({ patientId }: { patientId: string }) {
+  const { authed } = useSession();
+  const [entries, setEntries] = useState<ChartEntry[] | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    authed((token) => api.getChart(token, patientId))
+      .then((chart) => active && setEntries(chart.entries))
+      .catch(() => active && setEntries([]));
+    return () => {
+      active = false;
+    };
+  }, [authed, patientId]);
+
+  return (
+    <section className="rounded-2xl border border-neutral-200 bg-white p-6">
+      <h2 className="mb-4 text-xl font-semibold">{t.chartTitle}</h2>
+      {entries === null ? (
+        <p className="text-neutral-500">{messages.shell.loading}</p>
+      ) : (
+        <>
+          {entries.length === 0 && <p className="mb-3 text-neutral-500">{t.chartEmpty}</p>}
+          <ToothChart entries={entries} />
+        </>
+      )}
+    </section>
   );
 }

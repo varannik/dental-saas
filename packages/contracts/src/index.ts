@@ -144,3 +144,11 @@ export type {
   ProcedureType,
   TreatmentPlan,
 } from './plans.js';
+export type {
+  ActivityEntry,
+  ActivityResponse,
+  DashboardResponse,
+  OpenSessionListing,
+  PatientListing,
+  RecentPatient,
+} from './workspace.js';

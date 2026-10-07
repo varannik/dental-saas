@@ -21,7 +21,8 @@
     "stack:down": "docker compose -f infra/compose/compose.dev.yml down",
     "stack:ps": "docker compose -f infra/compose/compose.dev.yml ps",
     "prepare": "husky",
-    "db:migrate": "pnpm --filter @dental/db build && node --env-file=.env packages/db/dist/cli.js"
+    "db:migrate": "pnpm --filter @dental/db build && node --env-file=.env packages/db/dist/cli.js",
+    "e2e": "pnpm --filter @dental/web e2e"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
