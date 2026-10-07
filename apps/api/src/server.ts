@@ -15,6 +15,8 @@ import { registerHistoryRoutes } from './modules/history/routes.js';
 import { CSRF_HEADER, registerIdentityRoutes } from './modules/identity/routes.js';
 import { registerPatientCommands } from './modules/patients/commands.js';
 import { registerPlanCommands } from './modules/plans/commands.js';
+import { registerProcedureCommands } from './modules/procedures/commands.js';
+import { registerProcedureRoutes } from './modules/procedures/routes.js';
 import { registerPlanRoutes } from './modules/plans/routes.js';
 import { registerPatientRoutes } from './modules/patients/routes.js';
 import { registerSessionCommands } from './modules/sessions/commands.js';
@@ -165,6 +167,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     registerSessionCommands(bus);
     registerDiagnosisCommands(bus);
     registerPlanCommands(bus);
+    registerProcedureCommands(bus);
     options.onCommandBus?.(bus);
     app.decorate('commandBus', bus);
     await registerClinicRoutes(app, { bus, tokens });
@@ -174,6 +177,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     await registerSessionRoutes(app, { pool, bus, tokens });
     await registerDiagnosisRoutes(app, { pool, bus, tokens });
     await registerPlanRoutes(app, { pool, bus, tokens });
+    await registerProcedureRoutes(app, { bus, tokens });
   }
 
   if (options.voiceSpike) {

@@ -24,10 +24,12 @@ export interface SessionRow {
   chief_complaint: string | null;
   started_at: Date;
   ended_at: Date | null;
+  signed_at: Date | null;
+  signed_by: string | null;
 }
 
 export const SESSION_COLUMNS =
-  'id, patient_id, provider_id, status, chief_complaint, started_at, ended_at';
+  'id, patient_id, provider_id, status, chief_complaint, started_at, ended_at, signed_at, signed_by';
 
 export function toSession(row: SessionRow): ClinicalSession {
   return {
@@ -38,6 +40,8 @@ export function toSession(row: SessionRow): ClinicalSession {
     chiefComplaint: row.chief_complaint,
     startedAt: row.started_at.toISOString(),
     endedAt: row.ended_at ? row.ended_at.toISOString() : null,
+    signedAt: row.signed_at ? row.signed_at.toISOString() : null,
+    signedBy: row.signed_by,
   };
 }
 
@@ -52,10 +56,11 @@ export interface FindingRow {
   supersedes_id: string | null;
   recorded_at: Date;
   recorded_by: string | null;
+  amendment_id: string | null;
 }
 
 export const FINDING_COLUMNS =
-  'id, session_id, tooth, surface, code, value, note, supersedes_id, recorded_at, recorded_by';
+  'id, session_id, tooth, surface, code, value, note, supersedes_id, recorded_at, recorded_by, amendment_id';
 
 export function toFinding(row: FindingRow): Finding {
   return {
@@ -69,6 +74,7 @@ export function toFinding(row: FindingRow): Finding {
     supersedesId: row.supersedes_id,
     recordedAt: row.recorded_at.toISOString(),
     recordedBy: row.recorded_by,
+    amendmentId: row.amendment_id,
   };
 }
 
@@ -138,7 +144,10 @@ export interface NoteRow {
   body: string;
   recorded_at: Date;
   recorded_by: string | null;
+  amendment_id: string | null;
 }
+
+export const NOTE_COLUMNS = 'id, type, body, recorded_at, recorded_by, amendment_id';
 
 export function toNote(row: NoteRow): ClinicalNote {
   return {
@@ -147,11 +156,19 @@ export function toNote(row: NoteRow): ClinicalNote {
     body: row.body,
     recordedAt: row.recorded_at.toISOString(),
     recordedBy: row.recorded_by,
+    amendmentId: row.amendment_id,
   };
 }
 
-/** The session, locked against completion, which must be open to take new records. */
-export async function openSession(client: PoolClient, sessionId: string): Promise<SessionRow> {
+/**
+ * The session, locked against completion, which must be open to take new records. Inside an
+ * amendment a signed session is accepted too; the database checks the amendment belongs to it.
+ */
+export async function openSession(
+  client: PoolClient,
+  sessionId: string,
+  amendmentId?: string
+): Promise<SessionRow> {
   const session = (
     await client.query<SessionRow>(
       `SELECT ${SESSION_COLUMNS} FROM clinical.clinical_sessions WHERE id = $1 FOR SHARE`,
@@ -159,6 +176,7 @@ export async function openSession(client: PoolClient, sessionId: string): Promis
     )
   ).rows[0];
   if (!session) throw new HttpProblem(404, 'not_found', 'Session not found.');
+  if (session.status === 'signed' && amendmentId) return session;
   if (session.status === 'signed') {
     throw new HttpProblem(
       409,

@@ -35,10 +35,11 @@ export interface DiagnosisRow {
   decided_by: string | null;
   decided_at: Date | null;
   reason: string | null;
+  amendment_id: string | null;
 }
 
 export const DIAGNOSIS_COLUMNS = `id, session_id, patient_id, tooth, code, label, certainty, status,
-  suggested_by, suggested_at, decided_by, decided_at, reason`;
+  suggested_by, suggested_at, decided_by, decided_at, reason, amendment_id`;
 
 export function toDiagnosis(row: DiagnosisRow): Diagnosis {
   return {
@@ -55,22 +56,23 @@ export function toDiagnosis(row: DiagnosisRow): Diagnosis {
     decidedBy: row.decided_by,
     decidedAt: row.decided_at ? row.decided_at.toISOString() : null,
     reason: row.reason,
+    amendmentId: row.amendment_id,
   };
 }
 
 function adder(status: 'suggested' | 'confirmed', type: string) {
   return async function add(
-    { client, actor }: HandlerContext,
+    { client, actor, amendmentId }: HandlerContext,
     payload: DiagnosisAdd
   ): Promise<HandlerOutcome<Diagnosis>> {
-    const session = await openSession(client, payload.sessionId);
+    const session = await openSession(client, payload.sessionId, amendmentId);
     const confirmed = status === 'confirmed';
     const row = (
       await client.query<DiagnosisRow>(
         `INSERT INTO clinical.diagnoses
            (id, clinic_id, session_id, patient_id, tooth, code, label, certainty, status,
-            suggested_by, decided_by, decided_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CASE WHEN $12 THEN now() END)
+            suggested_by, decided_by, decided_at, amendment_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CASE WHEN $12 THEN now() END, $13)
          RETURNING ${DIAGNOSIS_COLUMNS}`,
         [
           uuidv7(),
@@ -85,6 +87,7 @@ function adder(status: 'suggested' | 'confirmed', type: string) {
           actor.userId,
           confirmed ? actor.userId : null,
           confirmed,
+          amendmentId ?? null,
         ]
       )
     ).rows[0]!;
@@ -112,7 +115,11 @@ function adder(status: 'suggested' | 'confirmed', type: string) {
 }
 
 /** A diagnosis in an open session, locked for the decision. */
-async function decidable(client: PoolClient, diagnosisId: string): Promise<DiagnosisRow> {
+async function decidable(
+  client: PoolClient,
+  diagnosisId: string,
+  amendmentId?: string
+): Promise<DiagnosisRow> {
   const row = (
     await client.query<DiagnosisRow>(
       `SELECT ${DIAGNOSIS_COLUMNS} FROM clinical.diagnoses WHERE id = $1 FOR UPDATE`,
@@ -120,16 +127,16 @@ async function decidable(client: PoolClient, diagnosisId: string): Promise<Diagn
     )
   ).rows[0];
   if (!row) throw new HttpProblem(404, 'not_found', 'Diagnosis not found.');
-  await openSession(client, row.session_id);
+  await openSession(client, row.session_id, amendmentId);
   return row;
 }
 
 function decider(from: DiagnosisStatus, to: DiagnosisStatus, type: string) {
   return async function decide(
-    { client, actor }: HandlerContext,
+    { client, actor, amendmentId }: HandlerContext,
     payload: DiagnosisDecision
   ): Promise<HandlerOutcome<Diagnosis>> {
-    const current = await decidable(client, payload.diagnosisId);
+    const current = await decidable(client, payload.diagnosisId, amendmentId);
     if (current.status !== from) {
       throw new HttpProblem(
         422,
@@ -140,10 +147,11 @@ function decider(from: DiagnosisStatus, to: DiagnosisStatus, type: string) {
     const row = (
       await client.query<DiagnosisRow>(
         `UPDATE clinical.diagnoses
-         SET status = $2, decided_by = $3, decided_at = now(), reason = $4
+         SET status = $2, decided_by = $3, decided_at = now(), reason = $4,
+             amendment_id = coalesce($5, amendment_id)
          WHERE id = $1
          RETURNING ${DIAGNOSIS_COLUMNS}`,
-        [current.id, to, actor.userId, payload.reason ?? null]
+        [current.id, to, actor.userId, payload.reason ?? null, amendmentId ?? null]
       )
     ).rows[0]!;
     return {

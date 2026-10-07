@@ -17,9 +17,11 @@ import type { CommandBus } from '../commands/bus.js';
 import { actorFrom, idempotencyKey, sendOutcome } from '../commands/http.js';
 import type { TokenService } from '../identity/tokens.js';
 import { DIAGNOSIS_COLUMNS, toDiagnosis, type DiagnosisRow } from '../diagnoses/commands.js';
+import { sessionAmendments, sessionProcedures } from '../procedures/commands.js';
 import { readChart } from './chart.js';
 import {
   FINDING_COLUMNS,
+  NOTE_COLUMNS,
   SESSION_COLUMNS,
   toChartEntry,
   toChartEvent,
@@ -140,7 +142,7 @@ export async function registerSessionRoutes(
           [id]
         );
         const notes = await client.query<NoteRow>(
-          `SELECT id, type, body, recorded_at, recorded_by FROM clinical.clinical_notes
+          `SELECT ${NOTE_COLUMNS} FROM clinical.clinical_notes
            WHERE session_id = $1 ORDER BY recorded_at, id`,
           [id]
         );
@@ -148,6 +150,8 @@ export async function registerSessionRoutes(
           ...toSession(session),
           findings: findings.rows.map(toFinding),
           diagnoses: diagnoses.rows.map(toDiagnosis),
+          procedures: await sessionProcedures(client, id),
+          amendments: await sessionAmendments(client, id),
           perio: perio.rows.map(toPerio),
           notes: notes.rows.map(toNote),
         };

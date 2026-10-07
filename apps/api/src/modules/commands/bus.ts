@@ -28,6 +28,8 @@ export interface HandlerContext {
   client: PoolClient;
   actor: Actor;
   commandId: string;
+  /** Set when the handler runs inside an amendment of a signed session (C6). */
+  amendmentId?: string;
 }
 
 export interface HandlerOutcome<Result> {
@@ -55,7 +57,7 @@ export interface CommandOutcome {
   replayed: boolean;
 }
 
-interface Registered {
+export interface Registered {
   definition: CommandDefinition;
   handler: CommandHandler<unknown, unknown>;
 }
@@ -104,6 +106,11 @@ export class CommandBus {
       definition,
       handler: handler as CommandHandler<unknown, unknown>,
     });
+  }
+
+  /** A registered command, for composite commands such as session.amend. */
+  registered(type: string): Registered | undefined {
+    return this.handlers.get(type);
   }
 
   async execute(request: CommandRequest, actor: Actor): Promise<CommandOutcome> {
