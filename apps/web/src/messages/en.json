@@ -296,7 +296,9 @@
       "ML": "Mesio-lingual",
       "L": "Lingual",
       "DL": "Disto-lingual"
-    }
+    },
+    "completeBlocked": "Complete or cancel the procedures in progress first.",
+    "amendmentBadge": "Amendment"
   },
   "diagnoses": {
     "title": "Diagnoses",
@@ -393,5 +395,57 @@
       "implant": "Implant",
       "other": "Other"
     }
+  },
+  "procedures": {
+    "title": "Procedures",
+    "none": "No procedures in this session.",
+    "fromPlan": "From the treatment plan",
+    "noPlanned": "Nothing planned is waiting.",
+    "start": "Start",
+    "adHoc": "Another procedure",
+    "procedure": "Procedure",
+    "tooth": "Tooth",
+    "surfaces": "Surfaces",
+    "note": "Note",
+    "startAdHoc": "Start procedure",
+    "complete": "Complete",
+    "cancel": "Cancel",
+    "cancelReason": "Why is this procedure cancelled? (optional)",
+    "completeConfirm": "Complete {name}? The chart and the treatment plan will be updated.",
+    "statuses": {
+      "in_progress": "In progress",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "planned": "Planned",
+    "dentistOnly": "Only a dentist starts and completes procedures.",
+    "failed": "That could not be saved. Try again."
+  },
+  "signoff": {
+    "summary": "Session summary",
+    "procedures": "Procedures performed",
+    "diagnoses": "Diagnoses",
+    "findings": "Findings",
+    "notes": "Notes",
+    "nothing": "None",
+    "noteCount": "{count} notes",
+    "sign": "Sign session",
+    "signing": "Signing…",
+    "signConfirm": "Sign this session? After signing, it can only be corrected through an amendment with a reason.",
+    "signHint": "Read the summary, then sign. Signing locks the record.",
+    "dentistSigns": "A dentist signs this session.",
+    "signed": "Signed on {date}",
+    "signedByYou": "Signed by you on {date}",
+    "signedLock": "This record is locked. Corrections are added as amendments; nothing is overwritten.",
+    "amendments": "Amendments",
+    "amend": "Add an amendment",
+    "reason": "Reason for the amendment",
+    "reasonPlaceholder": "e.g. Tooth 17 was missed at examination",
+    "addendum": "Addendum",
+    "addendumPlaceholder": "What is being corrected or added…",
+    "submit": "Save amendment",
+    "amendConfirm": "Save this amendment? It is added to the signed record and cannot be removed.",
+    "failed": "That could not be saved. Try again.",
+    "noteOne": "1 note"
   }
 }

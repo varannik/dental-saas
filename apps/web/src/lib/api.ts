@@ -10,6 +10,8 @@ import {
   type LoginResponse,
   type MeResponse,
   type Patient,
+  type Procedure,
+  type SessionAmendment,
   type PatientHistory,
   type PatientChart,
   type PatientSearchResponse,
@@ -253,6 +255,47 @@ export function createApi(fetcher: Fetcher = (...args) => fetch(...args), baseUr
         token,
         idempotencyKey,
       }),
+    startProcedure: (
+      token: string,
+      sessionId: string,
+      body: Record<string, unknown>,
+      idempotencyKey: string
+    ) =>
+      call<Procedure>(`/v1/sessions/${encodeURIComponent(sessionId)}/procedures`, {
+        method: 'POST',
+        body,
+        token,
+        idempotencyKey,
+      }),
+    finishProcedure: (
+      token: string,
+      procedureId: string,
+      body: { status: 'completed' | 'cancelled'; reason?: string },
+      idempotencyKey: string
+    ) =>
+      call<Procedure>(`/v1/procedures/${encodeURIComponent(procedureId)}`, {
+        method: 'PATCH',
+        body,
+        token,
+        idempotencyKey,
+      }),
+    signSession: (token: string, sessionId: string, idempotencyKey: string) =>
+      call<ClinicalSession>(`/v1/sessions/${encodeURIComponent(sessionId)}/sign`, {
+        method: 'POST',
+        body: {},
+        token,
+        idempotencyKey,
+      }),
+    amendSession: (
+      token: string,
+      sessionId: string,
+      body: { reason: string; actions: { type: string; payload: Record<string, unknown> }[] },
+      idempotencyKey: string
+    ) =>
+      call<{ amendment: SessionAmendment }>(
+        `/v1/sessions/${encodeURIComponent(sessionId)}/amendments`,
+        { method: 'POST', body, token, idempotencyKey }
+      ),
   };
 }
 
