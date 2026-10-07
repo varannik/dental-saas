@@ -27,6 +27,7 @@ export const ROLE_PERMISSIONS: Record<SystemRole, readonly PermissionKey[]> = {
     'session.sign',
     'session.amend',
     'diagnosis.write',
+    'diagnosis.suggest',
     'plan.write',
     'procedure.write',
     'usage.write',
@@ -36,7 +37,14 @@ export const ROLE_PERMISSIONS: Record<SystemRole, readonly PermissionKey[]> = {
     'evidence.ask',
   ],
   // Records findings and material usage in an open session; cannot confirm diagnoses or sign.
-  assistant: ['patient.read', 'session.read', 'session.write', 'usage.write', 'voice.use'],
+  assistant: [
+    'patient.read',
+    'session.read',
+    'session.write',
+    'diagnosis.suggest',
+    'usage.write',
+    'voice.use',
+  ],
   // Patient search and demographics; no clinical content and no costs.
   receptionist: ['patient.read', 'patient.write'],
   // Price and material management, cost reports, audit history.

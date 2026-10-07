@@ -19,6 +19,7 @@ import { AppFrame } from '../../../components/app-frame';
 import { PatientBanner, usePatientHeader } from '../../../components/patient-banner';
 import { inputClass, primaryButton, secondaryButton } from '../../../components/patient-form';
 import { RequireSession } from '../../../components/require-session';
+import { SessionDiagnoses } from '../../../components/session-diagnoses';
 import { ToothChart } from '../../../components/tooth-chart';
 import { api, ApiError } from '../../../lib/api';
 import { toothView } from '../../../lib/chart';
@@ -148,6 +149,14 @@ function Examination() {
             <PerioPanel tooth={selected} session={session} editable={open} onChanged={reload} />
           </div>
         )}
+
+        <SessionDiagnoses
+          sessionId={session.id}
+          diagnoses={session.diagnoses}
+          selectedTooth={selected}
+          editable={open}
+          onChanged={reload}
+        />
 
         <NotesPanel session={session} editable={open} onChanged={reload} />
       </div>

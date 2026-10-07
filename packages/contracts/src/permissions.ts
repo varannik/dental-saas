@@ -7,6 +7,8 @@ export const PERMISSIONS = [
   'session.sign',
   'session.amend',
   'diagnosis.write',
+  // Suggest a diagnosis for a dentist to confirm (spec section I: assistants cannot confirm).
+  'diagnosis.suggest',
   'plan.write',
   'procedure.write',
   'usage.write',

@@ -165,6 +165,7 @@ export interface ClinicalSession {
 /** GET /v1/sessions/:id: the session with everything recorded in it. */
 export interface SessionDetail extends ClinicalSession {
   findings: Finding[];
+  diagnoses: Diagnosis[];
   /** The latest reading per tooth and site in this session. */
   perio: PerioMeasurement[];
   notes: ClinicalNote[];
@@ -175,4 +176,52 @@ export interface PatientChart {
   entries: ChartEntry[];
   /** Present when asked for with ?history=true: every event, oldest first. */
   events?: ChartEvent[];
+}
+
+/**
+ * Common dental diagnoses as language-neutral codes, rendered per locale. "other" needs a
+ * description. Codes can later map to a terminology such as SNOMED CT or ICD-10.
+ */
+export const DIAGNOSIS_CODES = [
+  'caries_enamel',
+  'caries_dentine',
+  'reversible_pulpitis',
+  'irreversible_pulpitis',
+  'pulp_necrosis',
+  'apical_periodontitis',
+  'apical_abscess',
+  'cracked_tooth',
+  'tooth_wear',
+  'dentine_hypersensitivity',
+  'gingivitis',
+  'periodontitis',
+  'pericoronitis',
+  'other',
+] as const;
+export type DiagnosisCode = (typeof DIAGNOSIS_CODES)[number];
+
+export const DIAGNOSIS_CERTAINTY = ['possible', 'probable', 'definite'] as const;
+export type DiagnosisCertainty = (typeof DIAGNOSIS_CERTAINTY)[number];
+
+/**
+ * suggested -> confirmed or rejected; confirmed -> retracted (entered in error). Only a
+ * dentist confirms, rejects or retracts.
+ */
+export type DiagnosisStatus = 'suggested' | 'confirmed' | 'rejected' | 'retracted';
+
+export interface Diagnosis {
+  id: string;
+  sessionId: string;
+  patientId: string;
+  /** Null for a diagnosis of the whole mouth, such as generalised gingivitis. */
+  tooth: string | null;
+  code: DiagnosisCode;
+  label: string | null;
+  certainty: DiagnosisCertainty | null;
+  status: DiagnosisStatus;
+  suggestedBy: string | null;
+  suggestedAt: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  reason: string | null;
 }

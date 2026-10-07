@@ -142,4 +142,21 @@ describe('contracts', () => {
     expect(ok({ kind: 'habit', label: 'x' })).toBe(false);
     expect(ok({ kind: 'risk_factor', label: 'Smoker', onsetDate: '2999-01-01' })).toBe(false);
   });
+
+  it('lets assistants suggest diagnoses but only dentists confirm them', () => {
+    expect(ROLE_PERMISSIONS.assistant).toContain('diagnosis.suggest');
+    expect(ROLE_PERMISSIONS.assistant).not.toContain('diagnosis.write');
+    expect(COMMANDS['diagnosis.confirm'].permission).toBe('diagnosis.write');
+    expect(COMMANDS['diagnosis.suggest'].permission).toBe('diagnosis.suggest');
+    const sessionId = '0192f3a1-7c1e-7d7a-9b0e-3d2a4c5e6f70';
+    const ok = (payload: Record<string, unknown>) =>
+      COMMANDS['diagnosis.suggest'].payload.safeParse({ sessionId, ...payload }).success;
+    expect(ok({ tooth: '16', code: 'irreversible_pulpitis', certainty: 'probable' })).toBe(true);
+    expect(ok({ code: 'gingivitis' })).toBe(true);
+    expect(ok({ code: 'other' })).toBe(false);
+    expect(ok({ tooth: '19', code: 'pulp_necrosis' })).toBe(false);
+    expect(
+      COMMANDS['diagnosis.retract'].payload.safeParse({ diagnosisId: sessionId }).success
+    ).toBe(false);
+  });
 });

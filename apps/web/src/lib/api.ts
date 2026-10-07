@@ -3,6 +3,7 @@ import {
   type ChartEntry,
   type ClinicalNote,
   type ClinicalSession,
+  type Diagnosis,
   type Finding,
   type HistoryEntry,
   type HistoryKind,
@@ -190,6 +191,30 @@ export function createApi(fetcher: Fetcher = (...args) => fetch(...args), baseUr
     ) =>
       call<ClinicalNote>(`/v1/sessions/${encodeURIComponent(sessionId)}/notes`, {
         method: 'POST',
+        body,
+        token,
+        idempotencyKey,
+      }),
+    addDiagnosis: (
+      token: string,
+      sessionId: string,
+      body: Record<string, unknown>,
+      idempotencyKey: string
+    ) =>
+      call<Diagnosis>(`/v1/sessions/${encodeURIComponent(sessionId)}/diagnoses`, {
+        method: 'POST',
+        body,
+        token,
+        idempotencyKey,
+      }),
+    decideDiagnosis: (
+      token: string,
+      diagnosisId: string,
+      body: { status: 'confirmed' | 'rejected' | 'retracted'; reason?: string },
+      idempotencyKey: string
+    ) =>
+      call<Diagnosis>(`/v1/diagnoses/${encodeURIComponent(diagnosisId)}`, {
+        method: 'PATCH',
         body,
         token,
         idempotencyKey,

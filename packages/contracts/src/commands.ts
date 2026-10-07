@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import {
+  DIAGNOSIS_CERTAINTY,
+  DIAGNOSIS_CODES,
   FINDING_CODES,
   FINDINGS,
   isValidFdi,
@@ -377,6 +379,73 @@ export const noteAdd = defineCommand({
 
 export type NoteAdd = z.infer<typeof noteAdd.payload>;
 
+const diagnosisFields = z
+  .object({
+    sessionId: z.string().uuid(),
+    /** Leave out for a diagnosis of the whole mouth. */
+    tooth: tooth.optional(),
+    code: z.enum(DIAGNOSIS_CODES),
+    /** A description; required for "other". */
+    label: z.string().trim().min(1).max(200).optional(),
+    certainty: z.enum(DIAGNOSIS_CERTAINTY).optional(),
+  })
+  .strict()
+  .refine((payload) => payload.code !== 'other' || payload.label, {
+    message: 'Describe the diagnosis.',
+    path: ['label'],
+  });
+
+export const diagnosisSuggest = defineCommand({
+  type: 'diagnosis.suggest',
+  description: 'Suggest a diagnosis for a dentist to confirm.',
+  permission: 'diagnosis.suggest',
+  risk: 'R2',
+  payload: diagnosisFields,
+});
+
+export const diagnosisRecord = defineCommand({
+  type: 'diagnosis.record',
+  description: 'Record a confirmed diagnosis.',
+  permission: 'diagnosis.write',
+  risk: 'R2',
+  payload: diagnosisFields,
+});
+
+export type DiagnosisAdd = z.infer<typeof diagnosisFields>;
+
+const decision = z
+  .object({
+    diagnosisId: z.string().uuid(),
+    reason: z.string().trim().min(1).max(500).optional(),
+  })
+  .strict();
+
+export const diagnosisConfirm = defineCommand({
+  type: 'diagnosis.confirm',
+  description: 'Confirm a suggested diagnosis.',
+  permission: 'diagnosis.write',
+  risk: 'R2',
+  payload: decision,
+});
+
+export const diagnosisReject = defineCommand({
+  type: 'diagnosis.reject',
+  description: 'Reject a suggested diagnosis.',
+  permission: 'diagnosis.write',
+  risk: 'R2',
+  payload: decision,
+});
+
+export const diagnosisRetract = defineCommand({
+  type: 'diagnosis.retract',
+  description: 'Retract a confirmed diagnosis entered in error. A reason is required.',
+  permission: 'diagnosis.write',
+  risk: 'R2',
+  payload: decision.required({ reason: true }),
+});
+
+export type DiagnosisDecision = z.infer<typeof decision>;
+
 /** Keyed by type; a test checks every key matches its definition's type. */
 export const COMMANDS = {
   'clinic.onboard': clinicOnboard,
@@ -390,6 +459,11 @@ export const COMMANDS = {
   'finding.add': findingAdd,
   'perio.record': perioRecord,
   'note.add': noteAdd,
+  'diagnosis.suggest': diagnosisSuggest,
+  'diagnosis.record': diagnosisRecord,
+  'diagnosis.confirm': diagnosisConfirm,
+  'diagnosis.reject': diagnosisReject,
+  'diagnosis.retract': diagnosisRetract,
 } as const satisfies Record<string, CommandDefinition>;
 
 export type CommandType = keyof typeof COMMANDS;

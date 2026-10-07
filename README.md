@@ -68,6 +68,10 @@ Clinics are onboarded by an operator with `clinic:onboard`, which runs as the da
 
 `POST /v1/sessions` opens a patient's session (one open session per patient); `POST /v1/sessions/:id/findings`, `/perio` and `/notes` record the examination, and `/complete` closes it. Findings use language-neutral codes from `FINDINGS` in `packages/contracts/src/chart.ts`, on FDI teeth and their surfaces (M, O or I, D, B, L). The tooth chart is event-sourced: each finding appends to `clinical.chart_events` and updates the `clinical.chart_entries` projection in the same transaction, and `rebuildChart` re-derives the projection from the events alone. `GET /v1/patients/:id/chart?history=true` returns the chart with every event. Findings, events, readings and notes are insert-only; a correction is a new finding that supersedes the old one.
 
+## Diagnoses
+
+Assistants suggest diagnoses (`POST /v1/sessions/:id/diagnoses`, status `suggested`); only dentists record confirmed ones and confirm, reject or retract (`PATCH /v1/diagnoses/:id`). Each action is its own command with its own permission (`diagnosis.suggest`, `diagnosis.write`), so the command bus refuses an assistant's confirmation before anything runs. A database trigger allows only suggested to confirmed or rejected, and confirmed to retracted (with a reason). Codes are listed in `DIAGNOSIS_CODES`; a diagnosis without a tooth covers the whole mouth.
+
 ## Writing data
 
 Every state change is a command, and the command bus (`apps/api/src/modules/commands/bus.ts`) is the only write path. It validates the payload against the registry in `packages/contracts/src/commands.ts`, checks the permission, then runs the handler, writes the command row (`voice.commands`) and the audit entries (`audit.audit_log`) in one transaction scoped to the clinic. REST routes only translate HTTP into commands; voice will confirm proposals into the same commands.

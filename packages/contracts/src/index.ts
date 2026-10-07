@@ -7,6 +7,11 @@ export type { SystemRole } from './roles.js';
 export {
   clinicOnboard,
   clinicUpdateSettings,
+  diagnosisConfirm,
+  diagnosisRecord,
+  diagnosisReject,
+  diagnosisRetract,
+  diagnosisSuggest,
   findingAdd,
   historyAdd,
   historyEnd,
@@ -25,6 +30,8 @@ export {
 export type {
   ClinicOnboard,
   ClinicUpdateSettings,
+  DiagnosisAdd,
+  DiagnosisDecision,
   FindingAdd,
   HistoryAdd,
   HistoryEnd,
@@ -71,6 +78,8 @@ export type {
   PatientHistory,
 } from './history.js';
 export {
+  DIAGNOSIS_CERTAINTY,
+  DIAGNOSIS_CODES,
   FINDING_CODES,
   FINDINGS,
   isAnterior,
@@ -86,6 +95,10 @@ export type {
   ChartEvent,
   ClinicalNote,
   ClinicalSession,
+  Diagnosis,
+  DiagnosisCertainty,
+  DiagnosisCode,
+  DiagnosisStatus,
   Finding,
   FindingCode,
   NoteType,

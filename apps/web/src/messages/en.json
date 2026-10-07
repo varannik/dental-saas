@@ -297,5 +297,52 @@
       "L": "Lingual",
       "DL": "Disto-lingual"
     }
+  },
+  "diagnoses": {
+    "title": "Diagnoses",
+    "none": "No diagnoses yet.",
+    "suggest": "Suggest diagnosis",
+    "record": "Record diagnosis",
+    "diagnosis": "Diagnosis",
+    "tooth": "Tooth",
+    "wholeMouth": "Whole mouth",
+    "description": "Description",
+    "descriptionHint": "Required for “Other”.",
+    "certainty": "Certainty",
+    "certainties": {
+      "possible": "Possible",
+      "probable": "Probable",
+      "definite": "Definite"
+    },
+    "asConfirmed": "Record as confirmed",
+    "statuses": {
+      "suggested": "Suggested",
+      "confirmed": "Confirmed",
+      "rejected": "Rejected",
+      "retracted": "Retracted"
+    },
+    "confirm": "Confirm",
+    "reject": "Reject",
+    "retract": "Retract",
+    "retractReason": "Why is it being retracted?",
+    "rejectReason": "Why is it rejected? (optional)",
+    "assistantHint": "Suggestions need a dentist to confirm them.",
+    "failed": "That could not be saved. Try again.",
+    "codes": {
+      "caries_enamel": "Caries (enamel)",
+      "caries_dentine": "Caries (dentine)",
+      "reversible_pulpitis": "Reversible pulpitis",
+      "irreversible_pulpitis": "Irreversible pulpitis",
+      "pulp_necrosis": "Pulp necrosis",
+      "apical_periodontitis": "Apical periodontitis",
+      "apical_abscess": "Apical abscess",
+      "cracked_tooth": "Cracked tooth",
+      "tooth_wear": "Tooth wear",
+      "dentine_hypersensitivity": "Dentine hypersensitivity",
+      "gingivitis": "Gingivitis",
+      "periodontitis": "Periodontitis",
+      "pericoronitis": "Pericoronitis",
+      "other": "Other"
+    }
   }
 }
