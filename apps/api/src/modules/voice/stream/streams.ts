@@ -18,7 +18,10 @@ import type { TicketHolder } from './tickets.js';
  * Streams live in this process. Several API processes would need sticky routing by stream id.
  */
 
-/** Where audio goes. Speech-to-text plugs in here (V2). */
+/** Sends a message to whichever socket the stream is on; queued while it has none. */
+export type Emit = (message: VoiceServerMessage) => void;
+
+/** Where audio goes: speech-to-text (V2). */
 export interface StreamSink {
   utteranceStart(utteranceId: string): void;
   audio(samples: Int16Array): void;
@@ -48,6 +51,8 @@ export const DEFAULT_TIMINGS: StreamTimings = {
 };
 
 const ACK_EVERY_FRAMES = 10;
+/** Messages kept for a socket that is down, at most; the oldest go first. */
+const MAX_QUEUED = 50;
 const MAX_UTTERANCE_ID = 64;
 
 interface Utterance {
@@ -65,11 +70,23 @@ class VoiceStream {
   unacked = 0;
   ackTimer: NodeJS.Timeout | null = null;
   graceTimer: NodeJS.Timeout | null = null;
+  /** Results produced while the socket was down, delivered on resume. */
+  queued: VoiceServerMessage[] = [];
+  sink: StreamSink | null = null;
 
-  constructor(
-    readonly owner: TicketHolder,
-    readonly sink: StreamSink | null
-  ) {}
+  constructor(readonly owner: TicketHolder) {}
+
+  readonly emit: Emit = (message) => {
+    const socket = this.socket;
+    if (socket && socket.readyState === socket.OPEN) {
+      socket.send(JSON.stringify(message));
+      return;
+    }
+    // Partials are stale by the time the socket is back; results are not.
+    if (message.type === 'transcript.partial') return;
+    this.queued.push(message);
+    if (this.queued.length > MAX_QUEUED) this.queued.shift();
+  };
 }
 
 type Control =
@@ -116,7 +133,7 @@ export class StreamRegistry {
     private readonly options: {
       log: FastifyBaseLogger;
       timings?: Partial<StreamTimings>;
-      createSink?: (owner: TicketHolder) => StreamSink;
+      createSink?: (owner: TicketHolder, emit: Emit) => StreamSink;
     }
   ) {
     this.timings = { ...DEFAULT_TIMINGS, ...options.timings };
@@ -187,7 +204,8 @@ export class StreamRegistry {
           previous.close(VOICE_CLOSE.replaced, 'resumed elsewhere');
         stream = existing;
       } else {
-        stream = new VoiceStream(holder, this.options.createSink?.(holder) ?? null);
+        stream = new VoiceStream(holder);
+        stream.sink = this.options.createSink?.(holder, stream.emit) ?? null;
         stream.socket = socket;
         this.streams.set(stream.id, stream);
       }
@@ -198,7 +216,9 @@ export class StreamRegistry {
         resumed: Boolean(existing),
         nextSeq: stream.nextSeq,
         expiresAt: holder.accessExpiresAt.toISOString(),
+        speech: stream.sink !== null,
       });
+      for (const message of stream.queued.splice(0)) send(message);
     };
 
     const ack = (current: VoiceStream, now: boolean) => {
@@ -235,12 +255,12 @@ export class StreamRegistry {
     const control = (current: VoiceStream, message: Control) => {
       sequenced(current, message.seq, true, () => {
         if (message.type === 'utterance.start') {
-          if (current.utterance) this.endUtterance(current, send);
+          if (current.utterance) this.endUtterance(current);
           current.utterance = { id: message.utteranceId, frames: 0, samples: 0 };
           current.sink?.utteranceStart(message.utteranceId);
           send({ type: 'utterance.started', utteranceId: message.utteranceId });
         } else if (current.utterance?.id === message.utteranceId) {
-          this.endUtterance(current, send);
+          this.endUtterance(current);
         }
       });
     };
@@ -296,12 +316,12 @@ export class StreamRegistry {
     });
   }
 
-  private endUtterance(stream: VoiceStream, send: (message: VoiceServerMessage) => void) {
+  private endUtterance(stream: VoiceStream) {
     const utterance = stream.utterance;
     if (!utterance) return;
     stream.utterance = null;
     stream.sink?.utteranceEnd(utterance.id);
-    send({
+    stream.emit({
       type: 'utterance.ended',
       utteranceId: utterance.id,
       frames: utterance.frames,

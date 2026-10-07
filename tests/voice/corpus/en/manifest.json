@@ -1,0 +1,259 @@
+{
+  "locale": "en",
+  "description": "Dental phrase set for the speech word-error-rate benchmark (V2, ADR 0005). 'text' is exactly what is said.",
+  "voices": [
+    {
+      "id": "us",
+      "say": "Samantha"
+    },
+    {
+      "id": "uk",
+      "say": "Daniel"
+    },
+    {
+      "id": "au",
+      "say": "Karen"
+    },
+    {
+      "id": "ie",
+      "say": "Moira"
+    }
+  ],
+  "phrases": [
+    {
+      "id": "finding-caries-16-o",
+      "group": "findings",
+      "text": "Tooth sixteen, occlusal caries"
+    },
+    {
+      "id": "finding-caries-46-mo",
+      "group": "findings",
+      "text": "Caries on the mesial and occlusal of forty six"
+    },
+    {
+      "id": "finding-fracture-36-d",
+      "group": "findings",
+      "text": "Thirty six has a fracture on the distal"
+    },
+    {
+      "id": "finding-restoration-21",
+      "group": "findings",
+      "text": "Twenty one, restoration on the mesial and incisal"
+    },
+    {
+      "id": "finding-missing-18",
+      "group": "findings",
+      "text": "Mark eighteen as missing"
+    },
+    {
+      "id": "finding-watch-27",
+      "group": "findings",
+      "text": "Watch the distal of twenty seven"
+    },
+    {
+      "id": "finding-mobility-31",
+      "group": "findings",
+      "text": "Mobility grade two on thirty one"
+    },
+    {
+      "id": "finding-rct-22",
+      "group": "findings",
+      "text": "Tooth twenty two is root canal treated"
+    },
+    {
+      "id": "finding-crown-14",
+      "group": "findings",
+      "text": "There is a crown on fourteen"
+    },
+    {
+      "id": "finding-impacted-48",
+      "group": "findings",
+      "text": "Forty eight is impacted"
+    },
+    {
+      "id": "finding-caries-one-five",
+      "group": "findings",
+      "text": "Caries on one five, buccal surface"
+    },
+    {
+      "id": "perio-16",
+      "group": "perio",
+      "text": "Pocket depths on sixteen: three, two, four, bleeding on the mesiobuccal"
+    },
+    {
+      "id": "perio-17",
+      "group": "perio",
+      "text": "Seventeen probing five, four, six with bleeding"
+    },
+    {
+      "id": "perio-26-b",
+      "group": "perio",
+      "text": "Twenty six buccal three millimetres"
+    },
+    {
+      "id": "perio-47-dl",
+      "group": "perio",
+      "text": "Distolingual six millimetres on forty seven"
+    },
+    {
+      "id": "perio-next",
+      "group": "perio",
+      "text": "Next tooth"
+    },
+    {
+      "id": "dx-pulpitis-16",
+      "group": "diagnoses",
+      "text": "Diagnosis irreversible pulpitis on sixteen"
+    },
+    {
+      "id": "dx-apical-36",
+      "group": "diagnoses",
+      "text": "Apical periodontitis on thirty six"
+    },
+    {
+      "id": "dx-reversible-24",
+      "group": "diagnoses",
+      "text": "Reversible pulpitis on twenty four"
+    },
+    {
+      "id": "dx-gingivitis",
+      "group": "diagnoses",
+      "text": "Generalised gingivitis"
+    },
+    {
+      "id": "dx-pericoronitis-38",
+      "group": "diagnoses",
+      "text": "Pericoronitis around thirty eight"
+    },
+    {
+      "id": "dx-cracked-46",
+      "group": "diagnoses",
+      "text": "Cracked tooth on forty six"
+    },
+    {
+      "id": "dx-hypersensitivity",
+      "group": "diagnoses",
+      "text": "Dentine hypersensitivity on the lower incisors"
+    },
+    {
+      "id": "dx-necrosis-11",
+      "group": "diagnoses",
+      "text": "Pulp necrosis on eleven"
+    },
+    {
+      "id": "dx-abscess-25",
+      "group": "diagnoses",
+      "text": "Apical abscess on twenty five"
+    },
+    {
+      "id": "px-rct-16",
+      "group": "procedures",
+      "text": "Add a root canal on tooth sixteen"
+    },
+    {
+      "id": "px-rct-descriptive",
+      "group": "procedures",
+      "text": "The upper right first molar needs a root canal"
+    },
+    {
+      "id": "px-crown-26",
+      "group": "procedures",
+      "text": "Crown on twenty six"
+    },
+    {
+      "id": "px-extraction-38",
+      "group": "procedures",
+      "text": "Extraction of the lower left third molar"
+    },
+    {
+      "id": "px-surgical-48",
+      "group": "procedures",
+      "text": "Surgical extraction of forty eight"
+    },
+    {
+      "id": "px-composite-14",
+      "group": "procedures",
+      "text": "Composite filling on tooth fourteen, mesial and occlusal"
+    },
+    {
+      "id": "px-amalgam-37",
+      "group": "procedures",
+      "text": "Amalgam filling on thirty seven, occlusal and distal"
+    },
+    {
+      "id": "px-sealant-46",
+      "group": "procedures",
+      "text": "Fissure sealant on forty six"
+    },
+    {
+      "id": "px-pa-21",
+      "group": "procedures",
+      "text": "Periapical radiograph of twenty one"
+    },
+    {
+      "id": "px-bitewings",
+      "group": "procedures",
+      "text": "Bitewing radiographs"
+    },
+    {
+      "id": "px-post-core-15",
+      "group": "procedures",
+      "text": "Post and core on fifteen"
+    },
+    {
+      "id": "px-implant-crown-36",
+      "group": "procedures",
+      "text": "Implant crown on thirty six"
+    },
+    {
+      "id": "px-srp",
+      "group": "procedures",
+      "text": "Scaling and root planing, upper right quadrant"
+    },
+    {
+      "id": "px-veneer-11",
+      "group": "procedures",
+      "text": "Veneer on eleven"
+    },
+    {
+      "id": "px-fluoride",
+      "group": "procedures",
+      "text": "Fluoride varnish for the whole mouth"
+    },
+    {
+      "id": "px-scale-polish",
+      "group": "procedures",
+      "text": "Scale and polish please"
+    },
+    {
+      "id": "flow-start",
+      "group": "flow",
+      "text": "Start the root canal"
+    },
+    {
+      "id": "flow-complete",
+      "group": "flow",
+      "text": "Complete it"
+    },
+    {
+      "id": "flow-crown-after",
+      "group": "flow",
+      "text": "Add a crown afterward"
+    },
+    {
+      "id": "flow-move",
+      "group": "flow",
+      "text": "Move it before the filling"
+    },
+    {
+      "id": "flow-note",
+      "group": "flow",
+      "text": "Add a note: patient reports sensitivity to cold"
+    },
+    {
+      "id": "flow-last-visit",
+      "group": "flow",
+      "text": "Show the last visit"
+    }
+  ]
+}

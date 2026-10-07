@@ -54,3 +54,5 @@ infra/compose/data/
 # Voice spike recordings and benchmark output
 tests/voice/spike/*.wav
 tests/voice/spike/results-*.json
+tests/voice/corpus/*/audio/
+tests/voice/corpus/*/recordings/

@@ -524,6 +524,10 @@
     "micOff": "Turn microphone off",
     "micOn": "Microphone on",
     "level": "Input level",
-    "notYet": "Speech is not turned into commands yet; this checks the connection and the microphone."
+    "notYet": "Speech is shown as text; it does not become commands until the next step.",
+    "transcript": "What was heard",
+    "nothingHeard": "Nothing was recognised. Please say it again, closer to the microphone.",
+    "speechOff": "Speech recognition is not configured on the server; only the connection is checked.",
+    "speechFailed": "Speech recognition failed. Please say it again."
   }
 }

@@ -7,8 +7,8 @@ import messages from '../messages/en.json';
 
 /**
  * The voice bar (spec section K): connection and microphone state, push to talk, the input
- * level and what was last heard. Speech becomes commands from V2 on; until then the bar proves
- * the connection and the microphone.
+ * level, and the transcript: live while talking, then final (V2). Transcripts become proposed
+ * commands from V4 on.
  */
 
 const t = messages.voice;
@@ -71,7 +71,9 @@ export function VoiceBar() {
         ? t.dropped
         : voice.notice === 'micBlocked'
           ? t.micBlocked
-          : null;
+          : voice.notice === 'speechFailed'
+            ? t.speechFailed
+            : null;
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -141,6 +143,20 @@ export function VoiceBar() {
         <span className="text-neutral-700">
           {t.heard.replace('{seconds}', (voice.lastHeardMs / 1000).toFixed(1))}
         </span>
+      )}
+      {voice.speech === false && <span className="text-neutral-500">{t.speechOff}</span>}
+      {voice.speech && (
+        <p
+          aria-label={t.transcript}
+          aria-live="polite"
+          className={`w-full text-lg ${
+            voice.transcript?.final ? 'font-medium text-neutral-900' : 'text-neutral-500 italic'
+          }`}
+        >
+          {voice.transcript
+            ? voice.transcript.text || (voice.transcript.final ? t.nothingHeard : '…')
+            : t.notYet}
+        </p>
       )}
       {notice && (
         <span role="alert" className="w-full text-amber-800">

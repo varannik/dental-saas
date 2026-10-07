@@ -1,5 +1,8 @@
+import type { FastifyBaseLogger } from 'fastify';
 import { DeepgramStt } from './modules/voice/adapters/deepgram.js';
 import { interpretersFromConfig } from './modules/voice/interpreters.js';
+import { createSpeechSink } from './modules/voice/stream/speech-sink.js';
+import { clinicKeyterms } from './modules/voice/vocabulary.js';
 import { createDummyHash } from './modules/identity/passwords.js';
 import { IdentityService } from './modules/identity/service.js';
 import { ChallengeTokens, loadSigningKeys, TokenService } from './modules/identity/tokens.js';
@@ -33,6 +36,12 @@ export async function start(env: Record<string, string | undefined> = process.en
     policy: { lockThreshold: 5, lockBaseSeconds: 60, refreshTtlDays: config.AUTH_REFRESH_TTL_DAYS },
   });
 
+  // Speech recognition for the voice stream when a provider is configured (V2, ADR 0005).
+  const stt = config.DEEPGRAM_API_KEY
+    ? new DeepgramStt({ apiKey: config.DEEPGRAM_API_KEY, model: config.DEEPGRAM_MODEL })
+    : null;
+  let log: FastifyBaseLogger | undefined;
+
   const app = await buildServer({
     logger: { level: config.LOG_LEVEL },
     corsOrigin: config.CORS_ORIGIN,
@@ -47,6 +56,15 @@ export async function start(env: Record<string, string | undefined> = process.en
         ? SecretBox.fromBase64(config.DATA_ENCRYPTION_KEY)
         : SecretBox.development(),
     },
+    voiceStream: stt
+      ? {
+          createSink: (owner, emit) =>
+            createSpeechSink(
+              { stt, keyterms: clinicKeyterms(pool, owner.clinicId), log: log! },
+              emit
+            ),
+        }
+      : undefined,
     voiceSpike: config.VOICE_SPIKE_ENABLED
       ? {
           stt: new DeepgramStt({ apiKey: config.DEEPGRAM_API_KEY!, model: config.DEEPGRAM_MODEL }),
@@ -54,6 +72,8 @@ export async function start(env: Record<string, string | undefined> = process.en
         }
       : undefined,
   });
+  log = app.log;
+  if (!stt) app.log.warn('DEEPGRAM_API_KEY is not set; voice streams without speech recognition');
   if (keys.ephemeral) {
     app.log.warn(
       'AUTH_PRIVATE_KEY is not set; tokens are signed with a key that lasts until restart'

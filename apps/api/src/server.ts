@@ -23,7 +23,7 @@ import { registerSessionCommands } from './modules/sessions/commands.js';
 import { registerSessionRoutes } from './modules/sessions/routes.js';
 import { registerWorkspaceRoutes } from './modules/workspace/routes.js';
 import { registerVoiceStream, selectVoiceProtocol } from './modules/voice/stream/routes.js';
-import type { StreamSink, StreamTimings } from './modules/voice/stream/streams.js';
+import type { Emit, StreamSink, StreamTimings } from './modules/voice/stream/streams.js';
 import type { TicketHolder } from './modules/voice/stream/tickets.js';
 import type { SecretBox } from './platform/secret-box.js';
 import type { IdentityService } from './modules/identity/service.js';
@@ -62,7 +62,7 @@ export interface ServerOptions {
   /** Voice stream tuning, for tests; speech-to-text plugs in as the sink (V2). */
   voiceStream?: {
     timings?: Partial<StreamTimings>;
-    createSink?: (owner: TicketHolder) => StreamSink;
+    createSink?: (owner: TicketHolder, emit: Emit) => StreamSink;
   };
 }
 

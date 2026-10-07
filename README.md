@@ -91,7 +91,9 @@ Every clinical screen shares one frame: the patient banner (coloured while a ses
 
 ## Voice
 
-Clinicians with `voice.use` (dentists and assistants) see a voice bar at the bottom of every screen: hold the button or the space bar to talk. While it is held, speech (not silence) streams to `WS /v1/voice/stream`. The socket authenticates with a single-use, 30-second ticket from `POST /v1/voice/tickets`, sent as a WebSocket subprotocol. If the network drops, speech is kept and sent once the connection is back, and the stream resumes where it stopped. The design is in [ADR 0004](docs/adr/0004-voice-transport.md). Speech becomes commands from V2 on; until then the bar shows what the server heard.
+Clinicians with `voice.use` (dentists and assistants) see a voice bar at the bottom of every screen: hold the button or the space bar to talk. While it is held, speech (not silence) streams to `WS /v1/voice/stream`. The socket authenticates with a single-use, 30-second ticket from `POST /v1/voice/tickets`, sent as a WebSocket subprotocol. If the network drops, speech is kept and sent once the connection is back, and the stream resumes where it stopped. The design is in [ADR 0004](docs/adr/0004-voice-transport.md). With `DEEPGRAM_API_KEY` set, each utterance is transcribed by Deepgram `nova-3`, biased towards the clinic's dental vocabulary, and the voice bar shows the transcript live and then final; without it the stream still works and the bar says recognition is off. Transcripts become proposed commands from V4 on.
+
+`pnpm --filter @dental/api voice:wer` measures recognition on the dental phrase set in `tests/voice/corpus/en` (run `make-audio.sh` there first on macOS), in surgery noise and clean, with and without biasing, against the bar in [ADR 0005](docs/adr/0005-speech-recognition-bar.md). It sends synthetic speech to Deepgram and takes a few minutes. Real recordings go in `tests/voice/corpus/en/recordings/<speaker>/<phrase>.wav`; they are used when present and never committed.
 
 ## Writing data
 

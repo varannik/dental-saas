@@ -77,6 +77,29 @@ describe('DeepgramStt', () => {
     stream.close();
   });
 
+  it('holds Finalize after a burst until the audio has had time to play out', async () => {
+    let finalizeAt = 0;
+    const fake = await fakeDeepgram((socket) => {
+      finalizeAt = Date.now();
+      socket.send(
+        results('mobility grade two on thirty one', { is_final: true, from_finalize: true })
+      );
+    });
+    close = () => fake.server.close();
+
+    const stt = new DeepgramStt({ apiKey: 'key', url: fake.url });
+    const stream = stt.open({ sampleRate: 16000, keyterms: [] });
+    // 600 ms of audio, all sent before the connection opens: one burst.
+    for (let i = 0; i < 30; i += 1) stream.send(Buffer.alloc(640));
+    const started = Date.now();
+    const result = await stream.finish();
+    expect(result.transcript).toBe('mobility grade two on thirty one');
+    expect(fake.received.audioBytes).toBe(30 * 640);
+    // Finalize waited for most of the 600 ms instead of following the burst at once.
+    expect(finalizeAt - started).toBeGreaterThanOrEqual(500);
+    stream.close();
+  });
+
   it('falls back to what it has when the finalised result never arrives', async () => {
     const fake = await fakeDeepgram((socket) => {
       socket.send(results('crown on twenty six', { is_final: false }));

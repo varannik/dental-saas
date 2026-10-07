@@ -4,7 +4,7 @@ import { authenticate, requirePermission } from '../../../platform/auth.js';
 import type { Pool } from '../../../platform/db.js';
 import { HttpProblem } from '../../../platform/http-problem.js';
 import type { TokenService } from '../../identity/tokens.js';
-import { StreamRegistry, type StreamSink, type StreamTimings } from './streams.js';
+import { StreamRegistry, type Emit, type StreamSink, type StreamTimings } from './streams.js';
 import { consumeTicket, issueTicket, type TicketHolder } from './tickets.js';
 
 /**
@@ -40,7 +40,7 @@ export async function registerVoiceStream(
     /** The web app's origin; a socket opened from any other page is refused. */
     allowedOrigin: string;
     timings?: Partial<StreamTimings>;
-    createSink?: (owner: TicketHolder) => StreamSink;
+    createSink?: (owner: TicketHolder, emit: Emit) => StreamSink;
   }
 ) {
   const { pool, tokens } = options;

@@ -225,6 +225,7 @@ export class VoiceSocket {
       this.setState('open');
       for (const item of this.outbox) this.socket?.send(item.data);
       if (this.outbox.length) this.armAckTimer();
+      this.options.onEvent?.(message);
       return;
     }
     if (message.type === 'ack') {

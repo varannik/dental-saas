@@ -57,6 +57,8 @@ export type VoiceServerMessage =
       nextSeq: number;
       /** When the stream will close with VOICE_CLOSE.expired. */
       expiresAt: string;
+      /** Whether speech is transcribed; false when no speech provider is configured. */
+      speech: boolean;
     }
   /** Everything up to and including seq has arrived. */
   | { type: 'ack'; seq: number }
@@ -66,6 +68,18 @@ export type VoiceServerMessage =
       utteranceId: string;
       frames: number;
       durationMs: number;
+    }
+  /** What has been recognised so far in the utterance; replaced by each new partial. */
+  | { type: 'transcript.partial'; utteranceId: string; text: string }
+  /** The finished transcript of an utterance. Kept and resent if the socket was down. */
+  | {
+      type: 'transcript.final';
+      utteranceId: string;
+      text: string;
+      /** Mean provider confidence, 0 to 1; 0 when nothing was heard. */
+      confidence: number;
+      /** From the end of the utterance to the final transcript. */
+      finalizeMs: number;
     }
   | { type: 'error'; code: string; message: string };
 
