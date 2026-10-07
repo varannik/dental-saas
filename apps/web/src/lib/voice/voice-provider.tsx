@@ -27,7 +27,14 @@ const FRAME_MS = (VOICE_FRAME_SAMPLES / VOICE_SAMPLE_RATE) * 1000;
 const RELEASE_TAIL_MS = 300;
 const UI_REFRESH_MS = 100;
 
-export type VoiceNotice = 'lost' | 'dropped' | 'micBlocked';
+export type VoiceNotice = 'lost' | 'dropped' | 'micBlocked' | 'speechFailed';
+
+/** What was recognised: live while talking, then the final text. */
+export interface VoiceTranscript {
+  utteranceId: string;
+  text: string;
+  final: boolean;
+}
 
 interface VoiceValue {
   available: boolean;
@@ -39,6 +46,9 @@ interface VoiceValue {
   /** Speech recorded but not yet acknowledged by the server. */
   pendingMs: number;
   lastHeardMs: number | null;
+  /** Whether the server transcribes speech; null until connected. */
+  speech: boolean | null;
+  transcript: VoiceTranscript | null;
   notice: VoiceNotice | null;
   press(): void;
   release(): void;
@@ -61,6 +71,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const [pendingMs, setPendingMs] = useState(0);
   const [lastHeardMs, setLastHeardMs] = useState<number | null>(null);
   const [notice, setNotice] = useState<VoiceNotice | null>(null);
+  const [speech, setSpeech] = useState<boolean | null>(null);
+  const [transcript, setTranscript] = useState<VoiceTranscript | null>(null);
 
   const socketRef = useRef<VoiceSocket | null>(null);
   const micRef = useRef<Microphone | null>(null);
@@ -86,8 +98,21 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       },
       onState: setConnection,
       onEvent: (event) => {
+        if (event.type === 'ready') setSpeech(event.speech);
         if (event.type === 'utterance.ended') setLastHeardMs(event.durationMs);
         if (event.type === 'utterance.lost') setNotice('lost');
+        if (event.type === 'transcript.partial') {
+          // A final transcript is never replaced by a late partial of the same utterance.
+          setTranscript((shown) =>
+            shown?.utteranceId === event.utteranceId && shown.final
+              ? shown
+              : { utteranceId: event.utteranceId, text: event.text, final: false }
+          );
+        }
+        if (event.type === 'transcript.final') {
+          setTranscript({ utteranceId: event.utteranceId, text: event.text, final: true });
+        }
+        if (event.type === 'error' && event.code === 'speech_failed') setNotice('speechFailed');
       },
     });
     socketRef.current = socket;
@@ -180,6 +205,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       level,
       pendingMs,
       lastHeardMs,
+      speech,
+      transcript,
       notice,
       press,
       release,
@@ -193,6 +220,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       level,
       pendingMs,
       lastHeardMs,
+      speech,
+      transcript,
       notice,
       press,
       release,

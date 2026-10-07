@@ -1,0 +1,614 @@
+{
+  "model": "nova-3",
+  "locale": "en",
+  "snrDb": 15,
+  "keyterms": [
+    "caries",
+    "restoration",
+    "fracture",
+    "root canal treated",
+    "impacted",
+    "mobility",
+    "enamel caries",
+    "dentine caries",
+    "reversible pulpitis",
+    "irreversible pulpitis",
+    "pulp necrosis",
+    "apical periodontitis",
+    "apical abscess",
+    "cracked tooth",
+    "tooth wear",
+    "attrition",
+    "dentine hypersensitivity",
+    "gingivitis",
+    "periodontitis",
+    "pericoronitis",
+    "mesial",
+    "occlusal",
+    "incisal",
+    "distal",
+    "buccal",
+    "lingual",
+    "palatal",
+    "mesiobuccal",
+    "distobuccal",
+    "mesiolingual",
+    "distolingual",
+    "tooth",
+    "pocket depth",
+    "probing",
+    "millimetres",
+    "molar",
+    "premolar",
+    "incisor",
+    "canine",
+    "quadrant",
+    "Amalgam filling",
+    "Bitewing radiographs",
+    "Bridge pontic",
+    "Complete denture",
+    "Composite filling",
+    "Examination",
+    "Extraction",
+    "Fissure sealant",
+    "Fluoride application",
+    "Glass ionomer filling",
+    "Implant crown",
+    "Implant placement",
+    "Inlay or onlay",
+    "Partial denture",
+    "Periapical radiograph",
+    "Post and core",
+    "Pulpotomy",
+    "Root canal treatment",
+    "Scale and polish",
+    "Scaling and root planing",
+    "Surgical extraction",
+    "Veneer",
+    "Whitening",
+    "amalgam",
+    "silver filling",
+    "bitewings",
+    "bitewing x-ray",
+    "pontic",
+    "full denture",
+    "composite",
+    "white filling",
+    "sealant",
+    "fissure seal",
+    "fluoride",
+    "fluoride varnish",
+    "glass ionomer",
+    "inlay",
+    "onlay",
+    "periapical",
+    "core build-up",
+    "root canal",
+    "endo",
+    "scaling",
+    "deep cleaning",
+    "root planing",
+    "bleaching"
+  ],
+  "bar": {
+    "criticalErrorRate": 0.05,
+    "wer": 0.1
+  },
+  "verdict": {
+    "criticalErrorRate": false,
+    "wer": true,
+    "biasingHelps": null
+  },
+  "summary": {
+    "noisy-biased": {
+      "wer": 0.07276119402985075,
+      "criticalErrorRate": 0.06626506024096386,
+      "referenceWords": 1072,
+      "criticalWords": 664,
+      "utterances": 188,
+      "byGroup": {
+        "findings": {
+          "wer": 0.07042253521126761,
+          "criticalErrorRate": 0.06521739130434782,
+          "referenceWords": 284,
+          "criticalWords": 184
+        },
+        "perio": {
+          "wer": 0.045454545454545456,
+          "criticalErrorRate": 0.038461538461538464,
+          "referenceWords": 132,
+          "criticalWords": 104
+        },
+        "diagnoses": {
+          "wer": 0.05813953488372093,
+          "criticalErrorRate": 0.06666666666666667,
+          "referenceWords": 172,
+          "criticalWords": 120
+        },
+        "procedures": {
+          "wer": 0.07180851063829788,
+          "criticalErrorRate": 0.06779661016949153,
+          "referenceWords": 376,
+          "criticalWords": 236
+        },
+        "flow": {
+          "wer": 0.1388888888888889,
+          "criticalErrorRate": 0.2,
+          "referenceWords": 108,
+          "criticalWords": 20
+        }
+      },
+      "bySpeaker": {
+        "au": {
+          "wer": 0.09328358208955224,
+          "criticalErrorRate": 0.0963855421686747,
+          "referenceWords": 268,
+          "criticalWords": 166
+        },
+        "us": {
+          "wer": 0.04477611940298507,
+          "criticalErrorRate": 0.04819277108433735,
+          "referenceWords": 268,
+          "criticalWords": 166
+        },
+        "ie": {
+          "wer": 0.06716417910447761,
+          "criticalErrorRate": 0.04216867469879518,
+          "referenceWords": 268,
+          "criticalWords": 166
+        },
+        "uk": {
+          "wer": 0.08582089552238806,
+          "criticalErrorRate": 0.0783132530120482,
+          "referenceWords": 268,
+          "criticalWords": 166
+        }
+      }
+    }
+  },
+  "leftOut": [],
+  "failed": [],
+  "errors": [
+    {
+      "condition": "noisy-biased",
+      "speaker": "au",
+      "phrase": "finding-caries-16-o",
+      "reference": "Tooth sixteen, occlusal caries",
+      "transcript": "2616. Occlusal caries.",
+      "errors": 2,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "us",
+      "phrase": "finding-caries-16-o",
+      "reference": "Tooth sixteen, occlusal caries",
+      "transcript": "Two. 16 occlusal caries.",
+      "errors": 1,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "ie",
+      "phrase": "finding-caries-16-o",
+      "reference": "Tooth sixteen, occlusal caries",
+      "transcript": "216. Occlusal caries.",
+      "errors": 1,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "uk",
+      "phrase": "finding-caries-16-o",
+      "reference": "Tooth sixteen, occlusal caries",
+      "transcript": "2616. Occlusal caries",
+      "errors": 2,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "uk",
+      "phrase": "finding-caries-46-mo",
+      "reference": "Caries on the mesial and occlusal of forty six",
+      "transcript": "Ares on the mesial and occlusal of 46.",
+      "errors": 1,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "ie",
+      "phrase": "finding-caries-46-mo",
+      "reference": "Caries on the mesial and occlusal of forty six",
+      "transcript": "Caries on the mesial and occlusal are forty six",
+      "errors": 1,
+      "criticalErrors": 0
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "us",
+      "phrase": "finding-restoration-21",
+      "reference": "Twenty one, restoration on the mesial and incisal",
+      "transcript": "21. Restoration on the mesio and incisal.",
+      "errors": 2,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "us",
+      "phrase": "finding-missing-18",
+      "reference": "Mark eighteen as missing",
+      "transcript": "Mark 18 is miss",
+      "errors": 2,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "au",
+      "phrase": "finding-missing-18",
+      "reference": "Mark eighteen as missing",
+      "transcript": "Mark 18 is missing.",
+      "errors": 1,
+      "criticalErrors": 0
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "uk",
+      "phrase": "finding-rct-22",
+      "reference": "Tooth twenty two is root canal treated",
+      "transcript": "02/22 is root canal treated.",
+      "errors": 2,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "ie",
+      "phrase": "finding-rct-22",
+      "reference": "Tooth twenty two is root canal treated",
+      "transcript": "02/22 is root canal treated.",
+      "errors": 2,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "us",
+      "phrase": "finding-caries-one-five",
+      "reference": "Caries on one five, buccal surface",
+      "transcript": "Carries on 15. Buccal surface.",
+      "errors": 1,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "au",
+      "phrase": "finding-caries-one-five",
+      "reference": "Caries on one five, buccal surface",
+      "transcript": "Carries on 15. Buccal surface",
+      "errors": 1,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "uk",
+      "phrase": "finding-caries-one-five",
+      "reference": "Caries on one five, buccal surface",
+      "transcript": "Aries on one five. Buccal surface.",
+      "errors": 1,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "uk",
+      "phrase": "perio-16",
+      "reference": "Pocket depths on sixteen: three, two, four, bleeding on the mesiobuccal",
+      "transcript": "Pocket depths. On six three two. Four. Bleeding on the mesiobuccal.",
+      "errors": 1,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "ie",
+      "phrase": "perio-16",
+      "reference": "Pocket depths on sixteen: three, two, four, bleeding on the mesiobuccal",
+      "transcript": "Pocket depth. On 16. Three. Two four. Bleeding on the mesiobuccal.",
+      "errors": 1,
+      "criticalErrors": 0
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "au",
+      "phrase": "perio-17",
+      "reference": "Seventeen probing five, four, six with bleeding",
+      "transcript": "17 clothing 546 with bleeding",
+      "errors": 1,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "ie",
+      "phrase": "perio-26-b",
+      "reference": "Twenty six buccal three millimetres",
+      "transcript": "26 buckle three millimeters.",
+      "errors": 1,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "au",
+      "phrase": "perio-next",
+      "reference": "Next tooth",
+      "transcript": "",
+      "errors": 2,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "uk",
+      "phrase": "dx-pulpitis-16",
+      "reference": "Diagnosis irreversible pulpitis on sixteen",
+      "transcript": "Diagnosis, irreversible pulpitis on six sixteen.",
+      "errors": 1,
+      "criticalErrors": 0
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "us",
+      "phrase": "dx-pulpitis-16",
+      "reference": "Diagnosis irreversible pulpitis on sixteen",
+      "transcript": "Diagnosis irreversible pulpitis on six XVI.",
+      "errors": 2,
+      "criticalErrors": 2
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "au",
+      "phrase": "dx-pulpitis-16",
+      "reference": "Diagnosis irreversible pulpitis on sixteen",
+      "transcript": "Diagnosis irreversible pulpitis on sixth",
+      "errors": 2,
+      "criticalErrors": 2
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "uk",
+      "phrase": "dx-cracked-46",
+      "reference": "Cracked tooth on forty six",
+      "transcript": "46.",
+      "errors": 3,
+      "criticalErrors": 2
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "au",
+      "phrase": "dx-cracked-46",
+      "reference": "Cracked tooth on forty six",
+      "transcript": "Craft tooth on 46.",
+      "errors": 1,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "au",
+      "phrase": "dx-necrosis-11",
+      "reference": "Pulp necrosis on eleven",
+      "transcript": "Health necrosis on '11.",
+      "errors": 1,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "us",
+      "phrase": "px-rct-16",
+      "reference": "Add a root canal on tooth sixteen",
+      "transcript": "Add a root canal on tooth six. 16.",
+      "errors": 1,
+      "criticalErrors": 0
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "uk",
+      "phrase": "px-rct-16",
+      "reference": "Add a root canal on tooth sixteen",
+      "transcript": "Add a root canal on tooth six sixteen.",
+      "errors": 1,
+      "criticalErrors": 0
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "au",
+      "phrase": "px-rct-16",
+      "reference": "Add a root canal on tooth sixteen",
+      "transcript": "Canal on tooth sixteen.",
+      "errors": 3,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "uk",
+      "phrase": "px-extraction-38",
+      "reference": "Extraction of the lower left third molar",
+      "transcript": "It's Extraction of the lower left third molar.",
+      "errors": 1,
+      "criticalErrors": 0
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "au",
+      "phrase": "px-extraction-38",
+      "reference": "Extraction of the lower left third molar",
+      "transcript": "Traction of the lower left third molar.",
+      "errors": 1,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "uk",
+      "phrase": "px-surgical-48",
+      "reference": "Surgical extraction of forty eight",
+      "transcript": "Surgical ex",
+      "errors": 4,
+      "criticalErrors": 3
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "us",
+      "phrase": "px-bitewings",
+      "reference": "Bitewing radiographs",
+      "transcript": "Radiographs.",
+      "errors": 1,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "uk",
+      "phrase": "px-bitewings",
+      "reference": "Bitewing radiographs",
+      "transcript": "Visuing radiographs.",
+      "errors": 1,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "au",
+      "phrase": "px-bitewings",
+      "reference": "Bitewing radiographs",
+      "transcript": "Visualing radio breaths.",
+      "errors": 3,
+      "criticalErrors": 2
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "ie",
+      "phrase": "px-bitewings",
+      "reference": "Bitewing radiographs",
+      "transcript": "Visuing radiographs.",
+      "errors": 1,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "ie",
+      "phrase": "px-post-core-15",
+      "reference": "Post and core on fifteen",
+      "transcript": "Post and quorum fifteen.",
+      "errors": 2,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "au",
+      "phrase": "px-srp",
+      "reference": "Scaling and root planing, upper right quadrant",
+      "transcript": "Pailing and root planing, upper right quadrant.",
+      "errors": 1,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "uk",
+      "phrase": "px-veneer-11",
+      "reference": "Veneer on eleven",
+      "transcript": "Veneeron 11.",
+      "errors": 2,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "ie",
+      "phrase": "px-veneer-11",
+      "reference": "Veneer on eleven",
+      "transcript": "Veneerum eleven.",
+      "errors": 2,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "au",
+      "phrase": "px-fluoride",
+      "reference": "Fluoride varnish for the whole mouth",
+      "transcript": "Floride varnish to the whole mouth.",
+      "errors": 2,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "au",
+      "phrase": "px-scale-polish",
+      "reference": "Scale and polish please",
+      "transcript": "Pale and polish, please.",
+      "errors": 1,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "au",
+      "phrase": "flow-start",
+      "reference": "Start the root canal",
+      "transcript": "Stop the root canal.",
+      "errors": 1,
+      "criticalErrors": 0
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "us",
+      "phrase": "flow-complete",
+      "reference": "Complete it",
+      "transcript": "Completed.",
+      "errors": 2,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "uk",
+      "phrase": "flow-complete",
+      "reference": "Complete it",
+      "transcript": "Completed",
+      "errors": 2,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "ie",
+      "phrase": "flow-complete",
+      "reference": "Complete it",
+      "transcript": "Complesis.",
+      "errors": 2,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "au",
+      "phrase": "flow-complete",
+      "reference": "Complete it",
+      "transcript": "Completed.",
+      "errors": 2,
+      "criticalErrors": 1
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "ie",
+      "phrase": "flow-note",
+      "reference": "Add a note: patient reports sensitivity to cold",
+      "transcript": "Adenos. Patient reports. Sensitivity to cold.",
+      "errors": 3,
+      "criticalErrors": 0
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "uk",
+      "phrase": "flow-note",
+      "reference": "Add a note: patient reports sensitivity to cold",
+      "transcript": "Add a nose. Patient reports sensitivity to cold.",
+      "errors": 1,
+      "criticalErrors": 0
+    },
+    {
+      "condition": "noisy-biased",
+      "speaker": "ie",
+      "phrase": "flow-last-visit",
+      "reference": "Show the last visit",
+      "transcript": "Shoulder last visit.",
+      "errors": 2,
+      "criticalErrors": 0
+    }
+  ]
+}

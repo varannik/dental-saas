@@ -12,6 +12,7 @@
     "test": "vitest run",
     "clean": "rm -rf dist",
     "voice:bench": "tsx src/spikes/voice/bench.ts",
+    "voice:wer": "tsx src/benchmarks/speech-wer.ts",
     "auth:keygen": "tsx src/scripts/keygen.ts",
     "db:seed": "tsx src/scripts/seed-dev.ts",
     "e2e:seed": "tsx src/scripts/seed-e2e.ts",

@@ -57,6 +57,15 @@ export class DeepgramStt implements SpeechToText {
     let keepAlive: NodeJS.Timeout | undefined;
     let closedByCaller = false;
     let errorReported = false;
+    // Audio handed to the socket: when the first chunk went, and how much in total.
+    let firstSentAt = 0;
+    let sentBytes = 0;
+    let finalizeDelay: NodeJS.Timeout | undefined;
+    const transmit = (chunk: Buffer) => {
+      if (sentBytes === 0) firstSentAt = Date.now();
+      sentBytes += chunk.length;
+      socket.send(chunk);
+    };
     // Report one error per stream; the socket can emit several for the same failure.
     const fail = (error: Error) => {
       if (closedByCaller || errorReported) return;
@@ -84,14 +93,27 @@ export class DeepgramStt implements SpeechToText {
 
     // The finalize timeout starts when Finalize is sent, not when the caller asks to finish,
     // so a slow handshake is not mistaken for silence.
+    //
+    // Finalize is held until as much time has passed since the first audio as the audio lasts.
+    // Deepgram finalises what it has processed so far: after a burst (audio buffered during a
+    // slow handshake, or resent after a network blip) an early Finalize drops the last words.
+    // Streamed in real time, the wait is close to nothing.
     const sendFinalize = () => {
-      socket.send(JSON.stringify({ type: 'Finalize' }));
-      finalizeTimer = setTimeout(() => settle?.(result()), finalizeTimeoutMs);
+      const audioMs = (sentBytes / 2 / stream.sampleRate) * 1000;
+      const wait = sentBytes === 0 ? 0 : firstSentAt + audioMs - Date.now();
+      finalizeDelay = setTimeout(
+        () => {
+          if (socket.readyState !== WebSocket.OPEN) return;
+          socket.send(JSON.stringify({ type: 'Finalize' }));
+          finalizeTimer = setTimeout(() => settle?.(result()), finalizeTimeoutMs);
+        },
+        Math.max(0, wait)
+      );
     };
 
     socket.on('open', () => {
       clearTimeout(connectTimer);
-      for (const chunk of pending.splice(0)) socket.send(chunk);
+      for (const chunk of pending.splice(0)) transmit(chunk);
       if (finishing) {
         sendFinalize();
         return;
@@ -136,7 +158,7 @@ export class DeepgramStt implements SpeechToText {
     return {
       send(chunk) {
         if (finishing) return;
-        if (socket.readyState === WebSocket.OPEN) socket.send(chunk);
+        if (socket.readyState === WebSocket.OPEN) transmit(chunk);
         else if (socket.readyState === WebSocket.CONNECTING) pending.push(chunk);
       },
       finish() {
@@ -145,6 +167,7 @@ export class DeepgramStt implements SpeechToText {
           settle = (value) => {
             settle = undefined;
             clearTimeout(finalizeTimer);
+            clearTimeout(finalizeDelay);
             resolve(value);
             if (socket.readyState === WebSocket.OPEN) {
               socket.send(JSON.stringify({ type: 'CloseStream' }));
@@ -159,6 +182,7 @@ export class DeepgramStt implements SpeechToText {
       close() {
         closedByCaller = true;
         clearTimeout(connectTimer);
+        clearTimeout(finalizeDelay);
         clearInterval(keepAlive);
         if (socket.readyState === WebSocket.CONNECTING) socket.terminate();
         else socket.close();

@@ -153,12 +153,27 @@ beforeAll(async () => {
     },
     voiceStream: {
       timings: { graceMs: 600, idleMs: 3_500, pingMs: 100, helloMs: 400, ackDelayMs: 30 },
-      createSink: (): StreamSink => {
+      // Stands in for speech-to-text: records the audio, and "transcribes" an utterance a
+      // little after it ends, as a provider would.
+      createSink: (_owner, emit): StreamSink => {
         let current: number[] = [];
         return {
           utteranceStart: (id) => heard.set(id, (current = [])),
           audio: (samples) => current.push(samples[0]!),
-          utteranceEnd: () => undefined,
+          utteranceEnd: (id) => {
+            const frames = heard.get(id)!.length;
+            setTimeout(
+              () =>
+                emit({
+                  type: 'transcript.final',
+                  utteranceId: id,
+                  text: `${frames} frames`,
+                  confidence: 1,
+                  finalizeMs: 150,
+                }),
+              150
+            );
+          },
           close: () => undefined,
         };
       },
@@ -246,7 +261,12 @@ describe('opening the stream', () => {
     expect(client.socket.protocol).toBe(VOICE_PROTOCOL);
     client.socket.send(JSON.stringify({ type: 'hello' }));
     const ready = await client.next('ready');
-    expect(ready).toMatchObject({ resumed: false, nextSeq: 0, streamId: expect.any(String) });
+    expect(ready).toMatchObject({
+      resumed: false,
+      nextSeq: 0,
+      streamId: expect.any(String),
+      speech: true,
+    });
     client.socket.close();
   });
 });
@@ -297,6 +317,27 @@ describe('streaming', () => {
     const ended = await second.next('utterance.ended');
     expect(ended).toMatchObject({ utteranceId: 'blip', frames: 40, durationMs: 800 });
     expect(heard.get('blip')).toEqual(Array.from({ length: 40 }, (_, i) => i + 1));
+    second.socket.close();
+  });
+
+  it('delivers a transcript that was ready while the socket was down, once resumed', async () => {
+    const first = await open();
+    first.socket.send(JSON.stringify({ type: 'hello' }));
+    const { streamId } = await first.next('ready');
+    first.socket.send(control('utterance.start', 0, 'late-result'));
+    for (let seq = 1; seq <= 5; seq += 1) first.socket.send(frame(seq));
+    first.socket.send(control('utterance.end', 6, 'late-result'));
+    await first.next('ack', (m) => m.seq === 6);
+    // Gone before the transcript is ready.
+    first.socket.terminate();
+    await new Promise((done) => setTimeout(done, 250));
+
+    const second = await open();
+    second.socket.send(JSON.stringify({ type: 'hello', streamId }));
+    await second.next('ready');
+    expect(
+      await second.next('transcript.final', (m) => m.utteranceId === 'late-result')
+    ).toMatchObject({ text: '5 frames' });
     second.socket.close();
   });
 
