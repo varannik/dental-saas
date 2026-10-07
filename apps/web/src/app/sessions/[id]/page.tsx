@@ -20,6 +20,8 @@ import { PatientBanner, usePatientHeader } from '../../../components/patient-ban
 import { inputClass, primaryButton, secondaryButton } from '../../../components/patient-form';
 import { RequireSession } from '../../../components/require-session';
 import { SessionDiagnoses } from '../../../components/session-diagnoses';
+import { SessionProcedures } from '../../../components/session-procedures';
+import { SessionSummary, SignedRecord, SignPanel } from '../../../components/session-signoff';
 import { ToothChart } from '../../../components/tooth-chart';
 import { api, ApiError } from '../../../lib/api';
 import { toothView } from '../../../lib/chart';
@@ -29,11 +31,20 @@ import messages from '../../../messages/en.json';
 
 /**
  * The examination screen (C3, screen 6): the tooth chart, findings and probing for the
- * selected tooth, notes, and completing the session. A completed session is read-only.
+ * selected tooth, procedures, notes, and completing the session. A completed session is
+ * read-only and shows its summary for signing (C6); a signed one only takes amendments.
  */
 
 const t = messages.sessions;
 const codeName = (code: string) => t.codes[code as FindingCode] ?? code;
+
+function AmendmentBadge() {
+  return (
+    <span className="ml-2 rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-900 uppercase">
+      {t.amendmentBadge}
+    </span>
+  );
+}
 
 export default function SessionPage() {
   return (
@@ -122,14 +133,26 @@ function Examination() {
           >
             ← {t.backToPatient}
           </Link>
-          {open && <CompleteButton sessionId={session.id} onDone={reload} />}
+          {open && session.procedures.some((p) => p.status === 'in_progress') && (
+            <span className="ml-auto text-sm text-neutral-600">{t.completeBlocked}</span>
+          )}
+          {open && (
+            <CompleteButton
+              sessionId={session.id}
+              blocked={session.procedures.some((p) => p.status === 'in_progress')}
+              onDone={reload}
+            />
+          )}
         </div>
 
-        {!open && (
+        {session.status === 'completed' && (
           <p className="rounded-lg bg-neutral-100 px-4 py-3 text-neutral-700">
             {t.readOnly.replace('{status}', t.statuses[session.status].toLowerCase())}
           </p>
         )}
+        {!open && <SessionSummary session={session} />}
+        {session.status === 'completed' && <SignPanel session={session} onChanged={reload} />}
+        {session.status === 'signed' && <SignedRecord session={session} onChanged={reload} />}
 
         <section className="rounded-2xl border border-neutral-200 bg-white p-6">
           <h2 className="mb-1 text-xl font-semibold">{t.chart}</h2>
@@ -157,6 +180,16 @@ function Examination() {
           editable={open}
           onChanged={reload}
         />
+
+        {(open || session.procedures.length > 0) && (
+          <SessionProcedures
+            sessionId={session.id}
+            patientId={session.patientId}
+            procedures={session.procedures}
+            editable={open}
+            onChanged={reload}
+          />
+        )}
 
         <NotesPanel session={session} editable={open} onChanged={reload} />
       </div>
@@ -334,6 +367,7 @@ function ToothPanel({
             {findings.map((finding) => (
               <li key={finding.id} className="text-sm">
                 <span className="font-medium">{codeName(finding.code)}</span>
+                {finding.amendmentId && <AmendmentBadge />}
                 {finding.surface && ` · ${t.surfaceNames[finding.surface]}`}
                 {finding.value && ` · ${finding.value}`}
                 {finding.note && <span className="text-neutral-500"> · {finding.note}</span>}
@@ -513,6 +547,7 @@ function NotesPanel({
               <p className="mt-1 text-xs text-neutral-500">
                 {note.type} ·{' '}
                 {new Date(note.recordedAt).toLocaleTimeString('en-GB', { timeStyle: 'short' })}
+                {note.amendmentId && <AmendmentBadge />}
               </p>
             </li>
           ))}
@@ -551,14 +586,22 @@ function NotesPanel({
   );
 }
 
-function CompleteButton({ sessionId, onDone }: { sessionId: string; onDone: () => Promise<void> }) {
+function CompleteButton({
+  sessionId,
+  blocked,
+  onDone,
+}: {
+  sessionId: string;
+  blocked: boolean;
+  onDone: () => Promise<void>;
+}) {
   const { authed } = useSession();
   const [busy, setBusy] = useState(false);
   return (
     <button
       type="button"
       className={primaryButton}
-      disabled={busy}
+      disabled={busy || blocked}
       onClick={async () => {
         if (!window.confirm(t.completeConfirm)) return;
         setBusy(true);

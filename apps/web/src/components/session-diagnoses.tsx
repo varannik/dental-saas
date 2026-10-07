@@ -145,6 +145,11 @@ function DiagnosisItem({
           >
             {t.statuses[diagnosis.status]}
           </span>
+          {diagnosis.amendmentId && (
+            <span className="mr-2 rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-900 uppercase">
+              {messages.sessions.amendmentBadge}
+            </span>
+          )}
           {diagnosis.certainty && t.certainties[diagnosis.certainty]}
           {diagnosis.reason && <span className="text-neutral-500"> · {diagnosis.reason}</span>}
         </span>
