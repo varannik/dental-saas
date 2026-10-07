@@ -111,6 +111,8 @@ export interface Finding {
   supersedesId: string | null;
   recordedAt: string;
   recordedBy: string | null;
+  /** Set when the finding was recorded in an amendment of a signed session. */
+  amendmentId: string | null;
 }
 
 /** One place on the current chart: a tooth, or one of its surfaces. */
@@ -148,6 +150,8 @@ export interface ClinicalNote {
   body: string;
   recordedAt: string;
   recordedBy: string | null;
+  /** Set for an addendum written after signing. */
+  amendmentId: string | null;
 }
 
 export type SessionStatus = 'open' | 'completed' | 'signed';
@@ -160,12 +164,16 @@ export interface ClinicalSession {
   chiefComplaint: string | null;
   startedAt: string;
   endedAt: string | null;
+  signedAt: string | null;
+  signedBy: string | null;
 }
 
 /** GET /v1/sessions/:id: the session with everything recorded in it. */
 export interface SessionDetail extends ClinicalSession {
   findings: Finding[];
   diagnoses: Diagnosis[];
+  procedures: Procedure[];
+  amendments: SessionAmendment[];
   /** The latest reading per tooth and site in this session. */
   perio: PerioMeasurement[];
   notes: ClinicalNote[];
@@ -224,4 +232,41 @@ export interface Diagnosis {
   decidedBy: string | null;
   decidedAt: string | null;
   reason: string | null;
+  amendmentId: string | null;
 }
+
+export type ProcedureStatus = 'in_progress' | 'completed' | 'cancelled';
+
+/** Treatment performed in a session, often a planned item. */
+export interface Procedure {
+  id: string;
+  sessionId: string;
+  planItemId: string | null;
+  procedureType: { id: string; code: string; name: string };
+  tooth: string | null;
+  surfaces: Surface[];
+  status: ProcedureStatus;
+  note: string | null;
+  startedAt: string;
+  startedBy: string | null;
+  endedAt: string | null;
+  endedBy: string | null;
+  cancelReason: string | null;
+}
+
+/** A correction to a signed session, with its reason. */
+export interface SessionAmendment {
+  id: string;
+  reason: string;
+  amendedAt: string;
+  amendedBy: string | null;
+}
+
+/** What may be done inside an amendment of a signed session. */
+export const AMENDMENT_ACTIONS = [
+  'note.add',
+  'finding.add',
+  'diagnosis.record',
+  'diagnosis.retract',
+] as const;
+export type AmendmentAction = (typeof AMENDMENT_ACTIONS)[number];

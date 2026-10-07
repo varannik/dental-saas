@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  AMENDMENT_ACTIONS,
   DIAGNOSIS_CERTAINTY,
   DIAGNOSIS_CODES,
   FINDING_CODES,
@@ -563,6 +564,97 @@ export const planCancel = defineCommand({
 
 export type PlanDecision = z.infer<typeof planDecision>;
 
+export const procedureStart = defineCommand({
+  type: 'procedure.start',
+  description: 'Start a procedure in an open session, from a planned item or ad hoc.',
+  permission: 'procedure.write',
+  risk: 'R2',
+  payload: z
+    .object({
+      sessionId: z.string().uuid(),
+      /** Perform this planned item; procedure, tooth and surfaces come from it. */
+      planItemId: z.string().uuid().optional(),
+      procedureCode: procedureCode.optional(),
+      tooth: tooth.optional(),
+      surfaces: z.array(z.enum(SURFACES)).min(1).max(5).optional(),
+      note: z.string().trim().min(1).max(500).optional(),
+    })
+    .strict()
+    .refine((payload) => Boolean(payload.planItemId) !== Boolean(payload.procedureCode), {
+      message: 'Give either a planned item or a procedure.',
+      path: ['procedureCode'],
+    })
+    .refine((payload) => !payload.planItemId || (!payload.tooth && !payload.surfaces), {
+      message: 'A planned item already has its tooth and surfaces.',
+      path: ['tooth'],
+    }),
+});
+
+export type ProcedureStart = z.infer<typeof procedureStart.payload>;
+
+const procedureDecision = z
+  .object({
+    procedureId: z.string().uuid(),
+    reason: z.string().trim().min(1).max(500).optional(),
+  })
+  .strict();
+
+export const procedureComplete = defineCommand({
+  type: 'procedure.complete',
+  description: 'Complete a procedure; its plan item is done and the chart is updated.',
+  permission: 'procedure.write',
+  risk: 'R2',
+  payload: procedureDecision,
+});
+
+export const procedureCancel = defineCommand({
+  type: 'procedure.cancel',
+  description: 'Cancel a procedure that was started.',
+  permission: 'procedure.write',
+  risk: 'R2',
+  payload: procedureDecision,
+});
+
+export type ProcedureDecision = z.infer<typeof procedureDecision>;
+
+export const sessionSign = defineCommand({
+  type: 'session.sign',
+  description: 'Sign a completed session. Afterwards it changes only through amendments.',
+  permission: 'session.sign',
+  // R3: never by voice alone; the commit needs a click on screen (spec section H).
+  risk: 'R3',
+  payload: z.object({ sessionId: z.string().uuid() }).strict(),
+});
+
+export type SessionSign = z.infer<typeof sessionSign.payload>;
+
+export const sessionAmend = defineCommand({
+  type: 'session.amend',
+  description: 'Correct a signed session: add a note or finding, record or retract a diagnosis.',
+  permission: 'session.amend',
+  risk: 'R3',
+  payload: z
+    .object({
+      sessionId: z.string().uuid(),
+      reason: z.string().trim().min(3).max(1000),
+      /** Each action is checked against its own command and permission. */
+      actions: z
+        .array(
+          z
+            .object({
+              type: z.enum(AMENDMENT_ACTIONS),
+              payload: z.record(z.string(), z.unknown()),
+            })
+            .strict()
+        )
+        .min(1)
+        .max(20),
+    })
+    .strict(),
+});
+
+export type SessionAmend = z.infer<typeof sessionAmend.payload>;
+
 /** Keyed by type; a test checks every key matches its definition's type. */
 export const COMMANDS = {
   'clinic.onboard': clinicOnboard,
@@ -587,6 +679,11 @@ export const COMMANDS = {
   'plan.reorder': planReorder,
   'plan.accept': planAccept,
   'plan.cancel': planCancel,
+  'procedure.start': procedureStart,
+  'procedure.complete': procedureComplete,
+  'procedure.cancel': procedureCancel,
+  'session.sign': sessionSign,
+  'session.amend': sessionAmend,
 } as const satisfies Record<string, CommandDefinition>;
 
 export type CommandType = keyof typeof COMMANDS;

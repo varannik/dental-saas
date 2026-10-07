@@ -76,6 +76,12 @@ Assistants suggest diagnoses (`POST /v1/sessions/:id/diagnoses`, status `suggest
 
 `GET /v1/procedure-types` lists the procedure catalog: 26 generic procedures under language-neutral codes (not CDT, which is licensed; see [ADR 0003](docs/adr/0003-procedure-catalog-and-plans.md)). A patient has at most one open plan (`POST /v1/patients/:id/plans`). Items go at the end or after another item (`POST /v1/plans/:id/items` with `afterItemId`); `POST /v1/plans/:id/reorder` takes every item id in the new order with the plan's version, and the sequence stays 1..n. Items are cancelled, not deleted; plans move proposed, accepted, completed, or to cancelled. A procedure on a tooth charted as missing is refused unless it replaces a tooth.
 
+## Procedures, sign-off and amendments
+
+A dentist starts a procedure in an open session from a planned item, or ad hoc with a procedure code (`POST /v1/sessions/:id/procedures`), then completes or cancels it (`PATCH /v1/procedures/:id`). Completing marks the plan item done, completes an accepted plan once no planned items remain, and charts the result (a filling as a restoration on its surfaces, a root canal, crown, extraction or implant on the tooth). A session with a procedure in progress cannot be completed.
+
+`POST /v1/sessions/:id/sign` signs a completed session; it is dentist-only and risk R3, so never by voice alone. A signed session is locked in the database: triggers refuse any insert or update of its findings, chart events, perio, notes, diagnoses and procedures, also for the owner. The only way in is `POST /v1/sessions/:id/amendments` (dentist, a reason, and up to 20 actions among `note.add`, `finding.add`, `diagnosis.record` and `diagnosis.retract`). It runs in one transaction, each action under its own permission, and every row it writes carries the amendment id.
+
 ## Writing data
 
 Every state change is a command, and the command bus (`apps/api/src/modules/commands/bus.ts`) is the only write path. It validates the payload against the registry in `packages/contracts/src/commands.ts`, checks the permission, then runs the handler, writes the command row (`voice.commands`) and the audit entries (`audit.audit_log`) in one transaction scoped to the clinic. REST routes only translate HTTP into commands; voice will confirm proposals into the same commands.

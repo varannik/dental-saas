@@ -23,6 +23,7 @@ import type { CommandBus, HandlerContext, HandlerOutcome } from '../commands/bus
 import { readChart, recordChartEvent } from './chart.js';
 import {
   FINDING_COLUMNS,
+  NOTE_COLUMNS,
   openSession,
   SESSION_COLUMNS,
   toChartEntry,
@@ -107,6 +108,17 @@ export async function completeSession(
   payload: SessionComplete
 ): Promise<HandlerOutcome<ClinicalSession>> {
   await openSession(client, payload.sessionId);
+  const running = await client.query(
+    `SELECT 1 FROM clinical.procedures WHERE session_id = $1 AND status = 'in_progress'`,
+    [payload.sessionId]
+  );
+  if (running.rowCount) {
+    throw new HttpProblem(
+      422,
+      'domain_rule_violated',
+      'A procedure is still in progress. Complete or cancel it first.'
+    );
+  }
   const row = (
     await client.query<SessionRow>(
       `UPDATE clinical.clinical_sessions SET status = 'completed', ended_at = now()
@@ -135,10 +147,10 @@ export interface FindingResult {
 }
 
 export async function addFinding(
-  { client, actor }: HandlerContext,
+  { client, actor, amendmentId }: HandlerContext,
   payload: FindingAdd
 ): Promise<HandlerOutcome<FindingResult>> {
-  const session = await openSession(client, payload.sessionId);
+  const session = await openSession(client, payload.sessionId, amendmentId);
 
   if (payload.supersedesId) {
     const earlier = (
@@ -166,8 +178,8 @@ export async function addFinding(
       await client.query<FindingRow>(
         `INSERT INTO clinical.findings
            (id, clinic_id, session_id, patient_id, tooth, surface, code, value, note,
-            supersedes_id, recorded_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            supersedes_id, recorded_by, amendment_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
          RETURNING ${FINDING_COLUMNS}`,
         [
           uuidv7(),
@@ -181,6 +193,7 @@ export async function addFinding(
           payload.note ?? null,
           payload.supersedesId ?? null,
           actor.userId,
+          amendmentId ?? null,
         ]
       )
     ).rows[0]!;
@@ -279,16 +292,25 @@ export async function recordPerio(
 }
 
 export async function addNote(
-  { client, actor }: HandlerContext,
+  { client, actor, amendmentId }: HandlerContext,
   payload: NoteAdd
 ): Promise<HandlerOutcome<ClinicalNote>> {
-  const session = await openSession(client, payload.sessionId);
+  const session = await openSession(client, payload.sessionId, amendmentId);
   const row = (
     await client.query<NoteRow>(
-      `INSERT INTO clinical.clinical_notes (id, clinic_id, session_id, type, body, recorded_by)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, type, body, recorded_at, recorded_by`,
-      [uuidv7(), actor.clinicId, session.id, payload.type, payload.body, actor.userId]
+      `INSERT INTO clinical.clinical_notes
+         (id, clinic_id, session_id, type, body, recorded_by, amendment_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING ${NOTE_COLUMNS}`,
+      [
+        uuidv7(),
+        actor.clinicId,
+        session.id,
+        payload.type,
+        payload.body,
+        actor.userId,
+        amendmentId ?? null,
+      ]
     )
   ).rows[0]!;
   return {
