@@ -54,4 +54,23 @@ describe('api server', () => {
     expect(preflight.headers['access-control-allow-credentials']).toBe('true');
     await app.close();
   });
+
+  it('allows a busy clinic 1200 requests a minute per address, not counting preflights', async () => {
+    const app = await buildServer({ corsOrigin: 'http://localhost:3000' });
+    const remaining = async () =>
+      Number(
+        (await app.inject({ method: 'GET', url: '/healthz' })).headers['x-ratelimit-remaining']
+      );
+    const before = await remaining();
+    for (let i = 0; i < 5; i += 1) {
+      await app.inject({
+        method: 'OPTIONS',
+        url: '/v1/sessions/x',
+        headers: { origin: 'http://localhost:3000', 'access-control-request-method': 'POST' },
+      });
+    }
+    expect(before).toBe(1199);
+    expect(await remaining()).toBe(1198);
+    await app.close();
+  });
 });

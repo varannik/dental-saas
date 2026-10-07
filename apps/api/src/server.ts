@@ -21,6 +21,7 @@ import { registerPlanRoutes } from './modules/plans/routes.js';
 import { registerPatientRoutes } from './modules/patients/routes.js';
 import { registerSessionCommands } from './modules/sessions/commands.js';
 import { registerSessionRoutes } from './modules/sessions/routes.js';
+import { registerWorkspaceRoutes } from './modules/workspace/routes.js';
 import type { SecretBox } from './platform/secret-box.js';
 import type { IdentityService } from './modules/identity/service.js';
 import type { TokenService } from './modules/identity/tokens.js';
@@ -133,8 +134,11 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     allowedHeaders: ['authorization', 'content-type', 'idempotency-key', CSRF_HEADER],
     exposedHeaders: ['command-id', 'idempotent-replayed', 'retry-after', 'x-request-id'],
   });
+  // Per address. A clinic's workstations usually share one public address, and a clinician
+  // clicking through a session makes several requests a second. CORS answers preflights before
+  // this runs, so they do not count; sign-in has its own, much lower limits.
   await app.register(rateLimit, {
-    max: 300,
+    max: 1200,
     timeWindow: '1 minute',
   });
   await app.register(cookie);
@@ -178,6 +182,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     await registerDiagnosisRoutes(app, { pool, bus, tokens });
     await registerPlanRoutes(app, { pool, bus, tokens });
     await registerProcedureRoutes(app, { bus, tokens });
+    await registerWorkspaceRoutes(app, { pool, tokens });
   }
 
   if (options.voiceSpike) {

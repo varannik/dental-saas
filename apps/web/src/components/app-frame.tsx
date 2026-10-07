@@ -5,11 +5,12 @@ import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import messages from '../messages/en.json';
 import { useSession } from '../lib/session';
+import { ActivityRail } from './activity-rail';
 
 /**
  * The persistent frame every clinical screen shares (spec section K): who is signed in and
- * where, the patient banner, the session strip, the workspace, and the voice bar. Patients,
- * sessions and voice fill their regions in the clinical-core and voice milestones.
+ * where, the patient banner (coloured while a session is open), the session strip, the
+ * workspace, the activity rail, and the voice bar, which the voice milestones fill.
  */
 
 const t = messages.shell;
@@ -23,12 +24,15 @@ export function AppFrame({
   children,
   patientBanner,
   sessionStrip,
+  sessionOpen = false,
 }: {
   children: ReactNode;
   /** The open patient, shown in the banner on every screen of that patient. */
   patientBanner?: ReactNode;
   /** The open session: time, chief complaint, later the active procedure and running cost. */
   sessionStrip?: ReactNode;
+  /** Colours the patient banner, so an open session is never missed. */
+  sessionOpen?: boolean;
 }) {
   const { state, signOut } = useSession();
   const pathname = usePathname();
@@ -81,9 +85,11 @@ export function AppFrame({
       <section
         aria-label="Patient"
         className={`border-b px-4 py-3 ${
-          patientBanner
-            ? 'border-sky-200 bg-sky-50 text-neutral-900'
-            : 'border-neutral-200 bg-white text-neutral-500'
+          patientBanner && sessionOpen
+            ? 'border-sky-300 bg-sky-100 text-neutral-900'
+            : patientBanner
+              ? 'border-neutral-200 bg-white text-neutral-900'
+              : 'border-neutral-200 bg-white text-neutral-500'
         }`}
       >
         {patientBanner ?? t.noPatient}
@@ -100,7 +106,10 @@ export function AppFrame({
         {sessionStrip ?? t.noSession}
       </section>
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
+      <div className="flex flex-1 flex-col lg:flex-row">
+        <main className="mx-auto w-full max-w-5xl min-w-0 flex-1 px-4 py-8">{children}</main>
+        <ActivityRail />
+      </div>
 
       {/* Voice bar: microphone state, live transcript and the last acknowledgement. */}
       <footer

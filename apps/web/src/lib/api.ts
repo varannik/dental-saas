@@ -1,5 +1,7 @@
 import {
   CSRF_HEADER,
+  type ActivityResponse,
+  type DashboardResponse,
   type ChartEntry,
   type ClinicalNote,
   type ClinicalSession,
@@ -55,6 +57,9 @@ interface CallOptions {
 
 export type Fetcher = typeof fetch;
 
+/** Dispatched on window after every command that went through, so the activity rail refreshes. */
+export const COMMAND_EVENT = 'dental:command';
+
 export function createApi(fetcher: Fetcher = (...args) => fetch(...args), baseUrl = API_URL) {
   async function call<T>(path: string, options: CallOptions = {}): Promise<T> {
     const headers: Record<string, string> = {};
@@ -79,6 +84,9 @@ export function createApi(fetcher: Fetcher = (...args) => fetch(...args), baseUr
     if (!response.ok) {
       const code = typeof data?.code === 'string' ? data.code : 'internal_error';
       throw new ApiError(response.status, code, data ?? {});
+    }
+    if (options.idempotencyKey && typeof window !== 'undefined') {
+      window.dispatchEvent(new Event(COMMAND_EVENT));
     }
     return data as T;
   }
@@ -296,6 +304,8 @@ export function createApi(fetcher: Fetcher = (...args) => fetch(...args), baseUr
         `/v1/sessions/${encodeURIComponent(sessionId)}/amendments`,
         { method: 'POST', body, token, idempotencyKey }
       ),
+    dashboard: (token: string) => call<DashboardResponse>('/v1/dashboard', { token }),
+    activity: (token: string) => call<ActivityResponse>('/v1/activity', { token }),
   };
 }
 

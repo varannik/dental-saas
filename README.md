@@ -24,6 +24,7 @@ pnpm licence:check
 pnpm stack:up
 pnpm db:migrate                          # as the owner, DATABASE_MIGRATION_URL
 pnpm --filter @dental/api db:seed        # Demo Dental clinic, one user per role
+pnpm e2e                                 # Playwright: a full session by click, local stack
 pnpm --filter @dental/api auth:keygen    # prints AUTH_PRIVATE_KEY and MFA_ENCRYPTION_KEY lines
 pnpm --filter @dental/api audit:verify   # recomputes every clinic's audit chain
 pnpm --filter @dental/api clinic:onboard --name "Tehran Smile" --country IR \
@@ -45,6 +46,8 @@ The API listens on port 4000. The web app listens on port 3000.
 The API connects as the `app` role, which cannot bypass row-level security, and refuses to start on a superuser connection. Sign-in runs through `SECURITY DEFINER` functions owned by the `dental_auth` role, because it happens before a clinic is chosen. The seeded users share the password `dental-dev-password`; for example `dentist@demo.test` signs in with `POST /v1/auth/login`. Dentists, managers and administrators also need a TOTP code: their first sign-in returns a secret to add to an authenticator app, and `POST /v1/auth/mfa/verify` takes the challenge token and the code. Locally, `pnpm --filter @dental/api auth:totp <secret>` prints the current code.
 
 `pnpm test` includes the clinic-isolation test, which starts PostgreSQL through Docker. Pull requests run the same checks, plus the licence gate, in GitHub Actions. A dependency whose licence is not on the allow-list fails the build.
+
+`pnpm e2e` runs the end-to-end tests against the local stack: the database must be up and migrated, and the API and web app are started unless they already run on 4000 and 3000. Each run seeds its own clinic and dentist (`pnpm --filter @dental/api e2e:seed`) and enrols the authenticator itself, so runs never share data. The first time, install the browser with `pnpm --filter @dental/web exec playwright install chromium`. The end-to-end tests are not part of CI yet.
 
 Production targets Node.js 22. Development works on Node.js 20 or newer.
 
@@ -81,6 +84,10 @@ Assistants suggest diagnoses (`POST /v1/sessions/:id/diagnoses`, status `suggest
 A dentist starts a procedure in an open session from a planned item, or ad hoc with a procedure code (`POST /v1/sessions/:id/procedures`), then completes or cancels it (`PATCH /v1/procedures/:id`). Completing marks the plan item done, completes an accepted plan once no planned items remain, and charts the result (a filling as a restoration on its surfaces, a root canal, crown, extraction or implant on the tooth). A session with a procedure in progress cannot be completed.
 
 `POST /v1/sessions/:id/sign` signs a completed session; it is dentist-only and risk R3, so never by voice alone. A signed session is locked in the database: triggers refuse any insert or update of its findings, chart events, perio, notes, diagnoses and procedures, also for the owner. The only way in is `POST /v1/sessions/:id/amendments` (dentist, a reason, and up to 20 actions among `note.add`, `finding.add`, `diagnosis.record` and `diagnosis.retract`). It runs in one transaction, each action under its own permission, and every row it writes carries the amendment id.
+
+## The workspace
+
+Every clinical screen shares one frame: the patient banner (coloured while a session is open), the session strip (time, the procedure in progress with its timer, the selected tooth), the workspace, the activity rail and the voice bar. The dashboard (`GET /v1/dashboard`) lists the clinic's open sessions to resume and the patients you opened recently; a receptionist sees no sessions. The activity rail (`GET /v1/activity`) lists your last ten executed commands and refreshes after each one; Undo arrives with the voice layer.
 
 ## Writing data
 
