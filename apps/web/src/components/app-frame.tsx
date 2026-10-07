@@ -4,7 +4,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import messages from '../messages/en.json';
+import type { VoiceFocusUpdate } from '@dental/contracts';
 import { useSession } from '../lib/session';
+import { useVoiceFocus } from '../lib/voice/voice-provider';
 import { ActivityRail } from './activity-rail';
 import { VoiceBar } from './voice-bar';
 
@@ -26,6 +28,7 @@ export function AppFrame({
   patientBanner,
   sessionStrip,
   sessionOpen = false,
+  focus,
 }: {
   children: ReactNode;
   /** The open patient, shown in the banner on every screen of that patient. */
@@ -34,9 +37,12 @@ export function AppFrame({
   sessionStrip?: ReactNode;
   /** Colours the patient banner, so an open session is never missed. */
   sessionOpen?: boolean;
+  /** What voice commands refer to on this screen; undefined leaves the focus as it was. */
+  focus?: VoiceFocusUpdate;
 }) {
   const { state, signOut } = useSession();
   const pathname = usePathname();
+  useVoiceFocus(focus);
   if (state.status !== 'signed_in') return null;
   const { session } = state;
 

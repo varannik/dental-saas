@@ -164,3 +164,9 @@ export {
   VOICE_TICKET_SECONDS,
 } from './voice.js';
 export type { VoiceClientMessage, VoiceServerMessage, VoiceTicketResponse } from './voice.js';
+export type {
+  PendingProposal,
+  VoiceContext,
+  VoiceFocus,
+  VoiceFocusUpdate,
+} from './voice-context.js';

@@ -95,6 +95,10 @@ Clinicians with `voice.use` (dentists and assistants) see a voice bar at the bot
 
 `pnpm --filter @dental/api voice:wer` measures recognition on the dental phrase set in `tests/voice/corpus/en` (run `make-audio.sh` there first on macOS), in surgery noise and clean, with and without biasing, against the bar in [ADR 0005](docs/adr/0005-speech-recognition-bar.md). It sends synthetic speech to Deepgram and takes a few minutes. Real recordings go in `tests/voice/corpus/en/recordings/<speaker>/<phrase>.wav`; they are used when present and never committed.
 
+## Voice context
+
+Each clinician has a voice context in Valkey (`VALKEY_URL`): the focus stack (patient, session, procedure, tooth), the pending proposal, the last result and the last list shown. It mirrors the screen. Pages report their focus with `PUT /v1/voice/context/focus`, which checks that each level belongs to the one above, and `GET /v1/voice/context` returns it. Focus never crosses patients: changing patient or session starts a new context version and discards the pending proposal, so a proposal confirmed after the screen moved on fails with `context_changed`. Moving only the tooth or procedure keeps the version. Contexts expire after two hours without use, so a restart loses at most an unconfirmed proposal. `/readyz` reports Valkey as well as the database.
+
 ## Writing data
 
 Every state change is a command, and the command bus (`apps/api/src/modules/commands/bus.ts`) is the only write path. It validates the payload against the registry in `packages/contracts/src/commands.ts`, checks the permission, then runs the handler, writes the command row (`voice.commands`) and the audit entries (`audit.audit_log`) in one transaction scoped to the clinic. REST routes only translate HTTP into commands; voice will confirm proposals into the same commands.

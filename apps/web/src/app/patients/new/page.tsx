@@ -23,7 +23,7 @@ const t = messages.patients;
 export default function NewPatientPage() {
   return (
     <RequireSession>
-      <AppFrame>
+      <AppFrame focus={{ patientId: null }}>
         <RegisterPatient />
       </AppFrame>
     </RequireSession>

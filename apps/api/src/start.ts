@@ -3,6 +3,7 @@ import { DeepgramStt } from './modules/voice/adapters/deepgram.js';
 import { interpretersFromConfig } from './modules/voice/interpreters.js';
 import { createSpeechSink } from './modules/voice/stream/speech-sink.js';
 import { clinicKeyterms } from './modules/voice/vocabulary.js';
+import { ValkeyContextStore } from './modules/voice/context/store.js';
 import { createDummyHash } from './modules/identity/passwords.js';
 import { IdentityService } from './modules/identity/service.js';
 import { ChallengeTokens, loadSigningKeys, TokenService } from './modules/identity/tokens.js';
@@ -45,6 +46,7 @@ export async function start(env: Record<string, string | undefined> = process.en
   const app = await buildServer({
     logger: { level: config.LOG_LEVEL },
     corsOrigin: config.CORS_ORIGIN,
+    contextStore: new ValkeyContextStore(config.VALKEY_URL),
     identity: {
       pool,
       service,

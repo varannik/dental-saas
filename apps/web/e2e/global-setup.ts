@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
  * E2E_<NAME>_EMAIL and E2E_<NAME>_PASSWORD, so no two tests share a user or data.
  */
 
-const ACCOUNTS = ['SESSION', 'VOICE'];
+const ACCOUNTS = ['SESSION', 'VOICE', 'CONTEXT'];
 
 export default function globalSetup() {
   const root = fileURLToPath(new URL('../../..', import.meta.url));

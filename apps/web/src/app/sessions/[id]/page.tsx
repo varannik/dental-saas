@@ -96,7 +96,7 @@ function Examination() {
 
   if (error) {
     return (
-      <AppFrame>
+      <AppFrame focus={{ patientId: null }}>
         <p className="text-red-700">{error}</p>
       </AppFrame>
     );
@@ -144,6 +144,12 @@ function Examination() {
 
   return (
     <AppFrame
+      focus={{
+        patientId: session.patientId,
+        sessionId: session.id,
+        procedureId: active?.id ?? null,
+        tooth: selected,
+      }}
       patientBanner={
         header.patient ? (
           <PatientBanner patient={header.patient} allergies={header.allergies} />

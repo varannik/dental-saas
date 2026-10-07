@@ -17,7 +17,7 @@ const SEARCH_DELAY_MS = 250;
 export default function PatientsPage() {
   return (
     <RequireSession>
-      <AppFrame>
+      <AppFrame focus={{ patientId: null }}>
         <PatientSearch />
       </AppFrame>
     </RequireSession>
