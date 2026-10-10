@@ -132,7 +132,10 @@ describe('the voice context', () => {
       payload: { procedureCode: 'crown' },
       missing: [],
     });
-    expect(withProposal.pending).toMatchObject({ id: 'p1', contextVersion: opened.json().version });
+    expect(withProposal.context.pending).toMatchObject({
+      id: 'p1',
+      contextVersion: opened.json().version,
+    });
 
     const switched = (await focus({ patientId: omid })).json();
     expect(switched).toMatchObject({

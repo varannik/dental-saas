@@ -113,6 +113,37 @@ describe('speech sink', () => {
     sink.close();
   });
 
+  it('warms what follows when speech starts, and hands on final transcripts with words', async () => {
+    const stt = new FakeStt();
+    const started: number[] = [];
+    const finals: string[] = [];
+    const sink = createSpeechSink(
+      {
+        stt,
+        keyterms: Promise.resolve([]),
+        log,
+        onStart: () => started.push(1),
+        onFinal: (id, text) => finals.push(`${id}:${text}`),
+      },
+      () => undefined
+    );
+    await tick();
+    for (const [id, text] of [
+      ['u1', 'add a crown'],
+      ['u2', '   '],
+    ] as const) {
+      const taken = stt.streams.at(-1)!;
+      sink.utteranceStart(id);
+      sink.utteranceEnd(id);
+      taken.finish({ transcript: text, confidence: 0.9 });
+      await tick();
+    }
+    expect(started).toHaveLength(2);
+    // Silence is not interpreted.
+    expect(finals).toEqual(['u1:add a crown']);
+    sink.close();
+  });
+
   it('closes every provider stream with the voice stream', async () => {
     const { stt, sink } = setup();
     await tick();

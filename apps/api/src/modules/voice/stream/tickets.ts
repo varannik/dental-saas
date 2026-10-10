@@ -14,6 +14,8 @@ export interface TicketHolder {
   clinicId: string;
   userId: string;
   role: string;
+  /** The permissions of the access token that asked for the ticket. */
+  permissions: string[];
   /** When the access token that asked for the ticket expires. */
   accessExpiresAt: Date;
 }
@@ -30,8 +32,8 @@ export async function issueTicket(
   return withClinic(pool, claims.clinicId, async (client) => {
     const { rows } = await client.query<{ expires_at: Date }>(
       `INSERT INTO voice.stream_tickets
-         (id, clinic_id, user_id, token_hash, role, access_expires_at, expires_at)
-       VALUES ($1, $2, $3, $4, $5, $6, now() + make_interval(secs => $7))
+         (id, clinic_id, user_id, token_hash, role, access_expires_at, expires_at, permissions)
+       VALUES ($1, $2, $3, $4, $5, $6, now() + make_interval(secs => $7), $8)
        RETURNING expires_at`,
       [
         uuidv7(),
@@ -41,6 +43,7 @@ export async function issueTicket(
         claims.role,
         accessExpiresAt,
         VOICE_TICKET_SECONDS,
+        claims.permissions,
       ]
     );
     return { ticket, expiresAt: rows[0]!.expires_at };
@@ -55,11 +58,12 @@ export async function consumeTicket(pool: Pool, ticket: string): Promise<TicketH
     const { rows } = await client.query<{
       user_id: string;
       role: string;
+      permissions: string[];
       access_expires_at: Date;
     }>(
       `UPDATE voice.stream_tickets SET used_at = now()
        WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()
-       RETURNING user_id, role, access_expires_at`,
+       RETURNING user_id, role, permissions, access_expires_at`,
       [hash(ticket)]
     );
     const row = rows[0];
@@ -68,6 +72,7 @@ export async function consumeTicket(pool: Pool, ticket: string): Promise<TicketH
           clinicId,
           userId: row.user_id,
           role: row.role,
+          permissions: row.permissions,
           accessExpiresAt: row.access_expires_at,
         }
       : null;

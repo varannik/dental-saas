@@ -1,6 +1,11 @@
 'use client';
 
-import { VOICE_FRAME_SAMPLES, VOICE_SAMPLE_RATE, type VoiceFocusUpdate } from '@dental/contracts';
+import {
+  VOICE_FRAME_SAMPLES,
+  VOICE_SAMPLE_RATE,
+  type VoiceFocusUpdate,
+  type VoiceInterpretation,
+} from '@dental/contracts';
 import {
   createContext,
   useCallback,
@@ -49,12 +54,16 @@ interface VoiceValue {
   /** Whether the server transcribes speech; null until connected. */
   speech: boolean | null;
   transcript: VoiceTranscript | null;
+  /** What the last utterance, spoken or typed, was understood as (V4). */
+  interpretation: VoiceInterpretation | null;
   notice: VoiceNotice | null;
   press(): void;
   release(): void;
   micOff(): void;
   /** Tells the voice context what is on screen (V3). */
   setFocus(focus: VoiceFocusUpdate): void;
+  /** Sends typed text through the same pipeline as speech. */
+  type(text: string): Promise<void>;
 }
 
 const VoiceContext = createContext<VoiceValue | null>(null);
@@ -75,6 +84,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const [notice, setNotice] = useState<VoiceNotice | null>(null);
   const [speech, setSpeech] = useState<boolean | null>(null);
   const [transcript, setTranscript] = useState<VoiceTranscript | null>(null);
+  const [interpretation, setInterpretation] = useState<VoiceInterpretation | null>(null);
 
   const socketRef = useRef<VoiceSocket | null>(null);
   const micRef = useRef<Microphone | null>(null);
@@ -114,6 +124,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         if (event.type === 'transcript.final') {
           setTranscript({ utteranceId: event.utteranceId, text: event.text, final: true });
         }
+        if (event.type === 'interpretation') setInterpretation(event.interpretation);
         if (event.type === 'error' && event.code === 'speech_failed') setNotice('speechFailed');
       },
     });
@@ -209,6 +220,12 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     [available]
   );
 
+  const type = useCallback(async (text: string) => {
+    const result = await authedRef.current((token) => api.interpret(token, text));
+    setTranscript({ utteranceId: result.utteranceId, text, final: true });
+    setInterpretation(result);
+  }, []);
+
   const micOff = useCallback(() => {
     release();
     micRef.current?.stop();
@@ -227,11 +244,13 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       lastHeardMs,
       speech,
       transcript,
+      interpretation,
       notice,
       press,
       release,
       micOff,
       setFocus,
+      type,
     }),
     [
       available,
@@ -243,11 +262,13 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       lastHeardMs,
       speech,
       transcript,
+      interpretation,
       notice,
       press,
       release,
       micOff,
       setFocus,
+      type,
     ]
   );
 

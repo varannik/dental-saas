@@ -53,6 +53,17 @@ test('the voice context follows the screen, and never crosses patients', async (
   // Only the tooth moved: same version, so a proposal made now would still stand.
   expect(onTooth.version).toBe(inSession.version);
 
+  // Typed text goes through the same interpreter as speech, and the voice bar shows the result.
+  const interpreted = page.waitForResponse((r) => r.url().endsWith('/v1/voice/interpret'));
+  await page.getByLabel('Type a command').fill('Tooth 16 occlusal caries');
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  const interpretation = await (await interpreted).json();
+  expect(interpretation).toMatchObject({
+    utteranceId: expect.any(String),
+    contextVersion: onTooth.version,
+  });
+  await expect(page.getByLabel('Understood')).toBeVisible();
+
   const onOmid = await focusAfter(page, () => page.goto(`/patients/${omid}`));
   expect(onOmid).toMatchObject({
     patientId: omid,

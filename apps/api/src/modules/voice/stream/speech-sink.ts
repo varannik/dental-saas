@@ -17,6 +17,10 @@ export interface SpeechSinkDeps {
   /** The clinic's vocabulary; utterances before it has loaded go without biasing. */
   keyterms: Promise<string[]>;
   log: FastifyBaseLogger;
+  /** The clinician started speaking: a chance to warm what follows (V4). */
+  onStart?: () => void;
+  /** A final transcript with words in it, for the interpreter (V4). */
+  onFinal?: (utteranceId: string, text: string, confidence: number) => void;
 }
 
 /** A provider stream and where its partials go; set when an utterance takes it. */
@@ -73,6 +77,7 @@ export function createSpeechSink(deps: SpeechSinkDeps, emit: Emit): StreamSink {
       standby = undefined;
       lane.partial = (text) => emit({ type: 'transcript.partial', utteranceId, text });
       current = { id: utteranceId, lane };
+      deps.onStart?.();
     },
 
     audio(samples) {
@@ -110,6 +115,8 @@ export function createSpeechSink(deps: SpeechSinkDeps, emit: Emit): StreamSink {
             confidence: result.confidence,
             finalizeMs,
           });
+          if (result.transcript.trim())
+            deps.onFinal?.(utteranceId, result.transcript, result.confidence);
         })
         .catch((error: unknown) => {
           deps.log.warn({ err: error }, 'speech-to-text failed');

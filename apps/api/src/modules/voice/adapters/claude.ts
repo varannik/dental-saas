@@ -6,7 +6,14 @@ import {
   parseToolCall,
   userMessage,
 } from '../interpreter-spec.js';
-import type { InterpretContext, Interpreter, RawIntent } from '../types.js';
+import { acceptsTemperature } from '../types.js';
+import type {
+  InterpretContext,
+  Interpreter,
+  ModelReply,
+  RawIntent,
+  ToolCallRequest,
+} from '../types.js';
 
 /** Interpreter on Claude tool use (Anthropic Messages API). */
 
@@ -26,6 +33,15 @@ export function toRawIntent(message: Anthropic.Message): RawIntent {
   return parseToolCall(call.name, call.input);
 }
 
+/** Converts a Messages API response into a provider-neutral reply. Exported for tests. */
+export function toModelReply(message: Anthropic.Message): ModelReply {
+  if (message.stop_reason === 'refusal') return { kind: 'refusal' };
+  const call = message.content.find(
+    (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use'
+  );
+  return call ? { kind: 'tool', name: call.name, input: call.input } : { kind: 'text' };
+}
+
 export interface ClaudeInterpreterOptions {
   apiKey: string;
   model: string;
@@ -33,6 +49,7 @@ export interface ClaudeInterpreterOptions {
 }
 
 export class ClaudeInterpreter implements Interpreter {
+  readonly provider = 'anthropic';
   readonly model: string;
   readonly promptVersion = PROMPT_VERSION;
   private readonly client: Anthropic;
@@ -48,6 +65,23 @@ export class ClaudeInterpreter implements Interpreter {
 
   async warm(): Promise<void> {
     await this.client.models.list({ limit: 1 });
+  }
+
+  async call(request: ToolCallRequest): Promise<ModelReply> {
+    const message = await this.client.messages.create({
+      model: this.model,
+      max_tokens: 1024,
+      ...(acceptsTemperature(this.model) ? { temperature: 0 } : {}),
+      system: request.system,
+      tools: request.tools.map((spec) => ({
+        name: spec.name,
+        description: spec.description,
+        input_schema: spec.parameters,
+      })),
+      tool_choice: { type: 'auto', disable_parallel_tool_use: true },
+      messages: [{ role: 'user', content: request.user }],
+    });
+    return toModelReply(message);
   }
 
   async interpret(transcript: string, context: InterpretContext): Promise<RawIntent> {

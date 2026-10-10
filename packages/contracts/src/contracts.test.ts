@@ -177,3 +177,14 @@ describe('contracts', () => {
     expect(reorder([planId, planId])).toBe(false);
   });
 });
+
+describe('voice commands', () => {
+  it('are registered commands, with camelCase entities, superseded only by voice commands', async () => {
+    const { VOICE_COMMANDS } = await import('./voice-commands.js');
+    for (const [type, spec] of Object.entries(VOICE_COMMANDS)) {
+      expect(isCommandType(type)).toBe(true);
+      for (const name of Object.keys(spec!.entities)) expect(name).toMatch(/^[a-z][a-zA-Z]*$/);
+      if (spec!.supersededBy) expect(VOICE_COMMANDS[spec!.supersededBy]).toBeDefined();
+    }
+  });
+});

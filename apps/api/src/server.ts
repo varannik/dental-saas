@@ -28,6 +28,9 @@ import type { TicketHolder } from './modules/voice/stream/tickets.js';
 import { registerVoiceContextRoutes } from './modules/voice/context/routes.js';
 import { VoiceContextService } from './modules/voice/context/service.js';
 import { MemoryContextStore, type ContextStore } from './modules/voice/context/store.js';
+import { registerInterpretRoutes } from './modules/voice/interpreter/routes.js';
+import { InterpretationService } from './modules/voice/interpreter/service.js';
+import type { InterpreterRegistry } from './modules/voice/interpreters.js';
 import type { SecretBox } from './platform/secret-box.js';
 import type { IdentityService } from './modules/identity/service.js';
 import type { TokenService } from './modules/identity/tokens.js';
@@ -62,6 +65,8 @@ export interface ServerOptions {
   onCommandBus?: (bus: CommandBus) => void;
   /** Registers the development-only voice spike endpoint when set. */
   voiceSpike?: VoiceSpikeDeps;
+  /** The interpreters for voice commands (V4); interpretation is off without them. */
+  interpreters?: InterpreterRegistry;
   /** Where voice contexts live (V3): Valkey in the running API; in memory when unset. */
   contextStore?: ContextStore;
   /** Voice stream tuning, for tests; speech-to-text plugs in as the sink (V2). */
@@ -212,6 +217,16 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     app.decorate('voiceContext', voiceContext);
     app.addHook('onClose', async () => contextStore.close());
     await registerVoiceContextRoutes(app, { tokens, context: voiceContext });
+    const interpretation = options.interpreters
+      ? new InterpretationService({
+          pool,
+          context: voiceContext,
+          interpreters: options.interpreters,
+          log: app.log,
+        })
+      : null;
+    app.decorate('interpretation', interpretation);
+    await registerInterpretRoutes(app, { tokens, interpretation });
     await registerVoiceStream(app, {
       pool,
       tokens,
@@ -230,5 +245,6 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
 declare module 'fastify' {
   interface FastifyInstance {
     voiceContext?: VoiceContextService;
+    interpretation?: InterpretationService | null;
   }
 }

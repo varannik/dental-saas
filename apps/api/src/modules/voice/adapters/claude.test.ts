@@ -1,6 +1,6 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { describe, expect, it } from 'vitest';
-import { toRawIntent } from './claude.js';
+import { toModelReply, toRawIntent } from './claude.js';
 
 function message(
   content: unknown[],
@@ -47,5 +47,24 @@ describe('toRawIntent', () => {
       intent: 'none',
       reason: 'Model declined.',
     });
+  });
+});
+
+describe('toModelReply', () => {
+  it('returns the tool call as given, for the caller to validate', () => {
+    expect(
+      toModelReply(message([toolUse('finding__add', { tooth: '16', confidence: 0.9 })]))
+    ).toEqual({
+      kind: 'tool',
+      name: 'finding__add',
+      input: { tooth: '16', confidence: 0.9 },
+    });
+  });
+
+  it('tells text and refusals apart from tool calls', () => {
+    expect(toModelReply(message([{ type: 'text', text: 'Sure!' }], 'end_turn'))).toEqual({
+      kind: 'text',
+    });
+    expect(toModelReply(message([], 'refusal'))).toEqual({ kind: 'refusal' });
   });
 });
