@@ -77,6 +77,7 @@ export function interpretersFromConfig(config: InterpreterKeys): InterpreterRegi
             apiKey: config.RUNBIOS_API_KEY,
             model: config.RUNBIOS_MODEL,
             baseURL: config.RUNBIOS_BASE_URL,
+            provider: 'runbios',
           })
         : undefined,
     },

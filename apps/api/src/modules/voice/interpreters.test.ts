@@ -71,3 +71,14 @@ describe('interpretersFromConfig', () => {
     );
   });
 });
+
+describe('acceptsTemperature', () => {
+  it('asks reasoning models for no temperature', async () => {
+    const { acceptsTemperature } = await import('./types.js');
+    expect(acceptsTemperature('gpt-4.1-mini')).toBe(true);
+    expect(acceptsTemperature('openai/gpt-4.1-mini')).toBe(true);
+    expect(acceptsTemperature('claude-haiku-4-5')).toBe(true);
+    expect(acceptsTemperature('gpt-5.4-mini')).toBe(false);
+    expect(acceptsTemperature('openai/o4-mini')).toBe(false);
+  });
+});

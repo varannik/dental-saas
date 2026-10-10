@@ -81,6 +81,8 @@ export type VoiceServerMessage =
       /** From the end of the utterance to the final transcript. */
       finalizeMs: number;
     }
+  /** What the utterance was understood as (V4); a valid intent is now the pending proposal. */
+  | { type: 'interpretation'; utteranceId: string; interpretation: VoiceInterpretation }
   | { type: 'error'; code: string; message: string };
 
 /** First byte of a binary message. */
@@ -111,4 +113,36 @@ export function decodeAudioFrame(data: Uint8Array): { seq: number; samples: Int1
     samples[i] = view.getInt16(HEADER_BYTES + i * 2, true);
   }
   return { seq: view.getUint32(1), samples };
+}
+
+/**
+ * What an utterance was understood as (V4). Entities are as spoken; they are resolved to ids
+ * and checked in the next step (V5) before anything can be confirmed (V6).
+ */
+export interface VoiceInterpretation {
+  id: string;
+  utteranceId: string;
+  /** intent: a command; none: not a command; rejected: invalid model output; failed: no answer. */
+  outcome: 'intent' | 'none' | 'rejected' | 'failed';
+  command: string | null;
+  entities: Record<string, string>;
+  /** Required entities that were not said. */
+  missing: string[];
+  /** Entities the model returned that were not in what was said; never kept. */
+  dropped: string[];
+  confidence: number | null;
+  reason: string | null;
+  provider: string;
+  model: string;
+  promptVersion: number;
+  contextVersion: number;
+  /** Whether it became the pending proposal; not when the context moved on meanwhile. */
+  proposed: boolean;
+}
+
+/** POST /v1/voice/interpret */
+export interface VoiceInterpretRequest {
+  text: string;
+  /** An interpreter configured on the server; the default when left out. */
+  interpreter?: string;
 }

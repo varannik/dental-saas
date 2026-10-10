@@ -21,6 +21,7 @@ import {
   type TreatmentPlan,
   type VoiceTicketResponse,
   type VoiceContext,
+  type VoiceInterpretation,
   type VoiceFocusUpdate,
   type SessionDetail,
   type SessionResponse,
@@ -309,6 +310,8 @@ export function createApi(fetcher: Fetcher = (...args) => fetch(...args), baseUr
       ),
     dashboard: (token: string) => call<DashboardResponse>('/v1/dashboard', { token }),
     activity: (token: string) => call<ActivityResponse>('/v1/activity', { token }),
+    interpret: (token: string, text: string) =>
+      call<VoiceInterpretation>('/v1/voice/interpret', { method: 'POST', body: { text }, token }),
     setVoiceFocus: (token: string, body: VoiceFocusUpdate) =>
       call<VoiceContext>('/v1/voice/context/focus', { method: 'PUT', body, token }),
     voiceTicket: (token: string) =>

@@ -163,10 +163,18 @@ export {
   VOICE_TICKET_PREFIX,
   VOICE_TICKET_SECONDS,
 } from './voice.js';
-export type { VoiceClientMessage, VoiceServerMessage, VoiceTicketResponse } from './voice.js';
+export type {
+  VoiceClientMessage,
+  VoiceInterpretation,
+  VoiceInterpretRequest,
+  VoiceServerMessage,
+  VoiceTicketResponse,
+} from './voice.js';
 export type {
   PendingProposal,
   VoiceContext,
   VoiceFocus,
   VoiceFocusUpdate,
 } from './voice-context.js';
+export { VOICE_COMMANDS } from './voice-commands.js';
+export type { VoiceCommandSpec, VoiceEntity } from './voice-commands.js';

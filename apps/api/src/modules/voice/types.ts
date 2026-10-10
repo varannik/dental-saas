@@ -1,3 +1,5 @@
+import type { ToolSpec } from './interpreter-spec.js';
+
 /**
  * Provider-neutral contracts for the voice layer (spec section H).
  * Speech and LLM providers sit behind these interfaces so they can be swapped,
@@ -49,8 +51,28 @@ export type RawIntent =
     }
   | { intent: 'none'; reason: string };
 
+/**
+ * Reasoning models (o-series, gpt-5) reject a temperature; for the others the interpreter asks
+ * for 0, so the same utterance in the same context gets the same answer.
+ */
+export const acceptsTemperature = (model: string) => !/(^|\/)(o\d|gpt-5)/.test(model);
+
+/** One request to a model with tools (V4): the reply is checked by the caller. */
+export interface ToolCallRequest {
+  system: string;
+  user: string;
+  tools: readonly ToolSpec[];
+}
+
+export type ModelReply =
+  { kind: 'tool'; name: string; input: unknown } | { kind: 'text' } | { kind: 'refusal' };
+
 export interface Interpreter {
+  /** Who runs the model, for the interpretation record. */
+  readonly provider: string;
   readonly model: string;
+  /** Asks for one tool call among the given tools (V4). */
+  call(request: ToolCallRequest): Promise<ModelReply>;
   readonly promptVersion: number;
   interpret(transcript: string, context: InterpretContext): Promise<RawIntent>;
   /**

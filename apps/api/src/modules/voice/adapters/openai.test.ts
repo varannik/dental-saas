@@ -1,6 +1,6 @@
 import type OpenAI from 'openai';
 import { describe, expect, it } from 'vitest';
-import { toRawIntent } from './openai.js';
+import { toModelReply, toRawIntent } from './openai.js';
 
 function completion(message: Record<string, unknown>): OpenAI.Chat.Completions.ChatCompletion {
   return {
@@ -51,5 +51,32 @@ describe('OpenAI toRawIntent', () => {
     expect(
       toRawIntent({ choices: [] } as unknown as OpenAI.Chat.Completions.ChatCompletion).intent
     ).toBe('none');
+  });
+});
+
+describe('toModelReply', () => {
+  const call = (name: string, args: string) => ({
+    tool_calls: [{ id: 'c1', type: 'function', function: { name, arguments: args } }],
+  });
+
+  it('returns the tool call as given, for the caller to validate', () => {
+    expect(toModelReply(completion(call('note__add', '{"body":"x","confidence":0.8}')))).toEqual({
+      kind: 'tool',
+      name: 'note__add',
+      input: { body: 'x', confidence: 0.8 },
+    });
+  });
+
+  it('passes unparseable arguments on as nothing, so validation rejects them', () => {
+    expect(toModelReply(completion(call('note__add', '{not json')))).toEqual({
+      kind: 'tool',
+      name: 'note__add',
+      input: undefined,
+    });
+  });
+
+  it('tells text and refusals apart from tool calls', () => {
+    expect(toModelReply(completion({ content: 'hello' }))).toEqual({ kind: 'text' });
+    expect(toModelReply(completion({ refusal: 'no' }))).toEqual({ kind: 'refusal' });
   });
 });

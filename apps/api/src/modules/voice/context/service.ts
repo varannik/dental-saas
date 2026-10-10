@@ -82,12 +82,23 @@ export class VoiceContextService {
     return this.store.update(key, (context) => applyFocus(context, next));
   }
 
-  /** Holds a proposal for confirmation, replacing any earlier one (V4, V6). */
-  propose(
+  /**
+   * Holds a proposal for confirmation, replacing any earlier one (V4, V6). With an expected
+   * version, it is held only if the context has not moved on since: an utterance interpreted
+   * for one patient never becomes a proposal for another.
+   */
+  async propose(
     key: ContextKey,
-    proposal: Omit<PendingProposal, 'contextVersion' | 'createdAt' | 'expiresAt'>
-  ): Promise<VoiceContext> {
-    return this.store.update(key, (context) => propose(context, proposal, PROPOSAL_TTL_MS));
+    proposal: Omit<PendingProposal, 'contextVersion' | 'createdAt' | 'expiresAt'>,
+    expectedVersion?: number
+  ): Promise<{ context: VoiceContext; proposed: boolean }> {
+    let proposed = false;
+    const context = await this.store.update(key, (current) => {
+      if (expectedVersion !== undefined && current.version !== expectedVersion) return current;
+      proposed = true;
+      return propose(current, proposal, PROPOSAL_TTL_MS);
+    });
+    return { context, proposed };
   }
 
   /** Takes the pending proposal for confirmation, once, if the context has not moved on. */

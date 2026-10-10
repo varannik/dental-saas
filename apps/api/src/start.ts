@@ -4,6 +4,8 @@ import { interpretersFromConfig } from './modules/voice/interpreters.js';
 import { createSpeechSink } from './modules/voice/stream/speech-sink.js';
 import { clinicKeyterms } from './modules/voice/vocabulary.js';
 import { ValkeyContextStore } from './modules/voice/context/store.js';
+import type { InterpretationService } from './modules/voice/interpreter/service.js';
+import type { InterpreterRegistry } from './modules/voice/interpreters.js';
 import { createDummyHash } from './modules/identity/passwords.js';
 import { IdentityService } from './modules/identity/service.js';
 import { ChallengeTokens, loadSigningKeys, TokenService } from './modules/identity/tokens.js';
@@ -42,11 +44,20 @@ export async function start(env: Record<string, string | undefined> = process.en
     ? new DeepgramStt({ apiKey: config.DEEPGRAM_API_KEY, model: config.DEEPGRAM_MODEL })
     : null;
   let log: FastifyBaseLogger | undefined;
+  let interpretation: InterpretationService | null | undefined;
+  // Interpretation of voice commands (V4) when the default interpreter has a key.
+  let interpreters: InterpreterRegistry | undefined;
+  try {
+    interpreters = interpretersFromConfig(config);
+  } catch {
+    interpreters = undefined;
+  }
 
   const app = await buildServer({
     logger: { level: config.LOG_LEVEL },
     corsOrigin: config.CORS_ORIGIN,
     contextStore: new ValkeyContextStore(config.VALKEY_URL),
+    interpreters,
     identity: {
       pool,
       service,
@@ -62,7 +73,27 @@ export async function start(env: Record<string, string | undefined> = process.en
       ? {
           createSink: (owner, emit) =>
             createSpeechSink(
-              { stt, keyterms: clinicKeyterms(pool, owner.clinicId), log: log! },
+              {
+                stt,
+                keyterms: clinicKeyterms(pool, owner.clinicId),
+                log: log!,
+                onStart: () => interpretation?.warm(),
+                onFinal: (utteranceId, text, confidence) => {
+                  void interpretation
+                    ?.interpret(
+                      {
+                        clinicId: owner.clinicId,
+                        userId: owner.userId,
+                        permissions: owner.permissions,
+                      },
+                      { text, source: 'speech', sttConfidence: confidence }
+                    )
+                    .then((result) =>
+                      emit({ type: 'interpretation', utteranceId, interpretation: result })
+                    )
+                    .catch((error: unknown) => log!.warn({ err: error }, 'interpretation failed'));
+                },
+              },
               emit
             ),
         }
@@ -75,6 +106,9 @@ export async function start(env: Record<string, string | undefined> = process.en
       : undefined,
   });
   log = app.log;
+  interpretation = app.interpretation;
+  if (!interpreters)
+    app.log.warn('No voice interpreter is configured; utterances are not interpreted');
   if (!stt) app.log.warn('DEEPGRAM_API_KEY is not set; voice streams without speech recognition');
   if (keys.ephemeral) {
     app.log.warn(

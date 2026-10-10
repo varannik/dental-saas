@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
+import type { VoiceInterpretation } from '@dental/contracts';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useVoice } from '../lib/voice/voice-provider';
 import type { VoiceConnection } from '../lib/voice/voice-socket';
 import messages from '../messages/en.json';
@@ -21,6 +22,80 @@ const DOT: Record<VoiceConnection, string> = {
   offline: 'bg-red-600',
   unavailable: 'bg-neutral-300',
 };
+
+const commandName = (command: string) => t.commands[command as keyof typeof t.commands] ?? command;
+const entityName = (entity: string) => t.entities[entity as keyof typeof t.entities] ?? entity;
+
+/** One line: what the utterance was understood as, with the words it picked out. */
+function Understood({ interpretation }: { interpretation: VoiceInterpretation }) {
+  if (interpretation.outcome !== 'intent' || !interpretation.command) {
+    const text =
+      interpretation.outcome === 'none'
+        ? t.notACommand
+        : interpretation.outcome === 'rejected'
+          ? t.rejected
+          : t.failed;
+    return (
+      <p aria-label={t.understood} className="w-full text-neutral-600">
+        {text}
+      </p>
+    );
+  }
+  const entities = Object.entries(interpretation.entities);
+  return (
+    <p aria-label={t.understood} className="w-full">
+      <span className="font-semibold">{commandName(interpretation.command)}</span>
+      {entities.map(([name, value]) => (
+        <span key={name} className="ml-3 text-neutral-700">
+          <span className="text-neutral-500">{entityName(name)}:</span> {value}
+        </span>
+      ))}
+      {interpretation.missing.length > 0 && (
+        <span className="ml-3 font-medium text-amber-800">
+          {t.missing.replace('{fields}', interpretation.missing.map(entityName).join(', '))}
+        </span>
+      )}
+      {!interpretation.proposed && <span className="ml-3 text-neutral-500">{t.notProposed}</span>}
+    </p>
+  );
+}
+
+function TypeCommand({ send }: { send: (text: string) => Promise<void> }) {
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!text.trim()) return;
+    setBusy(true);
+    try {
+      await send(text.trim());
+      setText('');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <form onSubmit={submit} className="flex min-w-0 flex-1 basis-72 items-center gap-2">
+      <label htmlFor="voice-type" className="sr-only">
+        {t.typeLabel}
+      </label>
+      <input
+        id="voice-type"
+        className="h-11 min-w-0 flex-1 rounded-lg border border-neutral-300 px-3 text-base"
+        placeholder={t.typePlaceholder}
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+      />
+      <button
+        type="submit"
+        disabled={busy || !text.trim()}
+        className="h-11 rounded-lg border border-neutral-300 px-4 font-medium hover:bg-neutral-50 disabled:opacity-50"
+      >
+        {t.send}
+      </button>
+    </form>
+  );
+}
 
 /** Typing in a field must never start talking. */
 function typingTarget(target: EventTarget | null) {
@@ -144,6 +219,7 @@ export function VoiceBar() {
           {t.heard.replace('{seconds}', (voice.lastHeardMs / 1000).toFixed(1))}
         </span>
       )}
+      <TypeCommand send={voice.type} />
       {voice.speech === false && <span className="text-neutral-500">{t.speechOff}</span>}
       {voice.speech && (
         <p
@@ -158,6 +234,7 @@ export function VoiceBar() {
             : t.notYet}
         </p>
       )}
+      {voice.interpretation && <Understood interpretation={voice.interpretation} />}
       {notice && (
         <span role="alert" className="w-full text-amber-800">
           {notice}
