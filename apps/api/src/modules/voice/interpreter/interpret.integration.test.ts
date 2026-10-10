@@ -16,6 +16,7 @@ import { IdentityService } from '../../identity/service.js';
 import { ChallengeTokens, loadSigningKeys, TokenService } from '../../identity/tokens.js';
 import { InterpreterRegistry } from '../interpreters.js';
 import type { Interpreter, ModelReply, ToolCallRequest } from '../types.js';
+import { PROMPT_VERSION } from './prompt.js';
 
 /** V4 acceptance: model output outside the registry is rejected. */
 
@@ -146,7 +147,7 @@ describe('POST /v1/voice/interpret', () => {
       confidence: 0.94,
       provider: 'scripted',
       model: 'script-1',
-      promptVersion: 2,
+      promptVersion: PROMPT_VERSION,
       proposed: true,
     });
     // Resolved (V5): the catalog procedure for a molar, on the tooth in focus.
@@ -176,7 +177,7 @@ describe('POST /v1/voice/interpret', () => {
       transcript: 'start the root canal',
       outcome: 'intent',
       command_type: 'procedure.start',
-      prompt_version: 2,
+      prompt_version: PROMPT_VERSION,
       prompt_fingerprint: expect.stringMatching(/^[0-9a-f]{64}$/),
     });
     expect(stored.rows[0].context_snapshot).toMatchObject({ toothInFocus: '16', session: 'open' });

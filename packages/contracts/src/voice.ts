@@ -1,3 +1,5 @@
+import type { PendingProposal, ProposalRisk } from './voice-context.js';
+
 /**
  * The voice stream protocol (V1, spec section H): one WebSocket per clinician, audio in, events
  * out. Shared by the browser and the server, so it stays free of runtime dependencies.
@@ -122,8 +124,11 @@ export function decodeAudioFrame(data: Uint8Array): { seq: number; samples: Int1
 export interface VoiceInterpretation {
   id: string;
   utteranceId: string;
-  /** intent: a command; none: not a command; rejected: invalid model output; failed: no answer. */
-  outcome: 'intent' | 'none' | 'rejected' | 'failed';
+  /**
+   * intent: a command; control: yes, no, a correction or undo for the pending proposal (V6);
+   * none: not a command; rejected: invalid model output; failed: no answer.
+   */
+  outcome: 'intent' | 'control' | 'none' | 'rejected' | 'failed';
   command: string | null;
   entities: Record<string, string>;
   /** Required entities that were not said. */
@@ -138,8 +143,42 @@ export interface VoiceInterpretation {
   contextVersion: number;
   /** Whether it became the pending proposal; not when the context moved on meanwhile. */
   proposed: boolean;
-  /** The command it resolves to (V5); present for an intent. */
+  /** The command it resolves to (V5); present for an intent and a correction. */
   proposal: ResolvedProposal | null;
+  /** How the proposal must be confirmed (V6). */
+  risk: ProposalRisk | null;
+  /** What a spoken control did (V6). */
+  control: VoiceControlResult | null;
+  /** What is now waiting for confirmation, after this utterance; null when nothing is. */
+  pending: PendingProposal | null;
+}
+
+/** The result of "yes", "no", a correction or "undo" said to the pending proposal (V6). */
+export interface VoiceControlResult {
+  action: 'confirm' | 'cancel' | 'correct' | 'undo';
+  ok: boolean;
+  /** For the clinician, such as "Signing needs a click on screen." */
+  message: string;
+  /** The command run, when a confirmation executed one. */
+  commandId?: string;
+}
+
+/** POST /v1/voice/proposals/:id/confirm */
+export interface VoiceConfirmRequest {
+  /** The context version the clinician saw the proposal under. */
+  contextVersion: number;
+}
+
+export interface VoiceConfirmResponse {
+  commandId: string;
+  command: string;
+  result: unknown;
+}
+
+/** POST /v1/voice/proposals/:id/edit: entities typed on the card, resolved like speech. */
+export interface VoiceEditRequest {
+  contextVersion: number;
+  entities: Record<string, string>;
 }
 
 /** One field of a proposal, as the clinician will see it on the card. */

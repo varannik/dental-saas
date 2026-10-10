@@ -12,7 +12,9 @@ import {
   propose,
   recordResult,
   setListed,
+  takeForConfirmation,
   takePending,
+  type ConfirmOutcome,
   type TakeOutcome,
 } from './context.js';
 import type { ContextKey, ContextStore } from './store.js';
@@ -30,8 +32,29 @@ export class VoiceContextService {
     private readonly pool: Pool
   ) {}
 
-  get(key: ContextKey): Promise<VoiceContext> {
-    return this.store.get(key);
+  /** The context, without a proposal that has expired. */
+  async get(key: ContextKey): Promise<VoiceContext> {
+    const context = await this.store.get(key);
+    if (context.pending && new Date(context.pending.expiresAt) <= new Date()) {
+      return { ...context, pending: null };
+    }
+    return context;
+  }
+
+  /** Takes the pending proposal to execute it, if it may be (V6). */
+  async takeForConfirmation(
+    key: ContextKey,
+    proposalId: string,
+    contextVersion: number,
+    via: 'voice' | 'click'
+  ): Promise<ConfirmOutcome> {
+    let outcome: ConfirmOutcome = { ok: false, reason: 'not_found' };
+    await this.store.update(key, (context) => {
+      const taken = takeForConfirmation(context, proposalId, contextVersion, via);
+      outcome = taken.outcome;
+      return taken.context;
+    });
+    return outcome;
   }
 
   /** Moves the focus to what is on screen, after checking each level belongs to the one above. */

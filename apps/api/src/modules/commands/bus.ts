@@ -48,6 +48,11 @@ export interface CommandRequest {
   payload: unknown;
   idempotencyKey: string;
   source: CommandSource;
+  /**
+   * Required for a voice command (V6): the confirmed proposal and how it was confirmed. Only
+   * the proposal service sets it, after checking the proposal; the bus checks it again.
+   */
+  confirmation?: { interpretationId: string; via: 'voice' | 'click' };
 }
 
 export interface CommandOutcome {
@@ -119,6 +124,19 @@ export class CommandBus {
       throw new HttpProblem(400, 'validation_failed', `Unknown command ${request.type}.`);
     }
     const { definition, handler } = registered;
+    // Nothing interpreted from speech runs unconfirmed, and R3 only after a click (V6).
+    if (request.source === 'voice') {
+      if (!request.confirmation) {
+        throw new HttpProblem(403, 'confirmation_required', 'A voice command must be confirmed.');
+      }
+      if (definition.risk === 'R3' && request.confirmation.via !== 'click') {
+        throw new HttpProblem(
+          403,
+          'confirmation_required',
+          'This command must be confirmed by a click on screen.'
+        );
+      }
+    }
     // Deny by default; row-level security is the independent second check.
     if (!actor.permissions.includes(definition.permission)) {
       throw new HttpProblem(403, 'forbidden', 'You do not have permission to do this.');
@@ -151,6 +169,7 @@ export class CommandBus {
       risk: definition.risk,
       idempotencyKey: request.idempotencyKey,
       requestId: actor.requestId ?? null,
+      interpretationId: request.confirmation?.interpretationId ?? null,
     };
 
     try {
@@ -260,6 +279,7 @@ async function insertCommand(
     risk: string;
     idempotencyKey: string;
     requestId: string | null;
+    interpretationId: string | null;
   },
   status: 'executed' | 'failed',
   result: unknown,
@@ -268,8 +288,8 @@ async function insertCommand(
   const { rows } = await client.query<{ result: unknown }>(
     `INSERT INTO voice.commands
        (id, clinic_id, type, payload, request_hash, source, actor_id, risk_tier, status,
-        idempotency_key, result, error, request_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        idempotency_key, result, error, request_id, interpretation_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
      RETURNING result`,
     [
       row.id,
@@ -285,6 +305,7 @@ async function insertCommand(
       result === null ? null : JSON.stringify(result),
       error === null ? null : JSON.stringify(error),
       row.requestId,
+      row.interpretationId,
     ]
   );
   return rows[0]?.result ?? null;

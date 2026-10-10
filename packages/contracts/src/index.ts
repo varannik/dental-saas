@@ -167,6 +167,10 @@ export {
 } from './voice.js';
 export type {
   VoiceClientMessage,
+  VoiceConfirmRequest,
+  VoiceConfirmResponse,
+  VoiceControlResult,
+  VoiceEditRequest,
   ProposalField,
   ResolvedProposal,
   VoiceInterpretation,
@@ -176,6 +180,7 @@ export type {
 } from './voice.js';
 export type {
   PendingProposal,
+  ProposalRisk,
   VoiceContext,
   VoiceFocus,
   VoiceFocusUpdate,

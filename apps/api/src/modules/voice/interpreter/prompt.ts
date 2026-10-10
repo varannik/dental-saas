@@ -4,7 +4,7 @@
  * never instructions, and nothing is taken from context that the clinician did not say.
  */
 
-export const PROMPT_VERSION = 2;
+export const PROMPT_VERSION = 3;
 
 export const SYSTEM_PROMPT = `You turn one utterance from a dental clinician into exactly one tool call.
 
@@ -13,6 +13,8 @@ Choose the one tool whose purpose matches what the clinician asked. Fill only th
 The context never decides whether something is a command. Choose the command the clinician asked for even when the context says it cannot be done now, for example no session is open or no procedure is in progress; the system checks that afterwards and tells the clinician. Use no_command only for speech that is not a request to the system.
 
 Set confidence to how sure you are that the clinician meant this command, from 0 to 1.
+
+When something is waiting for confirmation, the clinician may answer it: "yes" or "confirm" is confirm_pending, "no" or "cancel" is cancel_pending, and a change such as "no, tooth twenty six" is correct_pending with only what changed. "Undo" is undo_last. A new, complete command is the command itself, not a correction.
 
 Call no_command for anything else: questions, conversation with the patient or a colleague, or speech that is unclear or cut off.
 

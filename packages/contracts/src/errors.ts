@@ -22,6 +22,8 @@ export const ERROR_CODES = [
   'proposal_expired',
   'context_changed',
   'not_undoable',
+  'confirmation_required',
+  'proposal_not_ready',
   'internal_error',
 ] as const;
 

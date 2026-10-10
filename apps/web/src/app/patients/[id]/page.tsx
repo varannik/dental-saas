@@ -12,7 +12,7 @@ import { PatientSessions } from '../../../components/patient-sessions';
 import { RequireSession } from '../../../components/require-session';
 import { ToothChart } from '../../../components/tooth-chart';
 import { TreatmentPlanCard } from '../../../components/treatment-plan';
-import { api, ApiError } from '../../../lib/api';
+import { api, ApiError, COMMAND_EVENT } from '../../../lib/api';
 import {
   fieldErrors,
   formFrom,
@@ -63,8 +63,16 @@ function PatientProfile() {
     }
   }, [authed, canReadHistory, id, includeEnded]);
 
+  // A command confirmed by voice may change the plan, the history or the chart: reload them.
+  const [refreshKey, setRefreshKey] = useState(0);
   useEffect(() => {
     void loadHistory();
+    const refresh = () => {
+      setRefreshKey((key) => key + 1);
+      void loadHistory();
+    };
+    window.addEventListener(COMMAND_EVENT, refresh);
+    return () => window.removeEventListener(COMMAND_EVENT, refresh);
   }, [loadHistory]);
 
   const load = useCallback(
@@ -221,7 +229,7 @@ function PatientProfile() {
           )}
         </section>
 
-        {canReadHistory && <PatientChartCard patientId={patient.id} />}
+        {canReadHistory && <PatientChartCard key={`chart-${refreshKey}`} patientId={patient.id} />}
         {canReadHistory && (
           <PatientSessions
             patientId={patient.id}
@@ -231,6 +239,7 @@ function PatientProfile() {
 
         {canReadHistory && (
           <TreatmentPlanCard
+            key={`plan-${refreshKey}`}
             patientId={patient.id}
             canEdit={permissions.includes('plan.write') && !archived}
           />

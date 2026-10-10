@@ -22,6 +22,8 @@ import {
   type VoiceTicketResponse,
   type VoiceContext,
   type VoiceInterpretation,
+  type VoiceConfirmResponse,
+  type PendingProposal,
   type VoiceFocusUpdate,
   type SessionDetail,
   type SessionResponse,
@@ -310,6 +312,33 @@ export function createApi(fetcher: Fetcher = (...args) => fetch(...args), baseUr
       ),
     dashboard: (token: string) => call<DashboardResponse>('/v1/dashboard', { token }),
     activity: (token: string) => call<ActivityResponse>('/v1/activity', { token }),
+    confirmProposal: (token: string, id: string, contextVersion: number, idempotencyKey: string) =>
+      call<VoiceConfirmResponse>(`/v1/voice/proposals/${encodeURIComponent(id)}/confirm`, {
+        method: 'POST',
+        body: { contextVersion },
+        token,
+        idempotencyKey,
+      }),
+    editProposal: (
+      token: string,
+      id: string,
+      contextVersion: number,
+      entities: Record<string, string>
+    ) =>
+      call<PendingProposal>(`/v1/voice/proposals/${encodeURIComponent(id)}/edit`, {
+        method: 'POST',
+        body: { contextVersion, entities },
+        token,
+      }),
+    cancelProposal: (token: string, id: string) =>
+      call<void>(`/v1/voice/proposals/${encodeURIComponent(id)}/cancel`, {
+        method: 'POST',
+        body: {},
+        token,
+      }),
+    undoVoice: (token: string) =>
+      call<PendingProposal>('/v1/voice/undo', { method: 'POST', body: {}, token }),
+    voiceContext: (token: string) => call<VoiceContext>('/v1/voice/context', { token }),
     interpret: (token: string, text: string) =>
       call<VoiceInterpretation>('/v1/voice/interpret', { method: 'POST', body: { text }, token }),
     setVoiceFocus: (token: string, body: VoiceFocusUpdate) =>

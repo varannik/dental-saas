@@ -24,7 +24,7 @@ import { SessionDiagnoses } from '../../../components/session-diagnoses';
 import { describeProcedure, SessionProcedures } from '../../../components/session-procedures';
 import { SessionSummary, SignedRecord, SignPanel } from '../../../components/session-signoff';
 import { ToothChart } from '../../../components/tooth-chart';
-import { api, ApiError } from '../../../lib/api';
+import { api, ApiError, COMMAND_EVENT } from '../../../lib/api';
 import { toothView } from '../../../lib/chart';
 import { newIdempotencyKey } from '../../../lib/patients';
 import { useSession } from '../../../lib/session';
@@ -92,6 +92,10 @@ function Examination() {
 
   useEffect(() => {
     void reload();
+    // A command confirmed by voice changes this session too.
+    const refresh = () => void reload();
+    window.addEventListener(COMMAND_EVENT, refresh);
+    return () => window.removeEventListener(COMMAND_EVENT, refresh);
   }, [reload]);
 
   if (error) {
