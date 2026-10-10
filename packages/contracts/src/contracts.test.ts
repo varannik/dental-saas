@@ -188,3 +188,31 @@ describe('voice commands', () => {
     }
   });
 });
+
+describe('Universal tooth numbering', () => {
+  it('converts to and from FDI at the corners of each arch', async () => {
+    const { universalToFdi, fdiToUniversal } = await import('./chart.js');
+    const pairs: [number, string][] = [
+      [1, '18'],
+      [3, '16'],
+      [8, '11'],
+      [9, '21'],
+      [14, '26'],
+      [16, '28'],
+      [17, '38'],
+      [19, '36'],
+      [24, '31'],
+      [25, '41'],
+      [30, '46'],
+      [32, '48'],
+    ];
+    for (const [universal, fdi] of pairs) {
+      expect(universalToFdi(universal)).toBe(fdi);
+      expect(fdiToUniversal(fdi)).toBe(universal);
+    }
+    for (let n = 1; n <= 32; n += 1) expect(fdiToUniversal(universalToFdi(n)!)).toBe(n);
+    expect(universalToFdi(0)).toBeNull();
+    expect(universalToFdi(33)).toBeNull();
+    expect(fdiToUniversal('55')).toBeNull();
+  });
+});

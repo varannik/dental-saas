@@ -1,11 +1,14 @@
 /**
- * Parses a spoken or typed tooth reference into a tooth code in the clinic's notation.
- * Only FDI is implemented; it is the default notation (spec section Q, decision 10).
+ * Parses a spoken or typed tooth reference in the clinic's notation (spec section Q, decision
+ * 10) into the FDI code every record keeps. "Sixteen" is FDI 16 in an FDI clinic and the upper
+ * left third molar (FDI 28) in a Universal one. A description such as "upper right first molar"
+ * means the same tooth in every notation; Palmer is spoken that way.
  */
 
-import { isValidFdi } from '@dental/contracts';
+import { isValidFdi, universalToFdi } from '@dental/contracts';
+import { parseNumber } from './resolve/numbers.js';
 
-export type ToothNotation = 'FDI';
+export type ToothNotation = 'FDI' | 'Universal' | 'Palmer';
 
 const UNITS: Record<string, number> = {
   zero: 0,
@@ -118,11 +121,17 @@ function descriptiveCode(text: string): string | undefined {
   return undefined;
 }
 
-/** Returns the tooth code, or null when the text is not a valid tooth in the notation. */
+/** Returns the FDI code, or null when the text is not a valid tooth in the notation. */
 export function parseTooth(input: string, notation: ToothNotation = 'FDI'): string | null {
-  if (notation !== 'FDI') throw new Error(`Unsupported tooth notation: ${notation}`);
   const text = normalise(input);
   if (!text) return null;
-  const code = numericCode(text) ?? descriptiveCode(text);
+  const described = descriptiveCode(text);
+  if (described) return isValidFdi(described) ? described : null;
+  if (notation === 'Universal') {
+    const number = parseNumber(text);
+    return number === null ? null : universalToFdi(number);
+  }
+  if (notation === 'Palmer') return null;
+  const code = numericCode(text);
   return code && isValidFdi(code) ? code : null;
 }

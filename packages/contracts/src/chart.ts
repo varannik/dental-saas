@@ -13,6 +13,33 @@ export function isValidFdi(code: string): boolean {
   return false;
 }
 
+/**
+ * Universal numbering (1-32, permanent teeth): 1 is the upper right third molar, counting
+ * along the upper arch to 16, the upper left third molar, then from 17, the lower left third
+ * molar, to 32, the lower right third molar. Records always keep FDI; this converts what a
+ * clinic using Universal says and sees.
+ */
+export function universalToFdi(number: number): string | null {
+  if (!Number.isInteger(number) || number < 1 || number > 32) return null;
+  if (number <= 8) return `1${9 - number}`;
+  if (number <= 16) return `2${number - 8}`;
+  if (number <= 24) return `3${25 - number}`;
+  return `4${number - 24}`;
+}
+
+export function fdiToUniversal(code: string): number | null {
+  if (!isValidFdi(code) || Number(code[0]) > 4) return null;
+  const quadrant = Number(code[0]);
+  const tooth = Number(code[1]);
+  return quadrant === 1
+    ? 9 - tooth
+    : quadrant === 2
+      ? 8 + tooth
+      : quadrant === 3
+        ? 25 - tooth
+        : 24 + tooth;
+}
+
 /** Incisors and canines have an incisal edge (I) instead of an occlusal surface (O). */
 export function isAnterior(tooth: string): boolean {
   return Number(tooth[1]) <= 3;

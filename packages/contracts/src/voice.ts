@@ -138,6 +138,38 @@ export interface VoiceInterpretation {
   contextVersion: number;
   /** Whether it became the pending proposal; not when the context moved on meanwhile. */
   proposed: boolean;
+  /** The command it resolves to (V5); present for an intent. */
+  proposal: ResolvedProposal | null;
+}
+
+/** One field of a proposal, as the clinician will see it on the card. */
+export interface ProposalField {
+  /** The payload key it fills, such as "tooth" or "procedureCode". */
+  key: string;
+  /** For display, such as "16" or "Root canal treatment, molar". */
+  value: string;
+  /** "speech": from the clinician's words; "context": from what is on screen, and labelled so. */
+  resolvedFrom: 'speech' | 'context';
+  /** The words it came from, when spoken. */
+  said?: string;
+}
+
+/**
+ * A command resolved from an interpretation (V5): entities turned into ids, codes and numbers
+ * in code, context filled in openly. It is ready when nothing is missing, nothing is
+ * ambiguous, and the payload passes the command's own schema.
+ */
+export interface ResolvedProposal {
+  command: string;
+  payload: Record<string, unknown>;
+  fields: ProposalField[];
+  /** Entities still to be said, such as "tooth". */
+  missing: string[];
+  /** Why it cannot run as it stands, in words for the clinician. */
+  problems: string[];
+  /** Other readings of an ambiguous entity, such as two procedures called "filling". */
+  alternatives: { key: string; options: string[] }[];
+  ready: boolean;
 }
 
 /** POST /v1/voice/interpret */
