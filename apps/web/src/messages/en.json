@@ -569,6 +569,27 @@
       "name": "name",
       "severity": "severity",
       "chiefComplaint": "complaint"
+    },
+    "fromScreen": "from screen",
+    "ready": "Ready to confirm",
+    "notReady": "Not ready",
+    "orOptions": "could be: {options}",
+    "fields": {
+      "tooth": "tooth",
+      "surfaces": "surfaces",
+      "code": "code",
+      "procedureCode": "procedure",
+      "planItemId": "planned item",
+      "procedureId": "procedure",
+      "afterItemId": "position",
+      "measurements": "probing",
+      "body": "note",
+      "kind": "kind",
+      "label": "name",
+      "severity": "severity",
+      "chiefComplaint": "complaint",
+      "value": "detail",
+      "reason": "reason"
     }
   }
 }

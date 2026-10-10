@@ -26,7 +26,12 @@ const DOT: Record<VoiceConnection, string> = {
 const commandName = (command: string) => t.commands[command as keyof typeof t.commands] ?? command;
 const entityName = (entity: string) => t.entities[entity as keyof typeof t.entities] ?? entity;
 
-/** One line: what the utterance was understood as, with the words it picked out. */
+const fieldName = (key: string) => t.fields[key as keyof typeof t.fields] ?? key;
+
+/**
+ * What the utterance was understood as: the resolved fields (V5), each marked when it was taken
+ * from the screen rather than said, then what is still needed or stands in the way.
+ */
 function Understood({ interpretation }: { interpretation: VoiceInterpretation }) {
   if (interpretation.outcome !== 'intent' || !interpretation.command) {
     const text =
@@ -41,22 +46,50 @@ function Understood({ interpretation }: { interpretation: VoiceInterpretation })
       </p>
     );
   }
-  const entities = Object.entries(interpretation.entities);
+  const proposal = interpretation.proposal;
+  const missing = proposal?.missing ?? interpretation.missing;
   return (
-    <p aria-label={t.understood} className="w-full">
-      <span className="font-semibold">{commandName(interpretation.command)}</span>
-      {entities.map(([name, value]) => (
-        <span key={name} className="ml-3 text-neutral-700">
-          <span className="text-neutral-500">{entityName(name)}:</span> {value}
-        </span>
-      ))}
-      {interpretation.missing.length > 0 && (
-        <span className="ml-3 font-medium text-amber-800">
-          {t.missing.replace('{fields}', interpretation.missing.map(entityName).join(', '))}
-        </span>
+    <div aria-label={t.understood} className="flex w-full flex-col gap-1">
+      <p>
+        <span className="font-semibold">{commandName(interpretation.command)}</span>
+        {(proposal?.fields ?? []).map((field) => (
+          <span key={field.key} className="ml-3 text-neutral-700">
+            <span className="text-neutral-500">{fieldName(field.key)}:</span> {field.value}
+            {field.resolvedFrom === 'context' && (
+              <span className="ml-1 rounded bg-sky-100 px-1.5 text-xs font-semibold text-sky-900 uppercase">
+                {t.fromScreen}
+              </span>
+            )}
+          </span>
+        ))}
+        {proposal && (
+          <span
+            className={`ml-3 rounded-full px-2 py-0.5 text-xs font-semibold uppercase ${
+              proposal.ready ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900'
+            }`}
+          >
+            {proposal.ready ? t.ready : t.notReady}
+          </span>
+        )}
+      </p>
+      {missing.length > 0 && (
+        <p className="font-medium text-amber-800">
+          {t.missing.replace('{fields}', missing.map(entityName).join(', '))}
+        </p>
       )}
-      {!interpretation.proposed && <span className="ml-3 text-neutral-500">{t.notProposed}</span>}
-    </p>
+      {proposal?.problems.map((problem) => (
+        <p key={problem} className="text-amber-800">
+          {problem}
+        </p>
+      ))}
+      {proposal?.alternatives.map((alternative) => (
+        <p key={alternative.key} className="text-amber-800">
+          {fieldName(alternative.key)}:{' '}
+          {t.orOptions.replace('{options}', alternative.options.join(', '))}
+        </p>
+      ))}
+      {!interpretation.proposed && <p className="text-neutral-500">{t.notProposed}</p>}
+    </div>
   );
 }
 

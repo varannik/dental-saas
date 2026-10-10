@@ -34,6 +34,8 @@ CREATE TABLE voice.interpretations (
   reason text,
   -- Entities the model returned that were not in what was said, and so were not kept.
   dropped jsonb,
+  -- The command it resolved to (V5): payload, fields and their sources, missing, problems.
+  resolution jsonb,
   provider text NOT NULL,
   model text NOT NULL,
   prompt_version integer NOT NULL,

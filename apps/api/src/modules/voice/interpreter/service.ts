@@ -8,6 +8,9 @@ import type { InterpreterId, InterpreterRegistry } from '../interpreters.js';
 import { PROMPT_VERSION, SYSTEM_PROMPT, userMessage, type ModelContext } from './prompt.js';
 import { buildTools, fingerprint } from './tools.js';
 import { validateReply, type Interpretation } from './validate.js';
+import { resolveProposal } from '../resolve/resolve.js';
+import type { ToothNotation } from '../tooth.js';
+import type { ResolvedProposal } from '@dental/contracts';
 
 /**
  * The interpreter (V4): one pipeline for typed and spoken utterances. It describes the
@@ -71,7 +74,21 @@ export class InterpretationService {
     const utteranceId = uuidv7();
     const interpretationId = uuidv7();
     const intent = result.outcome === 'intent' ? result : null;
+    let proposal: ResolvedProposal | null = null;
     await withClinic(this.deps.pool, speaker.clinicId, async (client) => {
+      if (intent) {
+        const clinic = await client.query<{ tooth_notation: ToothNotation }>(
+          'SELECT tooth_notation FROM core.clinics WHERE id = $1',
+          [speaker.clinicId]
+        );
+        proposal = await resolveProposal({
+          command: intent.command,
+          entities: intent.entities,
+          context,
+          notation: clinic.rows[0]?.tooth_notation ?? 'FDI',
+          client,
+        });
+      }
       await client.query(
         `INSERT INTO voice.utterances (id, clinic_id, user_id, source, transcript, stt_confidence)
          VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -88,8 +105,8 @@ export class InterpretationService {
         `INSERT INTO voice.interpretations
            (id, clinic_id, utterance_id, outcome, command_type, entities, confidence, reason,
             provider, model, prompt_version, prompt_fingerprint, context_version,
-            context_snapshot, latency_ms, dropped)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+            context_snapshot, latency_ms, dropped, resolution)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
         [
           interpretationId,
           speaker.clinicId,
@@ -107,20 +124,22 @@ export class InterpretationService {
           JSON.stringify({ ...modelContext, tools: [...offered.commands.values()] }),
           latencyMs,
           intent?.dropped.length ? JSON.stringify(intent.dropped) : null,
+          proposal ? JSON.stringify(proposal) : null,
         ]
       );
     });
 
     let proposed = false;
-    if (intent) {
+    const resolved = proposal as ResolvedProposal | null;
+    if (intent && resolved) {
       proposed = (
         await this.deps.context.propose(
           speaker,
           {
             id: interpretationId,
             type: intent.command,
-            payload: intent.entities,
-            missing: intent.missing,
+            payload: resolved.payload,
+            missing: resolved.missing,
           },
           context.version
         )
@@ -157,6 +176,7 @@ export class InterpretationService {
       promptVersion: PROMPT_VERSION,
       contextVersion: context.version,
       proposed,
+      proposal: resolved,
     };
   }
 

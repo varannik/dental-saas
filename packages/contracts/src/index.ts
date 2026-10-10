@@ -105,6 +105,8 @@ export {
   FINDINGS,
   isAnterior,
   isValidFdi,
+  universalToFdi,
+  fdiToUniversal,
   NOTE_TYPES,
   PERIO_SITES,
   PERMANENT_TEETH,
@@ -165,6 +167,8 @@ export {
 } from './voice.js';
 export type {
   VoiceClientMessage,
+  ProposalField,
+  ResolvedProposal,
   VoiceInterpretation,
   VoiceInterpretRequest,
   VoiceServerMessage,

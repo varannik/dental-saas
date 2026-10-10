@@ -149,10 +149,11 @@ describe('POST /v1/voice/interpret', () => {
       promptVersion: 2,
       proposed: true,
     });
+    // Resolved (V5): the catalog procedure for a molar, on the tooth in focus.
     expect((await context()).pending).toMatchObject({
       id: result.id,
       type: 'procedure.start',
-      payload: { procedure: 'root canal' },
+      payload: { sessionId: saraSession, procedureCode: 'root_canal_molar', tooth: '16' },
     });
 
     // What the model was told: the situation without names or ids, and the offered tools.
@@ -192,9 +193,16 @@ describe('POST /v1/voice/interpret', () => {
       dropped: ['tooth'],
       proposed: true,
     });
+    // The resolver then fills the tooth from context openly, labelled as such (V5), and asks
+    // for the surfaces a caries finding needs.
+    expect(result.proposal.fields).toContainEqual({
+      key: 'tooth',
+      value: '16',
+      resolvedFrom: 'context',
+    });
     expect((await context()).pending).toMatchObject({
-      payload: { finding: 'caries' },
-      missing: ['tooth'],
+      payload: { tooth: '16', code: 'caries' },
+      missing: ['surfaces'],
     });
     const stored = await db.owner.query('SELECT dropped FROM voice.interpretations WHERE id = $1', [
       result.id,
