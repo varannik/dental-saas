@@ -1,4 +1,12 @@
-import type { VoiceInterpretation } from '@dental/contracts';
+import type {
+  CommandType,
+  ResolvedProposal,
+  VoiceContext,
+  VoiceControlResult,
+  VoiceInterpretation,
+} from '@dental/contracts';
+import { HttpProblem } from '../../../platform/http-problem.js';
+import type { ProposalService } from '../confirm/proposals.js';
 import { uuidv7 } from '@dental/db';
 import type { FastifyBaseLogger } from 'fastify';
 import { withClinic, type Pool } from '../../../platform/db.js';
@@ -8,9 +16,6 @@ import type { InterpreterId, InterpreterRegistry } from '../interpreters.js';
 import { PROMPT_VERSION, SYSTEM_PROMPT, userMessage, type ModelContext } from './prompt.js';
 import { buildTools, fingerprint } from './tools.js';
 import { validateReply, type Interpretation } from './validate.js';
-import { resolveProposal } from '../resolve/resolve.js';
-import type { ToothNotation } from '../tooth.js';
-import type { ResolvedProposal } from '@dental/contracts';
 
 /**
  * The interpreter (V4): one pipeline for typed and spoken utterances. It describes the
@@ -35,6 +40,7 @@ export class InterpretationService {
     private readonly deps: {
       pool: Pool;
       context: VoiceContextService;
+      proposals: ProposalService;
       interpreters: InterpreterRegistry;
       log: FastifyBaseLogger;
     }
@@ -54,7 +60,10 @@ export class InterpretationService {
     const { interpreter } = chosen;
     const context = await this.deps.context.get(speaker);
     const modelContext = await this.describe(speaker, context);
-    const offered = buildTools(speaker.permissions);
+    const offered = buildTools(speaker.permissions, {
+      pending: context.pending ? (context.pending.type as CommandType) : null,
+      canUndo: context.lastResult !== null,
+    });
     const user = userMessage(utterance.text, modelContext);
 
     const started = performance.now();
@@ -74,21 +83,12 @@ export class InterpretationService {
     const utteranceId = uuidv7();
     const interpretationId = uuidv7();
     const intent = result.outcome === 'intent' ? result : null;
-    let proposal: ResolvedProposal | null = null;
+    const control = result.outcome === 'control' ? result : null;
+    let proposal: ResolvedProposal | null = intent
+      ? await this.deps.proposals.resolve(speaker, intent.command, intent.entities)
+      : null;
+
     await withClinic(this.deps.pool, speaker.clinicId, async (client) => {
-      if (intent) {
-        const clinic = await client.query<{ tooth_notation: ToothNotation }>(
-          'SELECT tooth_notation FROM core.clinics WHERE id = $1',
-          [speaker.clinicId]
-        );
-        proposal = await resolveProposal({
-          command: intent.command,
-          entities: intent.entities,
-          context,
-          notation: clinic.rows[0]?.tooth_notation ?? 'FDI',
-          client,
-        });
-      }
       await client.query(
         `INSERT INTO voice.utterances (id, clinic_id, user_id, source, transcript, stt_confidence)
          VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -101,6 +101,8 @@ export class InterpretationService {
           utterance.sttConfidence ?? null,
         ]
       );
+      const entities = intent?.entities ?? control?.entities;
+      const dropped = intent?.dropped ?? control?.dropped ?? [];
       await client.query(
         `INSERT INTO voice.interpretations
            (id, clinic_id, utterance_id, outcome, command_type, entities, confidence, reason,
@@ -113,38 +115,48 @@ export class InterpretationService {
           utteranceId,
           result.outcome,
           intent?.command ?? null,
-          intent ? JSON.stringify(intent.entities) : null,
-          intent?.confidence ?? null,
-          'reason' in result ? result.reason : null,
+          entities && Object.keys(entities).length ? JSON.stringify(entities) : null,
+          intent?.confidence ?? control?.confidence ?? null,
+          'reason' in result ? result.reason : (control?.action ?? null),
           interpreter.provider,
           interpreter.model,
           PROMPT_VERSION,
           fingerprint(SYSTEM_PROMPT, offered.tools),
           context.version,
-          JSON.stringify({ ...modelContext, tools: [...offered.commands.values()] }),
+          JSON.stringify({
+            ...modelContext,
+            tools: [...offered.commands.values(), ...offered.controls.values()],
+          }),
           latencyMs,
-          intent?.dropped.length ? JSON.stringify(intent.dropped) : null,
+          dropped.length ? JSON.stringify(dropped) : null,
           proposal ? JSON.stringify(proposal) : null,
         ]
       );
     });
 
     let proposed = false;
-    const resolved = proposal as ResolvedProposal | null;
-    if (intent && resolved) {
+    let controlResult: VoiceControlResult | null = null;
+    if (intent && proposal) {
       proposed = (
-        await this.deps.context.propose(
+        await this.deps.proposals.hold(
           speaker,
           {
             id: interpretationId,
-            type: intent.command,
-            payload: resolved.payload,
-            missing: resolved.missing,
+            command: intent.command,
+            entities: intent.entities,
+            proposal,
+            confidence: intent.confidence,
+            sttConfidence: utterance.sttConfidence,
           },
           context.version
         )
       ).proposed;
+    } else if (control) {
+      const outcome = await this.act(speaker, context, control, utterance.sttConfidence);
+      controlResult = outcome.control;
+      proposal = outcome.proposal ?? null;
     }
+    const pending = (await this.deps.context.get(speaker)).pending;
 
     // Timings and outcome only: never what was said (spec section M).
     this.deps.log.info(
@@ -153,6 +165,7 @@ export class InterpretationService {
           interpretMs: latencyMs,
           outcome: result.outcome,
           command: intent?.command,
+          control: control?.action,
           provider: interpreter.provider,
           model: interpreter.model,
           proposed,
@@ -166,18 +179,75 @@ export class InterpretationService {
       utteranceId,
       outcome: result.outcome,
       command: intent?.command ?? null,
-      entities: intent?.entities ?? {},
+      entities: intent?.entities ?? control?.entities ?? {},
       missing: intent?.missing ?? [],
-      dropped: intent?.dropped ?? [],
-      confidence: intent?.confidence ?? null,
+      dropped: intent?.dropped ?? control?.dropped ?? [],
+      confidence: intent?.confidence ?? control?.confidence ?? null,
       reason: 'reason' in result ? result.reason : null,
       provider: interpreter.provider,
       model: interpreter.model,
       promptVersion: PROMPT_VERSION,
       contextVersion: context.version,
       proposed,
-      proposal: resolved,
+      proposal,
+      risk: pending?.risk ?? null,
+      control: controlResult,
+      pending,
     };
+  }
+
+  /** Carries out "yes", "no", a correction or "undo" said to the pending proposal (V6). */
+  private async act(
+    speaker: Speaker,
+    context: VoiceContext,
+    control: Extract<Interpretation, { outcome: 'control' }>,
+    sttConfidence: number | undefined
+  ): Promise<{ control: VoiceControlResult; proposal?: ResolvedProposal }> {
+    const { action } = control;
+    const failed = (error: unknown): { control: VoiceControlResult } => {
+      if (error instanceof HttpProblem)
+        return { control: { action, ok: false, message: error.title } };
+      throw error;
+    };
+    const pending = context.pending;
+    try {
+      if (action === 'undo') {
+        const held = await this.deps.proposals.undo(speaker);
+        return {
+          control: { action, ok: true, message: 'Undo is waiting for confirmation.' },
+          proposal: held.proposal,
+        };
+      }
+      if (!pending) {
+        return { control: { action, ok: false, message: 'Nothing is waiting for confirmation.' } };
+      }
+      if (action === 'confirm') {
+        const done = await this.deps.proposals.confirm(
+          { userId: speaker.userId, clinicId: speaker.clinicId, permissions: speaker.permissions },
+          pending.id,
+          context.version,
+          'voice'
+        );
+        return { control: { action, ok: true, message: 'Done.', commandId: done.commandId } };
+      }
+      if (action === 'cancel') {
+        await this.deps.proposals.cancel(speaker, pending.id);
+        return { control: { action, ok: true, message: 'Cancelled.' } };
+      }
+      const corrected = await this.deps.proposals.correct(
+        speaker,
+        pending.id,
+        context.version,
+        control.entities,
+        { confidence: control.confidence, sttConfidence }
+      );
+      return {
+        control: { action, ok: true, message: 'Changed; waiting for confirmation.' },
+        proposal: corrected.proposal,
+      };
+    } catch (error) {
+      return failed(error);
+    }
   }
 
   /** The situation, as the model is told it: states and names of things, never people. */

@@ -29,6 +29,8 @@ import { registerVoiceContextRoutes } from './modules/voice/context/routes.js';
 import { VoiceContextService } from './modules/voice/context/service.js';
 import { MemoryContextStore, type ContextStore } from './modules/voice/context/store.js';
 import { registerInterpretRoutes } from './modules/voice/interpreter/routes.js';
+import { ProposalService } from './modules/voice/confirm/proposals.js';
+import { registerProposalRoutes } from './modules/voice/confirm/routes.js';
 import { InterpretationService } from './modules/voice/interpreter/service.js';
 import type { InterpreterRegistry } from './modules/voice/interpreters.js';
 import type { SecretBox } from './platform/secret-box.js';
@@ -217,10 +219,14 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
     app.decorate('voiceContext', voiceContext);
     app.addHook('onClose', async () => contextStore.close());
     await registerVoiceContextRoutes(app, { tokens, context: voiceContext });
+    const proposals = new ProposalService({ pool, bus, context: voiceContext });
+    app.decorate('proposals', proposals);
+    await registerProposalRoutes(app, { tokens, proposals });
     const interpretation = options.interpreters
       ? new InterpretationService({
           pool,
           context: voiceContext,
+          proposals,
           interpreters: options.interpreters,
           log: app.log,
         })
@@ -246,5 +252,6 @@ declare module 'fastify' {
   interface FastifyInstance {
     voiceContext?: VoiceContextService;
     interpretation?: InterpretationService | null;
+    proposals?: ProposalService;
   }
 }

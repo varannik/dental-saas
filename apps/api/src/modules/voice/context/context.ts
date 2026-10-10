@@ -106,6 +106,59 @@ export function takePending(
   return { context: cleared, outcome: { ok: true, proposal: pending } };
 }
 
+export type ConfirmOutcome =
+  | { ok: true; proposal: PendingProposal }
+  | {
+      ok: false;
+      reason:
+        | 'not_found'
+        | 'context_changed'
+        | 'proposal_expired'
+        | 'proposal_not_ready'
+        | 'confirmation_required';
+    };
+
+/**
+ * Takes the pending proposal to execute it (V6). It must be the one the clinician saw, under the
+ * context version they saw, not expired, ready, and confirmed the way its tier requires: a
+ * spoken yes is never enough for R3. Anything but an expired proposal stays pending, so the
+ * clinician can still click, correct or cancel it.
+ */
+export function takeForConfirmation(
+  context: VoiceContext,
+  proposalId: string,
+  contextVersion: number,
+  via: 'voice' | 'click',
+  now = new Date()
+): { context: VoiceContext; outcome: ConfirmOutcome } {
+  const pending = context.pending;
+  if (contextVersion !== context.version) {
+    return { context, outcome: { ok: false, reason: 'context_changed' } };
+  }
+  if (!pending || pending.id !== proposalId) {
+    return { context, outcome: { ok: false, reason: 'not_found' } };
+  }
+  if (new Date(pending.expiresAt) <= now) {
+    return {
+      context: { ...context, pending: null, updatedAt: now.toISOString() },
+      outcome: { ok: false, reason: 'proposal_expired' },
+    };
+  }
+  if (pending.contextVersion !== context.version) {
+    return { context, outcome: { ok: false, reason: 'context_changed' } };
+  }
+  if (!pending.proposal?.ready) {
+    return { context, outcome: { ok: false, reason: 'proposal_not_ready' } };
+  }
+  if (via === 'voice' && pending.risk?.confirmation !== 'voice_or_click') {
+    return { context, outcome: { ok: false, reason: 'confirmation_required' } };
+  }
+  return {
+    context: { ...context, pending: null, updatedAt: now.toISOString() },
+    outcome: { ok: true, proposal: pending },
+  };
+}
+
 export function discardPending(context: VoiceContext, now = new Date()): VoiceContext {
   return context.pending ? { ...context, pending: null, updatedAt: now.toISOString() } : context;
 }

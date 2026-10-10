@@ -62,7 +62,10 @@ test('the voice context follows the screen, and never crosses patients', async (
     utteranceId: expect.any(String),
     contextVersion: onTooth.version,
   });
-  await expect(page.getByLabel('Understood')).toBeVisible();
+  // What was understood, or, when it is ready, the proposal waiting for confirmation (V6).
+  await expect(
+    page.getByLabel('Understood').or(page.getByRole('region', { name: 'Waiting for confirmation' }))
+  ).toBeVisible();
 
   const onOmid = await focusAfter(page, () => page.goto(`/patients/${omid}`));
   expect(onOmid).toMatchObject({

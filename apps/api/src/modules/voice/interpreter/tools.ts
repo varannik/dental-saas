@@ -17,13 +17,86 @@ export const MAX_NOTE_LENGTH = 1_000;
 /** "plan_item.add" → "plan_item__add": reversible, and valid for every provider. */
 export const toolName = (type: CommandType) => type.replace('.', '__');
 
+export type ControlAction = 'confirm' | 'cancel' | 'correct' | 'undo';
+
+/** Tools for the pending proposal (V6), offered only when there is one, or something to undo. */
+export const CONTROL_TOOLS: Record<ControlAction, string> = {
+  confirm: 'confirm_pending',
+  cancel: 'cancel_pending',
+  correct: 'correct_pending',
+  undo: 'undo_last',
+};
+
 export interface ToolSet {
   tools: ToolSpec[];
   /** Tool name to the command it stands for; only these are accepted back. */
   commands: Map<string, CommandType>;
+  /** Tool name to the control it stands for. */
+  controls: Map<string, ControlAction>;
+  /** The command a correction applies to: the pending one. */
+  correcting: CommandType | null;
 }
 
-export function buildTools(permissions: readonly string[]): ToolSet {
+const confidence = {
+  type: 'number',
+  description: 'How sure you are, from 0 to 1, that this was meant.',
+};
+
+function controlTools(pending: CommandType | null, canUndo: boolean) {
+  const tools: ToolSpec[] = [];
+  const controls = new Map<string, ControlAction>();
+  const plain = (action: ControlAction, description: string) => {
+    tools.push({
+      name: CONTROL_TOOLS[action],
+      description,
+      parameters: {
+        type: 'object',
+        properties: { confidence },
+        required: ['confidence'],
+        additionalProperties: false,
+      },
+    });
+    controls.set(CONTROL_TOOLS[action], action);
+  };
+  if (pending) {
+    plain(
+      'confirm',
+      'The clinician agrees to what is waiting for confirmation: "yes", "confirm", "do it", "correct".'
+    );
+    plain(
+      'cancel',
+      'The clinician rejects what is waiting for confirmation: "no", "cancel", "forget it".'
+    );
+    const properties: ToolSpec['parameters']['properties'] = {};
+    for (const [entity, definition] of Object.entries(VOICE_COMMANDS[pending]?.entities ?? {})) {
+      properties[entity] = { type: 'string', description: definition.description };
+    }
+    properties.confidence = confidence;
+    tools.push({
+      name: CONTROL_TOOLS.correct,
+      description:
+        'The clinician changes or adds a detail of what is waiting for confirmation, such as "no, tooth 26" or "and the distal". Fill only what changed.',
+      parameters: {
+        type: 'object',
+        properties,
+        required: ['confidence'],
+        additionalProperties: false,
+      },
+    });
+    controls.set(CONTROL_TOOLS.correct, 'correct');
+  }
+  if (canUndo)
+    plain(
+      'undo',
+      'The clinician wants to undo the last command they confirmed: "undo", "undo that".'
+    );
+  return { tools, controls };
+}
+
+export function buildTools(
+  permissions: readonly string[],
+  state: { pending: CommandType | null; canUndo: boolean } = { pending: null, canUndo: false }
+): ToolSet {
   const allowed = (type: CommandType) => permissions.includes(COMMANDS[type].permission);
   const tools: ToolSpec[] = [];
   const commands = new Map<string, CommandType>();
@@ -67,7 +140,9 @@ export function buildTools(permissions: readonly string[]): ToolSet {
       additionalProperties: false,
     },
   });
-  return { tools, commands };
+  const control = controlTools(state.pending, state.canUndo);
+  tools.push(...control.tools);
+  return { tools, commands, controls: control.controls, correcting: state.pending };
 }
 
 /** Identifies the exact prompt and tools sent, for the interpretation record. */

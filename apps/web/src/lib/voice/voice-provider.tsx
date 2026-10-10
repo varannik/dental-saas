@@ -3,6 +3,7 @@
 import {
   VOICE_FRAME_SAMPLES,
   VOICE_SAMPLE_RATE,
+  type PendingProposal,
   type VoiceFocusUpdate,
   type VoiceInterpretation,
 } from '@dental/contracts';
@@ -16,7 +17,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { api, API_URL, ApiError } from '../api';
+import { api, API_URL, ApiError, COMMAND_EVENT } from '../api';
+import { newIdempotencyKey } from '../patients';
 import { useSession } from '../session';
 import { Microphone } from './microphone';
 import { EnergyVad } from './vad';
@@ -56,6 +58,10 @@ interface VoiceValue {
   transcript: VoiceTranscript | null;
   /** What the last utterance, spoken or typed, was understood as (V4). */
   interpretation: VoiceInterpretation | null;
+  /** What is waiting for confirmation (V6). */
+  pending: PendingProposal | null;
+  /** The answer to the last confirm, cancel, correction or undo. */
+  outcome: { ok: boolean; message: string } | null;
   notice: VoiceNotice | null;
   press(): void;
   release(): void;
@@ -64,6 +70,10 @@ interface VoiceValue {
   setFocus(focus: VoiceFocusUpdate): void;
   /** Sends typed text through the same pipeline as speech. */
   type(text: string): Promise<void>;
+  confirm(): Promise<void>;
+  cancel(): Promise<void>;
+  edit(entities: Record<string, string>): Promise<void>;
+  undo(): Promise<void>;
 }
 
 const VoiceContext = createContext<VoiceValue | null>(null);
@@ -85,6 +95,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const [speech, setSpeech] = useState<boolean | null>(null);
   const [transcript, setTranscript] = useState<VoiceTranscript | null>(null);
   const [interpretation, setInterpretation] = useState<VoiceInterpretation | null>(null);
+  const [pending, setPending] = useState<PendingProposal | null>(null);
+  const [outcome, setOutcome] = useState<{ ok: boolean; message: string } | null>(null);
 
   const socketRef = useRef<VoiceSocket | null>(null);
   const micRef = useRef<Microphone | null>(null);
@@ -124,11 +136,25 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         if (event.type === 'transcript.final') {
           setTranscript({ utteranceId: event.utteranceId, text: event.text, final: true });
         }
-        if (event.type === 'interpretation') setInterpretation(event.interpretation);
+        if (event.type === 'interpretation') {
+          const result = event.interpretation;
+          setInterpretation(result);
+          setPending(result.pending);
+          if (result.control) {
+            setOutcome({ ok: result.control.ok, message: result.control.message });
+            // A command confirmed by voice ran on the server: screens refresh.
+            if (result.control.commandId) window.dispatchEvent(new Event(COMMAND_EVENT));
+          } else setOutcome(null);
+        }
         if (event.type === 'error' && event.code === 'speech_failed') setNotice('speechFailed');
       },
     });
     socketRef.current = socket;
+    // A proposal may already be waiting, from before this page loaded.
+    void authedRef
+      .current((token) => api.voiceContext(token))
+      .then((context) => setPending(context.pending))
+      .catch(() => undefined);
     const online = () => socket.setOnline(true);
     const offline = () => socket.setOnline(false);
     window.addEventListener('online', online);
@@ -224,7 +250,65 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     const result = await authedRef.current((token) => api.interpret(token, text));
     setTranscript({ utteranceId: result.utteranceId, text, final: true });
     setInterpretation(result);
+    setPending(result.pending);
+    if (result.control) {
+      setOutcome({ ok: result.control.ok, message: result.control.message });
+      if (result.control.commandId) window.dispatchEvent(new Event(COMMAND_EVENT));
+    } else setOutcome(null);
   }, []);
+
+  /** Runs a proposal action, showing the server's reason when it is refused. */
+  const act = useCallback(
+    async (work: (token: string) => Promise<PendingProposal | null>, ok: string) => {
+      try {
+        const next = await authedRef.current(work);
+        setPending(next);
+        setOutcome({ ok: true, message: ok });
+      } catch (error) {
+        const reason = error instanceof ApiError ? error.message : 'unknown error';
+        setOutcome({ ok: false, message: reason });
+        if (error instanceof ApiError && [404, 409, 410].includes(error.status)) setPending(null);
+      }
+    },
+    []
+  );
+
+  const pendingRef = useRef(pending);
+  pendingRef.current = pending;
+
+  const confirm = useCallback(async () => {
+    const current = pendingRef.current;
+    if (!current) return;
+    await act(async (token) => {
+      await api.confirmProposal(token, current.id, current.contextVersion, newIdempotencyKey());
+      return null;
+    }, 'Done.');
+  }, [act]);
+
+  const cancel = useCallback(async () => {
+    const current = pendingRef.current;
+    if (!current) return;
+    await act(async (token) => {
+      await api.cancelProposal(token, current.id);
+      return null;
+    }, 'Cancelled.');
+  }, [act]);
+
+  const edit = useCallback(
+    async (entities: Record<string, string>) => {
+      const current = pendingRef.current;
+      if (!current) return;
+      await act(
+        (token) => api.editProposal(token, current.id, current.contextVersion, entities),
+        'Changed; waiting for confirmation.'
+      );
+    },
+    [act]
+  );
+
+  const undo = useCallback(async () => {
+    await act((token) => api.undoVoice(token), 'Undo is waiting for confirmation.');
+  }, [act]);
 
   const micOff = useCallback(() => {
     release();
@@ -245,12 +329,18 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       speech,
       transcript,
       interpretation,
+      pending,
+      outcome,
       notice,
       press,
       release,
       micOff,
       setFocus,
       type,
+      confirm,
+      cancel,
+      edit,
+      undo,
     }),
     [
       available,
@@ -263,12 +353,18 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
       speech,
       transcript,
       interpretation,
+      pending,
+      outcome,
       notice,
       press,
       release,
       micOff,
       setFocus,
       type,
+      confirm,
+      cancel,
+      edit,
+      undo,
     ]
   );
 

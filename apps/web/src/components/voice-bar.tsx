@@ -1,6 +1,11 @@
 'use client';
 
-import type { VoiceInterpretation } from '@dental/contracts';
+import {
+  VOICE_COMMANDS,
+  type CommandType,
+  type PendingProposal,
+  type VoiceInterpretation,
+} from '@dental/contracts';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useVoice } from '../lib/voice/voice-provider';
 import type { VoiceConnection } from '../lib/voice/voice-socket';
@@ -33,6 +38,8 @@ const fieldName = (key: string) => t.fields[key as keyof typeof t.fields] ?? key
  * from the screen rather than said, then what is still needed or stands in the way.
  */
 function Understood({ interpretation }: { interpretation: VoiceInterpretation }) {
+  // A yes, no, correction or undo is answered by the outcome line instead.
+  if (interpretation.outcome === 'control') return null;
   if (interpretation.outcome !== 'intent' || !interpretation.command) {
     const text =
       interpretation.outcome === 'none'
@@ -90,6 +97,142 @@ function Understood({ interpretation }: { interpretation: VoiceInterpretation })
       ))}
       {!interpretation.proposed && <p className="text-neutral-500">{t.notProposed}</p>}
     </div>
+  );
+}
+
+/** Seconds left before the proposal expires, ticking. */
+function useSecondsLeft(expiresAt: string | undefined) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  return expiresAt ? Math.max(0, Math.round((new Date(expiresAt).getTime() - now) / 1000)) : 0;
+}
+
+/**
+ * What is waiting for confirmation (V6): its fields, how it may be confirmed, and Confirm, Edit
+ * and Cancel. R3, or anything raised to it, says a click is needed and why.
+ */
+function PendingCard({
+  pending,
+  onConfirm,
+  onCancel,
+  onEdit,
+}: {
+  pending: PendingProposal;
+  onConfirm: () => Promise<void>;
+  onCancel: () => Promise<void>;
+  onEdit: (entities: Record<string, string>) => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const entityNames = Object.keys(VOICE_COMMANDS[pending.type as CommandType]?.entities ?? {});
+  const [values, setValues] = useState<Record<string, string>>({});
+  const secondsLeft = useSecondsLeft(pending.expiresAt);
+  const ready = pending.proposal?.ready ?? false;
+  const risk = pending.risk;
+
+  useEffect(() => {
+    setValues({ ...(pending.entities ?? {}) });
+    setEditing(false);
+  }, [pending.id, pending.entities]);
+
+  const run = async (work: () => Promise<void>) => {
+    setBusy(true);
+    try {
+      await work();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section
+      aria-label={t.waiting}
+      className="flex w-full flex-col gap-2 rounded-lg border-2 border-dashed border-amber-500 bg-amber-50 p-3"
+    >
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="font-semibold text-amber-900">{t.waiting}</span>
+        <span className="font-semibold">{commandName(pending.type)}</span>
+        {(pending.proposal?.fields ?? []).map((field) => (
+          <span key={field.key} className="text-neutral-800">
+            <span className="text-neutral-500">{fieldName(field.key)}:</span> {field.value}
+            {field.resolvedFrom === 'context' && (
+              <span className="ml-1 rounded bg-sky-100 px-1.5 text-xs font-semibold text-sky-900 uppercase">
+                {t.fromScreen}
+              </span>
+            )}
+          </span>
+        ))}
+        <span className="text-xs text-neutral-500">
+          {t.expiresIn.replace('{seconds}', String(secondsLeft))}
+        </span>
+      </div>
+      {ready && risk && (
+        <p className="text-sm text-neutral-700">
+          {risk.confirmation === 'click' ? t.clickOnly : t.sayYes}
+          {risk.reasons.length > 0 && (
+            <span className="text-amber-800"> · {risk.reasons.join(' ')}</span>
+          )}
+        </p>
+      )}
+      {editing && (
+        <form
+          className="flex flex-wrap items-end gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void run(() => onEdit(values));
+          }}
+        >
+          {entityNames.map((name) => (
+            <label key={name} className="flex flex-col text-sm">
+              <span className="text-neutral-600">{entityName(name)}</span>
+              <input
+                className="h-11 w-40 rounded-lg border border-neutral-300 px-2 text-base"
+                value={values[name] ?? ''}
+                onChange={(event) => setValues({ ...values, [name]: event.target.value })}
+              />
+            </label>
+          ))}
+          <button
+            type="submit"
+            disabled={busy}
+            className="h-11 rounded-lg border border-neutral-300 bg-white px-4 font-medium"
+          >
+            {t.saveEdit}
+          </button>
+        </form>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={busy || !ready}
+          onClick={() => void run(onConfirm)}
+          className="h-12 rounded-lg bg-neutral-900 px-6 text-base font-semibold text-white disabled:bg-neutral-400"
+        >
+          {busy ? t.confirming : t.confirm}
+        </button>
+        {entityNames.length > 0 && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => setEditing(!editing)}
+            className="h-12 rounded-lg border border-neutral-300 bg-white px-5 font-medium"
+          >
+            {t.edit}
+          </button>
+        )}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void run(onCancel)}
+          className="h-12 rounded-lg border border-neutral-300 bg-white px-5 font-medium"
+        >
+          {t.cancel}
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -267,7 +410,24 @@ export function VoiceBar() {
             : t.notYet}
         </p>
       )}
-      {voice.interpretation && <Understood interpretation={voice.interpretation} />}
+      {voice.interpretation && !voice.pending && (
+        <Understood interpretation={voice.interpretation} />
+      )}
+      {voice.pending && (
+        <PendingCard
+          pending={voice.pending}
+          onConfirm={voice.confirm}
+          onCancel={voice.cancel}
+          onEdit={voice.edit}
+        />
+      )}
+      {voice.outcome && (
+        <p aria-live="polite" className={voice.outcome.ok ? 'text-emerald-800' : 'text-red-700'}>
+          {voice.outcome.ok
+            ? voice.outcome.message
+            : t.confirmFailed.replace('{reason}', voice.outcome.message)}
+        </p>
+      )}
       {notice && (
         <span role="alert" className="w-full text-amber-800">
           {notice}

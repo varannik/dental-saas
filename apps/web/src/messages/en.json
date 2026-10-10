@@ -590,6 +590,18 @@
       "chiefComplaint": "complaint",
       "value": "detail",
       "reason": "reason"
-    }
+    },
+    "waiting": "Waiting for confirmation",
+    "confirm": "Confirm",
+    "confirming": "Confirming…",
+    "edit": "Edit",
+    "saveEdit": "Apply",
+    "cancel": "Cancel",
+    "sayYes": "Say “yes” or click Confirm",
+    "clickOnly": "Click Confirm to do this",
+    "expiresIn": "expires in {seconds} s",
+    "done": "Done.",
+    "undo": "Undo last voice command",
+    "confirmFailed": "That could not be done: {reason}"
   }
 }
